@@ -9,7 +9,7 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v45`;
+- Service worker: `emaus-shell-v46`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -53,7 +53,7 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 
 - `GET /api/public/church?slug=bethesda`;
 - `GET/POST /api/church/members`;
-- `GET/POST/PATCH/DELETE /api/church/events` e `POST /api/church/events/bulk`; edição completa de nome, data, horário, local, categoria, público e situação (ativo, pausado ou bloqueado);
+- `GET/POST/PATCH/DELETE /api/church/events`, `POST /api/church/events/bulk` e `PUT /api/church/events/:eventId/series`; edição completa de nome, data, horário, local, categoria, público, recorrência e situação (ativo, pausado ou bloqueado);
 - `GET/POST/PATCH/DELETE /api/church/leaders`;
 - `GET/POST/PATCH/DELETE /api/church/reception-users`;
 - `PUT /api/church/settings` agora salva também `publicSettings`.

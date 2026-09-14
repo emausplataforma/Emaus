@@ -332,17 +332,48 @@ app.post('/api/church/events/bulk', auth(['church_admin']), requireChurch, async
 
 app.patch('/api/church/events/:eventId', auth(['church_admin']), requireChurch, async (req, res) => {
   const eventStatus = ['active', 'paused', 'blocked'].includes(req.body.status) ? req.body.status : null;
-  const recurrenceId = String(req.body.recurrenceId || '').trim();
+  const hasRecurrenceId = Object.prototype.hasOwnProperty.call(req.body, 'recurrenceId');
+  const recurrenceIdValue = hasRecurrenceId ? String(req.body.recurrenceId || '').trim() : null;
+  const recurrenceId = recurrenceIdValue || '';
+  const recurrenceRuleValue = req.body.recurrenceRule && typeof req.body.recurrenceRule === 'object' ? JSON.stringify(req.body.recurrenceRule) : null;
   const updateSeries = Boolean(req.body.updateSeries) && Boolean(recurrenceId);
-  const result = await query(`UPDATE church_events SET title = COALESCE(NULLIF($1, ''), title), event_date = COALESCE($2::date, event_date), event_time = COALESCE($3, event_time), location = COALESCE($4, location), event_type = COALESCE($5, event_type), audience = COALESCE($6, audience), status = COALESCE($7, status), updated_at = NOW()
-    WHERE id = $8 AND church_id = $9 RETURNING *`, [String(req.body.title || '').trim(), req.body.date || null, req.body.time ?? null, req.body.location ?? null, req.body.type ?? null, req.body.audience ?? null, eventStatus, req.params.eventId, req.churchId]);
+  const result = await query(`UPDATE church_events SET title = COALESCE(NULLIF($1, ''), title), event_date = COALESCE($2::date, event_date), event_time = COALESCE($3, event_time), location = COALESCE($4, location), event_type = COALESCE($5, event_type), audience = COALESCE($6, audience), status = COALESCE($7, status), recurrence_rule = COALESCE($8::jsonb, recurrence_rule), recurrence_id = COALESCE($9, recurrence_id), updated_at = NOW()
+    WHERE id = $10 AND church_id = $11 RETURNING *`, [String(req.body.title || '').trim(), req.body.date || null, req.body.time ?? null, req.body.location ?? null, req.body.type ?? null, req.body.audience ?? null, eventStatus, recurrenceRuleValue, recurrenceIdValue, req.params.eventId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Evento não encontrado.' });
   if (updateSeries) {
-    await query(`UPDATE church_events SET title = COALESCE(NULLIF($1, ''), title), event_time = COALESCE($2, event_time), location = COALESCE($3, location), event_type = COALESCE($4, event_type), audience = COALESCE($5, audience), status = COALESCE($6, status), updated_at = NOW()
-      WHERE church_id = $7 AND recurrence_id = $8 AND id <> $9`, [String(req.body.title || '').trim(), req.body.time ?? null, req.body.location ?? null, req.body.type ?? null, req.body.audience ?? null, eventStatus, req.churchId, recurrenceId, req.params.eventId]);
+    await query(`UPDATE church_events SET title = COALESCE(NULLIF($1, ''), title), event_time = COALESCE($2, event_time), location = COALESCE($3, location), event_type = COALESCE($4, event_type), audience = COALESCE($5, audience), status = COALESCE($6, status), recurrence_rule = COALESCE($7::jsonb, recurrence_rule), updated_at = NOW()
+      WHERE church_id = $8 AND recurrence_id = $9 AND id <> $10`, [String(req.body.title || '').trim(), req.body.time ?? null, req.body.location ?? null, req.body.type ?? null, req.body.audience ?? null, eventStatus, recurrenceRuleValue, req.churchId, recurrenceId, req.params.eventId]);
   }
   await audit(req.user, 'event_updated', { eventId: req.params.eventId, updateSeries }, req.churchId);
   res.json({ event: result.rows[0] });
+});
+
+app.put('/api/church/events/:eventId/series', auth(['church_admin']), requireChurch, async (req, res) => {
+  const events = Array.isArray(req.body.events) ? req.body.events.filter(item => item && item.title && item.date).slice(0, 500) : [];
+  if (!events.length) return res.status(400).json({ error: 'Inclua pelo menos uma ocorrência válida.' });
+  const existing = (await query('SELECT id, recurrence_id FROM church_events WHERE id = $1 AND church_id = $2', [req.params.eventId, req.churchId])).rows[0];
+  if (!existing) return res.status(404).json({ error: 'Evento não encontrado.' });
+  const client = await pool.connect();
+  const inserted = [];
+  try {
+    await client.query('BEGIN');
+    if (existing.recurrence_id) await client.query('DELETE FROM church_events WHERE church_id = $1 AND recurrence_id = $2', [req.churchId, existing.recurrence_id]);
+    else await client.query('DELETE FROM church_events WHERE id = $1 AND church_id = $2', [req.params.eventId, req.churchId]);
+    for (const item of events) {
+      const eventStatus = ['active', 'paused', 'blocked'].includes(item.status) ? item.status : 'active';
+      const result = await client.query(`INSERT INTO church_events (church_id, title, event_date, event_time, location, event_type, audience, status, recurrence_rule, recurrence_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`, [req.churchId, String(item.title).trim(), item.date, item.time || '19:00', item.location || 'Templo principal', item.type || 'Outro', item.audience || 'Toda a igreja', eventStatus, JSON.stringify(item.recurrenceRule || {}), item.recurrenceId || '']);
+      inserted.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    await audit(req.user, 'event_series_replaced', { eventId: req.params.eventId, count: inserted.length }, req.churchId);
+    res.json({ events: inserted });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Não foi possível atualizar a série de eventos.' });
+  } finally {
+    client.release();
+  }
 });
 
 app.delete('/api/church/events/:eventId', auth(['church_admin']), requireChurch, async (req, res) => {
