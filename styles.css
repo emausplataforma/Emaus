@@ -248,6 +248,8 @@ kbd { margin-left: auto; padding: 2px 6px; border: 1px solid #e4e0d8; border-rad
 .event-info span { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--muted); font-size: 9px; }
 .event-info span .icon { width: 11px; height: 11px; }
 .event-tag { padding: 4px 6px; border-radius: 5px; color: var(--gold); background: var(--gold-soft); font-size: 8px; font-weight: 750; }
+.event-row-meta { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.event-row .table-action { flex: 0 0 auto; }
 
 .section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .section-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -389,11 +391,25 @@ tbody tr:hover td { background: #fcfbf9; }
 .calendar-day.has-event:after { content: ""; position: absolute; bottom: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--copper); }
 .calendar-day.today.has-event:after { background: var(--gold); }
 .agenda-events { padding: 0 22px 21px; }
-.agenda-events h3 { margin: 0 0 12px; font-size: 12px; }
+.agenda-events-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.agenda-events h3 { margin: 0 0 4px; font-size: 12px; }
 .agenda-event { display: flex; align-items: center; gap: 11px; padding: 12px 0; border-top: 1px solid #f1eee8; }
+.agenda-event-muted { opacity: .72; }
 .agenda-event .event-date { width: 34px; height: 36px; }
 .agenda-event .event-date strong { font-size: 13px; }
 .agenda-event .event-info strong { font-size: 10.5px; }
+.agenda-event .event-row-meta { margin-left: auto; }
+.agenda-event .btn-small { flex: 0 0 auto; min-height: 31px; padding: 0 9px; }
+.event-edit-summary { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); }
+.event-edit-summary-icon { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; color: var(--copper); background: var(--copper-soft); }
+.event-edit-summary-icon .icon { width: 18px; height: 18px; }
+.event-edit-summary > div:nth-child(2) { min-width: 0; flex: 1; }
+.event-edit-summary strong, .event-edit-summary span { display: block; }
+.event-edit-summary strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.event-edit-summary > div:nth-child(2) span { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.event-quick-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.event-quick-actions > span { margin-right: 3px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.event-series-option { margin-top: 14px; }
 
 .leader-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .leader-card { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-sm); }
@@ -751,6 +767,15 @@ tbody tr:hover td { background: #fcfbf9; }
   .chart-wrap { padding-left: 14px; padding-right: 14px; }
   .chart-footer { margin-left: 16px; margin-right: 16px; }
   .activity-list, .event-list { padding-left: 16px; padding-right: 16px; }
+  .agenda-events-head { align-items: flex-start; flex-direction: column; }
+  .agenda-event { align-items: flex-start; flex-wrap: wrap; }
+  .agenda-event .event-info { min-width: calc(100% - 48px); }
+  .agenda-event .event-row-meta { width: 100%; margin-left: 45px; justify-content: flex-start; }
+  .agenda-event .btn-small { margin-left: 45px; }
+  .event-edit-summary { align-items: flex-start; flex-wrap: wrap; }
+  .event-edit-summary > .status-pill { margin-left: 48px; }
+  .event-quick-actions { align-items: stretch; flex-direction: column; }
+  .event-quick-actions .btn { width: 100%; }
   .side-stack { display: flex; }
   .section-grid, .section-grid.three { grid-template-columns: 1fr; }
   .leader-grid { grid-template-columns: 1fr; }

@@ -120,7 +120,8 @@ function mapApiEvent(event) {
     type: event.event_type || event.type || 'Outro',
     audience: event.audience || 'Toda a igreja',
     recurrenceRule: event.recurrence_rule || event.recurrenceRule || {},
-    recurrenceId: event.recurrence_id || event.recurrenceId || ''
+    recurrenceId: event.recurrence_id || event.recurrenceId || '',
+    status: event.status || 'active'
   };
 }
 function mapApiMember(member) {
@@ -129,15 +130,19 @@ function mapApiMember(member) {
 function mapApiLeader(leader) {
   return { id: leader.id, name: leader.name, role: leader.role || 'Líder', phone: leader.phone || '', group: leader.group_name || leader.group || '', initials: initials(leader.name), tone: 'dark', status: leader.status || 'active' };
 }
+function mapApiReceptionUser(user) {
+  return { id: user.id, name: user.name, login: user.login || user.email || '', role: user.job_role || user.roleLabel || 'Recepção', roleKey: 'reception', churchId: user.church_id, phone: user.phone || '', passwordStatus: user.passwordStatus || 'Ativa', status: user.status === 'blocked' ? 'Bloqueado' : 'Ativo', permissions: Array.isArray(user.permissions) && user.permissions.length ? user.permissions : ['acolhimento'], lastAccess: user.lastAccess || 'ainda não acessou', initials: initials(user.name), tone: 'dark' };
+}
 
 async function loadRemoteChurchState(user) {
-  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders'];
+  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users'];
   const results = await Promise.all(endpoints.map(endpoint => apiRequest(endpoint).then(payload => ({ ok: true, payload })).catch(error => ({ ok: false, error }))));
   const settingsPayload = results[0].payload || {};
   const visitorsPayload = results[1].payload || {};
   const eventsPayload = results[2].payload || {};
   const membersPayload = results[3].payload || {};
   const leadersPayload = results[4].payload || {};
+  const receptionUsersPayload = results[5].payload || {};
   const church = settingsPayload.church;
   const localChurch = (state.churches || []).find(item => item.id === church?.id || item.slug === church?.slug || item.name === church?.name);
   const serverPublicSettings = church?.public_settings && typeof church.public_settings === 'object' ? church.public_settings : {};
@@ -166,6 +171,7 @@ async function loadRemoteChurchState(user) {
   if (results[2].ok) state.events = (eventsPayload.events || []).map(mapApiEvent);
   if (results[3].ok) state.members = (membersPayload.members || []).map(mapApiMember);
   if (results[4].ok) state.leaders = (leadersPayload.leaders || []).map(mapApiLeader);
+  if (results[5].ok) state.receptionUsers = (receptionUsersPayload.users || []).map(mapApiReceptionUser);
   state.activity = [];
   state.announcements = [];
   state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: 0 };
@@ -384,6 +390,12 @@ function monthLabel(date) {
 function statusClass(status) {
   return ({ 'Novo': 'status-new', 'Contatado': 'status-contacted', 'Retornou': 'status-returned', 'Integrado': 'status-integrated' }[status] || 'status-new');
 }
+function eventStatusLabel(status) {
+  return ({ active: 'Ativo', paused: 'Pausado', blocked: 'Bloqueado' }[status] || 'Ativo');
+}
+function eventStatusClass(status) {
+  return ({ active: 'status-integrated', paused: 'status-contacted', blocked: 'status-new' }[status] || 'status-integrated');
+}
 function getActiveChurch() {
   return state.churches.find(church => church.id === state.activeChurchId) || state.churches[0];
 }
@@ -559,6 +571,7 @@ function familyMemberRow(value = '', index = 1) {
 function dateDay(date) { return parseDate(date).getDate(); }
 function dateMonth(date) { return parseDate(date).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(); }
 function sortedEvents() { return [...state.events].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)); }
+function upcomingEvents() { return sortedEvents().filter(event => !['paused', 'blocked'].includes(event.status || 'active')); }
 function escapeCSV(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
 
 function applySettingsSection(section = state.settingsSection || 'organization') {
@@ -625,7 +638,7 @@ function updateShell() {
 
 function renderDashboard() {
   const church = getActiveChurch();
-  const events = sortedEvents();
+  const events = upcomingEvents();
   const chartValues = state.visitors.length ? [38, 44, 41, 52, 48, 60, 54, 67, 63, 71, 69, 82] : Array(12).fill(0);
   return `
     <section class="page-head">
@@ -710,7 +723,11 @@ function renderAcolhimento() {
 }
 
 function renderEventRow(event) {
-  return `<div class="event-row"><div class="event-date"><strong>${String(dateDay(event.date)).padStart(2, '0')}</strong><span>${esc(dateMonth(event.date))}</span></div><div class="event-info"><strong>${esc(event.title)}</strong><span>${ICON('clock')} ${esc(event.time)} · ${esc(event.location)}</span></div><span class="event-tag">${esc(event.type)}${event.recurrenceId ? ' · recorrente' : ''}</span></div>`;
+  return `<div class="event-row"><div class="event-date"><strong>${String(dateDay(event.date)).padStart(2, '0')}</strong><span>${esc(dateMonth(event.date))}</span></div><div class="event-info"><strong>${esc(event.title)}</strong><span>${ICON('clock')} ${esc(event.time)} · ${esc(event.location)}</span></div><div class="event-row-meta"><span class="event-tag">${esc(event.type)}${event.recurrenceId ? ' · recorrente' : ''}</span><span class="status-pill ${eventStatusClass(event.status)}">${eventStatusLabel(event.status)}</span></div><button class="table-action" data-action="edit-event" data-id="${esc(event.id)}" aria-label="Editar ${esc(event.title)}">${ICON('settings')}</button></div>`;
+}
+
+function renderAgendaEvent(event) {
+  return `<div class="agenda-event ${event.status !== 'active' ? 'agenda-event-muted' : ''}"><div class="event-date"><strong>${String(dateDay(event.date)).padStart(2, '0')}</strong><span>${esc(dateMonth(event.date))}</span></div><div class="event-info"><strong>${esc(event.title)}</strong><span>${ICON('clock')} ${esc(event.time)} · ${esc(event.location)}</span></div><div class="event-row-meta"><span class="event-tag">${esc(event.type)}</span><span class="status-pill ${eventStatusClass(event.status)}">${eventStatusLabel(event.status)}</span></div><button class="btn btn-secondary btn-small" data-action="edit-event" data-id="${esc(event.id)}">${ICON('settings')} Editar</button></div>`;
 }
 
 function renderVisitors() {
@@ -802,7 +819,7 @@ function renderAgenda() {
   while (cells.length < 42) cells.push(`<div class="calendar-day muted">${nextDay++}</div>`);
   return `
     <section class="page-head"><div><span class="eyebrow">PROGRAMAÇÃO</span><h1>Agenda</h1><p>Uma visão simples de tudo o que está acontecendo na ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-events">${ICON('download')} Exportar agenda</button><button class="btn btn-gold" data-action="new-event">${ICON('plus')} Novo evento</button></div></section>
-    <div class="agenda-layout"><section class="panel agenda-card"><div class="month-header"><button class="icon-btn" aria-label="Mês anterior" data-action="calendar-prev">${ICON('chevron-right')}</button><h2>${esc(monthLabel(monthDate))}</h2><div class="month-header-actions"><button class="btn btn-secondary" data-action="today">Hoje</button><button class="icon-btn" aria-label="Próximo mês" data-action="calendar-next">${ICON('chevron-right')}</button></div></div><div class="weekdays"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div><div class="calendar-grid">${cells.join('')}</div><div class="agenda-events"><h3>Eventos desta semana</h3>${sortedEvents().slice(0, 4).map(event => `<div class="agenda-event"><div class="event-date"><strong>${String(dateDay(event.date)).padStart(2, '0')}</strong><span>${esc(dateMonth(event.date))}</span></div><div class="event-info"><strong>${esc(event.title)}</strong><span>${ICON('clock')} ${esc(event.time)} · ${esc(event.location)}</span></div><span class="event-tag">${esc(event.type)}</span></div>`).join('')}</div></section><div class="side-stack"><section class="panel info-card"><div class="card-topline"><div><h3>Próximo encontro</h3><p>O que vem a seguir na agenda.</p></div><div class="icon-tile copper">${ICON('calendar')}</div></div>${renderNextEvent(sortedEvents()[0])}</section><section class="panel info-card"><div class="card-topline"><div><h3>Resumo da agenda</h3><p>Programação organizada por categoria.</p></div><div class="icon-tile gold">${ICON('clipboard-check')}</div></div><div class="split-stat"><div><small>Cultos</small><strong>${state.events.filter(event => event.type === 'Culto').length}</strong></div><div><small>Encontros</small><strong>${state.events.filter(event => event.type !== 'Culto').length}</strong></div><div><small>Este mês</small><strong>${state.events.length}</strong></div></div><button class="btn btn-secondary btn-full" style="margin-top: 22px;" data-action="new-event">${ICON('plus')} Adicionar evento</button></section></div></div>
+    <div class="agenda-layout"><section class="panel agenda-card"><div class="month-header"><button class="icon-btn" aria-label="Mês anterior" data-action="calendar-prev">${ICON('chevron-right')}</button><h2>${esc(monthLabel(monthDate))}</h2><div class="month-header-actions"><button class="btn btn-secondary" data-action="today">Hoje</button><button class="icon-btn" aria-label="Próximo mês" data-action="calendar-next">${ICON('chevron-right')}</button></div></div><div class="weekdays"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div><div class="calendar-grid">${cells.join('')}</div><div class="agenda-events"><div class="agenda-events-head"><div><h3>Eventos desta semana</h3><p class="field-note">Clique em “Editar” para alterar nome, data, horário, público ou situação.</p></div><span class="status-pill status-integrated">${sortedEvents().length} ${sortedEvents().length === 1 ? 'evento' : 'eventos'}</span></div>${sortedEvents().map(renderAgendaEvent).join('') || `<div class="empty-state"><h3>Nenhum evento cadastrado</h3><p>Adicione o primeiro evento da igreja.</p></div>`}</div></section><div class="side-stack"><section class="panel info-card"><div class="card-topline"><div><h3>Próximo encontro</h3><p>O que vem a seguir na agenda.</p></div><div class="icon-tile copper">${ICON('calendar')}</div></div>${renderNextEvent(upcomingEvents()[0])}</section><section class="panel info-card"><div class="card-topline"><div><h3>Resumo da agenda</h3><p>Programação organizada por categoria.</p></div><div class="icon-tile gold">${ICON('clipboard-check')}</div></div><div class="split-stat"><div><small>Cultos</small><strong>${state.events.filter(event => event.type === 'Culto').length}</strong></div><div><small>Encontros</small><strong>${state.events.filter(event => event.type !== 'Culto').length}</strong></div><div><small>Este mês</small><strong>${state.events.length}</strong></div></div><button class="btn btn-secondary btn-full" style="margin-top: 22px;" data-action="new-event">${ICON('plus')} Adicionar evento</button></section></div></div>
   `;
 }
 
@@ -878,7 +895,7 @@ function openModal(type, data = {}) {
       modalEyebrow = 'COMUNICAÇÃO';
       content = `<div class="metric-modal-hero metric-hero-copper"><div class="metric-modal-number">${esc(state.metrics.reach)}</div><div><strong>pessoas alcançadas</strong><span>${state.metrics.reach ? `${ICON('arrow-up-right')} 12,8% neste mês` : '—'}</span></div></div><h3 class="metric-section-title">Alcance por canal</h3><div class="channel-metric"><div><span>${ICON('smartphone')} Notificações push</span><strong>${state.metrics.reach ? '92%' : '0%'}</strong></div><div class="metric-progress"><i style="width:${state.metrics.reach ? 92 : 0}%"></i></div></div><div class="channel-metric"><div><span>${ICON('whatsapp')} WhatsApp</span><strong>${state.metrics.reach ? '78%' : '0%'}</strong></div><div class="metric-progress"><i style="width:${state.metrics.reach ? 78 : 0}%"></i></div></div><div class="channel-metric"><div><span>${ICON('mail')} E-mail</span><strong>${state.metrics.reach ? '54%' : '0%'}</strong></div><div class="metric-progress"><i style="width:${state.metrics.reach ? 54 : 0}%"></i></div></div></div><div class="metric-tip">${ICON('sparkle')} A combinação de canais ajuda a manter a comunidade informada.</div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-gold" data-view="communication">Ver comunicação ${ICON('arrow-up-right')}</button></div>`;
     } else {
-      const nextEvent = sortedEvents()[0];
+      const nextEvent = upcomingEvents()[0];
       modalTitle = 'Próximo culto';
       modalEyebrow = 'AGENDA DA IGREJA';
       content = `<div class="metric-modal-hero metric-hero-dark"><div class="metric-modal-number">${nextEvent ? String(dateDay(nextEvent.date)).padStart(2, '0') : '—'}</div><div><strong>${nextEvent ? esc(nextEvent.title) : 'Nenhum evento'}</strong><span>${nextEvent ? `${esc(formatDateLong(nextEvent.date))} · ${esc(nextEvent.time)}` : 'Adicione um novo evento à agenda'}</span></div></div>${nextEvent ? `<div class="metric-event-detail"><div>${ICON('clock')}<span>${esc(nextEvent.time)}</span></div><div>${ICON('map-pin')}<span>${esc(nextEvent.location)}</span></div><div>${ICON('users')}<span>${esc(nextEvent.audience)}</span></div></div>` : ''}<div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-gold" data-view="agenda">Abrir agenda ${ICON('arrow-up-right')}</button></div>`;
@@ -895,6 +912,14 @@ function openModal(type, data = {}) {
     modalTitle = hasVisitorAnnouncement ? 'Anunciar visitantes' : 'Novo aviso';
     modalEyebrow = hasVisitorAnnouncement ? 'ACOLHIMENTO' : 'COMUNICAÇÃO';
     content = `<form data-form="announcement"><div class="form-grid"><div class="form-field full"><label for="announcementTitle">Título do aviso *</label><input class="input" id="announcementTitle" name="title" value="${esc(announcementDefaults.title)}" required placeholder="Ex.: Culto de domingo"></div>${announcementPreview}<div class="form-field full"><label for="announcementBody">Mensagem *</label><textarea class="textarea" id="announcementBody" name="body" required placeholder="Escreva uma mensagem clara e acolhedora..." rows="4">${esc(announcementDefaults.body)}</textarea></div><div class="form-field"><label for="announcementAudience">Enviar para</label><select class="select" id="announcementAudience" name="audience"><option>Toda a igreja</option><option>Obreiros</option><option>Lideranças</option><option>Ministério de Mulheres</option><option>Jovens</option><option>Visitantes</option><option>Recepção</option></select></div><div class="form-field"><label for="announcementMode">Quando enviar</label><select class="select" id="announcementMode" name="mode"><option value="now">Enviar agora</option><option value="scheduled">Agendar envio</option></select></div><div class="form-field full"><label>Canais de envio</label><div class="radio-grid"><div class="radio-card"><input type="checkbox" id="channelPush" name="channels" value="Push" checked><label for="channelPush">${ICON('smartphone')} Push</label></div><div class="radio-card"><input type="checkbox" id="channelWhatsapp" name="channels" value="WhatsApp" checked><label for="channelWhatsapp">${ICON('whatsapp')} WhatsApp</label></div><div class="radio-card"><input type="checkbox" id="channelEmail" name="channels" value="E-mail"><label for="channelEmail">${ICON('mail')} E-mail</label></div></div></div></div><div class="checkbox-line" style="margin-top:16px;"><span style="color:var(--copper);">${ICON('shield')}</span><span>No produto final, os envios serão registrados e respeitarão as permissões de cada organização.</span></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('send')} Publicar aviso</button></div></form>`;
+  } else if (type === 'event-edit') {
+    const eventRecord = (state.events || []).find(item => item.id === data.id);
+    if (!eventRecord) return;
+    const recurrenceRule = eventRecord.recurrenceRule || {};
+    const recurrenceText = eventRecord.recurrenceId ? 'Este evento faz parte de uma série recorrente. Por padrão, a alteração vale somente para esta ocorrência.' : 'Evento único, sem série recorrente.';
+    modalTitle = 'Editar evento';
+    modalEyebrow = 'AGENDA · EDIÇÃO';
+    content = `<form data-form="event-edit" data-id="${esc(eventRecord.id)}"><div class="event-edit-summary"><div class="event-edit-summary-icon">${ICON('calendar')}</div><div><strong>${esc(eventRecord.title)}</strong><span>${esc(formatDateLong(eventRecord.date))} · ${esc(eventRecord.time)}</span></div><span class="status-pill ${eventStatusClass(eventRecord.status)}">${eventStatusLabel(eventRecord.status)}</span></div><div class="form-grid"><div class="form-field full"><label for="editEventTitle">Nome do evento *</label><input class="input" id="editEventTitle" name="title" value="${esc(eventRecord.title)}" required></div><div class="form-field"><label for="editEventDate">Data *</label><input class="input" id="editEventDate" name="date" type="date" value="${esc(eventRecord.date)}" required></div><div class="form-field"><label for="editEventTime">Horário *</label><input class="input" id="editEventTime" name="time" type="time" value="${esc(eventRecord.time)}" required></div><div class="form-field"><label for="editEventType">Categoria</label><select class="select" id="editEventType" name="type"><option ${eventRecord.type === 'Culto' ? 'selected' : ''}>Culto</option><option ${eventRecord.type === 'Encontro' ? 'selected' : ''}>Encontro</option><option ${eventRecord.type === 'Festividade' ? 'selected' : ''}>Festividade</option><option ${eventRecord.type === 'Liderança' ? 'selected' : ''}>Liderança</option><option ${eventRecord.type === 'Outro' ? 'selected' : ''}>Outro</option></select></div><div class="form-field"><label for="editEventLocation">Local</label><input class="input" id="editEventLocation" name="location" value="${esc(eventRecord.location || '')}"></div><div class="form-field"><label for="editEventAudience">Público</label><select class="select" id="editEventAudience" name="audience"><option ${eventRecord.audience === 'Toda a igreja' ? 'selected' : ''}>Toda a igreja</option><option ${eventRecord.audience === 'Lideranças' ? 'selected' : ''}>Lideranças</option><option ${eventRecord.audience === 'Obreiros' ? 'selected' : ''}>Obreiros</option><option ${eventRecord.audience === 'Ministério de Mulheres' ? 'selected' : ''}>Ministério de Mulheres</option><option ${eventRecord.audience === 'Jovens' ? 'selected' : ''}>Jovens</option><option ${eventRecord.audience === 'Visitantes' ? 'selected' : ''}>Visitantes</option></select></div><div class="form-field"><label for="editEventStatus">Situação do evento</label><select class="select" id="editEventStatus" name="status"><option value="active" ${eventRecord.status === 'active' ? 'selected' : ''}>Ativo — publicado</option><option value="paused" ${eventRecord.status === 'paused' ? 'selected' : ''}>Pausado — manter para retomar depois</option><option value="blocked" ${eventRecord.status === 'blocked' ? 'selected' : ''}>Bloqueado — não deve acontecer</option></select></div></div><div class="scope-note" style="margin-top:16px;"><span>${ICON('calendar')}</span><p><strong>${esc(recurrenceText)}</strong>${eventRecord.recurrenceId ? ` Marque a opção abaixo se quiser atualizar os dados gerais de todas as ocorrências desta série.` : ''}</p></div>${eventRecord.recurrenceId ? `<label class="checkbox-line event-series-option"><input type="checkbox" name="updateSeries"><span>Aplicar nome, horário, local, categoria, público e situação a todas as ocorrências desta série. A data alterada vale somente para esta ocorrência.</span></label>` : ''}<div class="event-quick-actions"><span>Alterar situação rapidamente:</span><button type="button" class="btn btn-secondary btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="paused">${ICON('clock')} Pausar</button><button type="button" class="btn btn-secondary btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="blocked">${ICON('shield')} Bloquear</button><button type="button" class="btn btn-gold btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="active">${ICON('check')} Reativar</button></div><div class="modal-actions"><button type="button" class="btn btn-danger" data-action="delete-event" data-id="${esc(eventRecord.id)}">${ICON('x')} Excluir evento</button><span style="flex:1"></span><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar alterações</button></div></form>`;
   } else if (type === 'event') {
     modalTitle = 'Novo evento';
     modalEyebrow = 'AGENDA';
@@ -914,7 +939,13 @@ function openModal(type, data = {}) {
     if (!receptionUser) return;
     modalTitle = receptionUser.name;
     modalEyebrow = 'ACESSO DA RECEPÇÃO';
-    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(receptionUser.initials || initials(receptionUser.name))}</div><div><strong style="font-size:14px;">${esc(receptionUser.name)}</strong><span style="font-size:10px;margin-top:5px;">${esc(receptionUser.role)} · ${esc(receptionUser.status || 'Ativo')}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Login</label><div style="font-size:11px;color:var(--ink);">${esc(receptionUser.login || 'Não informado')}</div></div><div class="form-field"><label>Status da senha</label><div><span class="status-pill ${receptionUser.passwordStatus === 'Ativa' ? 'status-integrated' : 'status-contacted'}">${esc(receptionUser.passwordStatus || 'Ativa')}</span></div></div><div class="form-field full"><label>Abas liberadas</label><div class="permission-list"><span class="access-permission">${ICON('heart')} Acolhimento</span><p class="field-note">Esta aba fica disponível para todos os acessos cadastrados na recepção.</p></div></div><div class="form-field full"><div class="scope-note" style="margin:0;"><span>${ICON('shield')}</span><p>Por segurança, a senha atual nunca fica visível para o pastor. Use “Definir nova senha” para trocar a senha do acesso.</p></div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-secondary" data-action="reset-reception-password" data-id="${esc(receptionUser.id)}">${ICON('refresh')} Definir nova senha</button>${receptionUser.status === 'Bloqueado' ? `<button type="button" class="btn btn-gold" data-action="toggle-reception-access" data-id="${esc(receptionUser.id)}">${ICON('check')} Reativar acesso</button>` : `<button type="button" class="btn btn-secondary" data-action="toggle-reception-access" data-id="${esc(receptionUser.id)}">${ICON('shield')} Bloquear acesso</button>`}<button type="button" class="btn btn-danger" data-action="delete-reception-access" data-id="${esc(receptionUser.id)}">${ICON('x')} Excluir acesso</button></div>`;
+    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(receptionUser.initials || initials(receptionUser.name))}</div><div><strong style="font-size:14px;">${esc(receptionUser.name)}</strong><span style="font-size:10px;margin-top:5px;">${esc(receptionUser.role)} · ${esc(receptionUser.status || 'Ativo')}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Login</label><div style="font-size:11px;color:var(--ink);">${esc(receptionUser.login || 'Não informado')}</div></div><div class="form-field"><label>Status da senha</label><div><span class="status-pill ${receptionUser.passwordStatus === 'Ativa' ? 'status-integrated' : 'status-contacted'}">${esc(receptionUser.passwordStatus || 'Ativa')}</span></div></div><div class="form-field full"><label>Abas liberadas</label><div class="permission-list"><span class="access-permission">${ICON('heart')} Acolhimento</span><p class="field-note">Esta aba fica disponível para todos os acessos cadastrados na recepção.</p></div></div><div class="form-field full"><div class="scope-note" style="margin:0;"><span>${ICON('shield')}</span><p>Por segurança, a senha atual nunca fica visível para o pastor. Use “Definir nova senha” para trocar a senha do acesso.</p></div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="edit-reception-access" data-id="${esc(receptionUser.id)}">${ICON('settings')} Editar acesso</button><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-secondary" data-action="reset-reception-password" data-id="${esc(receptionUser.id)}">${ICON('refresh')} Definir nova senha</button>${receptionUser.status === 'Bloqueado' ? `<button type="button" class="btn btn-gold" data-action="toggle-reception-access" data-id="${esc(receptionUser.id)}">${ICON('check')} Reativar acesso</button>` : `<button type="button" class="btn btn-secondary" data-action="toggle-reception-access" data-id="${esc(receptionUser.id)}">${ICON('shield')} Bloquear acesso</button>`}<button type="button" class="btn btn-danger" data-action="delete-reception-access" data-id="${esc(receptionUser.id)}">${ICON('x')} Excluir acesso</button></div>`;
+  } else if (type === 'reception-edit') {
+    const receptionUser = (state.receptionUsers || []).find(item => item.id === data.id);
+    if (!receptionUser) return;
+    modalTitle = 'Editar acesso';
+    modalEyebrow = 'ACESSO DA RECEPÇÃO';
+    content = `<form data-form="reception-edit" data-id="${esc(receptionUser.id)}"><div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;margin-bottom:18px;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(receptionUser.initials || initials(receptionUser.name))}</div><div><strong style="font-size:14px;">${esc(receptionUser.name)}</strong><span style="font-size:10px;margin-top:5px;">Atualize os dados do acesso sem alterar a senha.</span></div></div><div class="form-grid"><div class="form-field full"><label for="editReceptionName">Nome completo *</label><input class="input" id="editReceptionName" name="name" value="${esc(receptionUser.name)}" required></div><div class="form-field"><label for="editReceptionLogin">Login</label><input class="input" id="editReceptionLogin" name="login" value="${esc(receptionUser.login || '')}" required></div><div class="form-field"><label for="editReceptionRole">Função</label><select class="select" id="editReceptionRole" name="role"><option ${receptionUser.role === 'Recepção' ? 'selected' : ''}>Recepção</option><option ${receptionUser.role === 'Obreiro' ? 'selected' : ''}>Obreiro</option><option ${receptionUser.role === 'Membro autorizado' ? 'selected' : ''}>Membro autorizado</option></select></div><div class="form-field full"><label for="editReceptionPhone">Telefone</label><input class="input" id="editReceptionPhone" name="phone" value="${esc(receptionUser.phone || '')}" placeholder="(21) 99999-9999"></div></div><div class="scope-note" style="margin-top:16px;"><span>${ICON('shield')}</span><p>A senha permanece protegida. Para trocar a senha, use “Definir nova senha” no detalhe do acesso.</p></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar edição</button></div></form>`;
   } else if (type === 'visitor-detail') {
     const visitor = state.visitors.find(item => item.id === data.id);
     if (!visitor) return;
@@ -1093,6 +1124,19 @@ async function handleSubmit(event) {
     state.metrics.announcements += 1;
     state.activity.unshift({ type: 'announcement', name: title, text: data.get('mode') === 'scheduled' ? 'foi agendado.' : 'foi enviado para o público selecionado.', time: 'Agora', initials: initials(title), tone: 'gold' });
     saveState(); closeModal(); render(); showToast(data.get('mode') === 'scheduled' ? 'Aviso agendado com sucesso.' : 'Aviso publicado e enviado com sucesso.');
+  } else if (formType === 'event-edit') {
+    const eventRecord = (state.events || []).find(item => item.id === form.dataset.id);
+    const title = String(data.get('title') || '').trim();
+    if (!eventRecord) return showToast('Evento não encontrado.', 'error');
+    if (!title) return showToast('Informe o nome do evento.', 'error');
+    const payload = { title, date: String(data.get('date') || eventRecord.date), time: String(data.get('time') || eventRecord.time || '19:00'), location: String(data.get('location') || ''), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), status: String(data.get('status') || 'active'), recurrenceId: eventRecord.recurrenceId || '', updateSeries: data.get('updateSeries') === 'on' };
+    try {
+      await apiRequest(`/api/church/events/${encodeURIComponent(eventRecord.id)}`, { method: 'PATCH', body: payload });
+      await loadRemoteChurchState(state.currentUser);
+      closeModal(); render(); showToast(`Evento “${title}” atualizado na agenda.`);
+    } catch (error) {
+      showToast(`Não foi possível editar o evento: ${error.message}`, 'error');
+    }
   } else if (formType === 'event') {
     const title = String(data.get('title') || '').trim();
     if (!title) return showToast('Informe o nome do evento.', 'error');
@@ -1102,7 +1146,7 @@ async function handleSubmit(event) {
     const ordinal = Number(data.get('ordinal') || 1);
     const dates = generateEventDates(startDate, recurrence, weekday, ordinal);
     const recurrenceId = `rec-${Date.now()}`;
-    const base = { title, time: String(data.get('time') || '19:00'), location: String(data.get('location') || 'Templo principal'), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), recurrenceRule: { type: recurrence, weekday, ordinal, until: recurrence.includes('year') || recurrence === 'monthly-date' || recurrence === 'monthly-weekday' || recurrence === 'yearly-date' || recurrence === 'yearly-weekday' ? `${startDate.slice(0, 4)}-12-31` : `${startDate.slice(0, 7)}-${String(new Date(Number(startDate.slice(0, 4)), Number(startDate.slice(5, 7)), 0).getDate()).padStart(2, '0')}` }, recurrenceId };
+    const base = { title, time: String(data.get('time') || '19:00'), location: String(data.get('location') || 'Templo principal'), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), status: 'active', recurrenceRule: { type: recurrence, weekday, ordinal, until: recurrence.includes('year') || recurrence === 'monthly-date' || recurrence === 'monthly-weekday' || recurrence === 'yearly-date' || recurrence === 'yearly-weekday' ? `${startDate.slice(0, 4)}-12-31` : `${startDate.slice(0, 7)}-${String(new Date(Number(startDate.slice(0, 4)), Number(startDate.slice(5, 7)), 0).getDate()).padStart(2, '0')}` }, recurrenceId };
     const events = dates.map(date => ({ ...base, date }));
     try {
       await apiRequest('/api/church/events/bulk', { method: 'POST', body: { events } });
@@ -1151,6 +1195,19 @@ async function handleSubmit(event) {
     } catch (error) {
       showToast(`Não foi possível salvar as metas: ${error.message}`, 'error');
     }
+  } else if (formType === 'reception-edit') {
+    const receptionUser = (state.receptionUsers || []).find(item => item.id === form.dataset.id);
+    const name = String(data.get('name') || '').trim();
+    const login = String(data.get('login') || '').trim().toLowerCase();
+    if (!receptionUser) return showToast('Acesso da recepção não encontrado.', 'error');
+    if (!name || !login) return showToast('Informe o nome e o login do acesso.', 'error');
+    try {
+      await apiRequest(`/api/church/reception-users/${encodeURIComponent(receptionUser.id)}`, { method: 'PATCH', body: { name, login, role: String(data.get('role') || receptionUser.role || 'Recepção'), phone: String(data.get('phone') || '').trim() } });
+      await loadRemoteChurchState(state.currentUser);
+      closeModal(); render(); showToast(`Acesso de ${name} atualizado no banco da igreja.`);
+    } catch (error) {
+      showToast(`Não foi possível editar o acesso: ${error.message}`, 'error');
+    }
   } else if (formType === 'reception') {
     const name = String(data.get('name') || '').trim();
     const login = String(data.get('login') || '').trim().toLowerCase();
@@ -1160,11 +1217,13 @@ async function handleSubmit(event) {
     if (!login) return showToast('Informe um e-mail para o login.', 'error');
     if (password.length < 6) return showToast('A senha deve ter pelo menos 6 caracteres.', 'error');
     if (password !== passwordConfirm) return showToast('A confirmação da senha não confere.', 'error');
-    state.receptionUsers = state.receptionUsers || [];
-    const duplicateLogin = state.receptionUsers.some(user => String(user.login || '').toLowerCase() === login && user.id !== state.currentUser?.receptionUserId);
-    if (duplicateLogin) return showToast('Este login já está cadastrado na recepção.', 'error');
-    state.receptionUsers.push({ id: `r-${Date.now()}`, name, login, password, role: String(data.get('role') || 'Recepção'), roleKey: 'reception', churchId: state.activeChurchId, phone: String(data.get('phone') || 'Não informado'), passwordStatus: 'Ativa', status: 'Ativo', permissions: ['acolhimento'], lastAccess: 'ainda não acessou', initials: initials(name), tone: 'dark' });
-    saveState(); closeModal(); render(); showToast(`Acesso de ${name} salvo. Já é possível entrar com esse login e senha.`);
+    try {
+      await apiRequest('/api/church/reception-users', { method: 'POST', body: { name, login, password, role: String(data.get('role') || 'Recepção'), phone: String(data.get('phone') || '').trim() } });
+      await loadRemoteChurchState(state.currentUser);
+      closeModal(); render(); showToast(`Acesso de ${name} salvo no banco da igreja.`);
+    } catch (error) {
+      showToast(`Não foi possível salvar o acesso: ${error.message}`, 'error');
+    }
   } else if (formType === 'organization') {
     const church = getActiveChurch();
     church.name = String(data.get('churchName') ?? church.name).trim() || church.name;
@@ -1233,7 +1292,7 @@ function togglePulpitFullscreen() {
   }
 }
 
-function resetReceptionPassword(id) {
+async function resetReceptionPassword(id) {
   const receptionUser = (state.receptionUsers || []).find(item => item.id === id);
   if (!receptionUser) return;
   const password = window.prompt(`Defina uma nova senha para ${receptionUser.name} (mínimo de 6 caracteres):`);
@@ -1242,36 +1301,68 @@ function resetReceptionPassword(id) {
   const confirmation = window.prompt('Confirme a nova senha:');
   if (confirmation === null) return;
   if (password !== confirmation) return showToast('A confirmação da senha não confere.', 'error');
-  receptionUser.password = password;
-  receptionUser.passwordStatus = 'Ativa';
-  saveState();
-  closeModal();
-  render();
-  showToast(`Nova senha definida para ${receptionUser.name}.`);
+  try {
+    await apiRequest(`/api/church/reception-users/${encodeURIComponent(receptionUser.id)}`, { method: 'PATCH', body: { name: receptionUser.name, login: receptionUser.login, role: receptionUser.role, phone: receptionUser.phone || '', password } });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast(`Nova senha definida para ${receptionUser.name}.`);
+  } catch (error) {
+    showToast(`Não foi possível definir a senha: ${error.message}`, 'error');
+  }
 }
 
-function toggleReceptionAccess(id) {
+async function toggleReceptionAccess(id) {
   const receptionUser = (state.receptionUsers || []).find(item => item.id === id);
   if (!receptionUser) return;
   const willBlock = receptionUser.status !== 'Bloqueado';
   const message = willBlock ? `Bloquear o acesso de ${receptionUser.name}?` : `Reativar o acesso de ${receptionUser.name}?`;
   if (!window.confirm(message)) return;
-  receptionUser.status = willBlock ? 'Bloqueado' : 'Ativo';
-  saveState();
-  closeModal();
-  render();
-  showToast(willBlock ? `Acesso de ${receptionUser.name} bloqueado.` : `Acesso de ${receptionUser.name} reativado.`);
+  try {
+    await apiRequest(`/api/church/reception-users/${encodeURIComponent(id)}`, { method: 'PATCH', body: { name: receptionUser.name, login: receptionUser.login, role: receptionUser.role, phone: receptionUser.phone || '', status: willBlock ? 'blocked' : 'active' } });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast(willBlock ? `Acesso de ${receptionUser.name} bloqueado.` : `Acesso de ${receptionUser.name} reativado.`);
+  } catch (error) {
+    showToast(`Não foi possível alterar o acesso: ${error.message}`, 'error');
+  }
 }
 
-function deleteReceptionAccess(id) {
+async function deleteReceptionAccess(id) {
   const receptionUser = (state.receptionUsers || []).find(item => item.id === id);
   if (!receptionUser) return;
   if (!window.confirm(`Excluir o acesso de ${receptionUser.name}? Os visitantes cadastrados por ele não serão apagados.`)) return;
-  state.receptionUsers = state.receptionUsers.filter(item => item.id !== id);
-  saveState();
-  closeModal();
-  render();
-  showToast(`Acesso de ${receptionUser.name} excluído.`);
+  try {
+    await apiRequest(`/api/church/reception-users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast(`Acesso de ${receptionUser.name} excluído.`);
+  } catch (error) {
+    showToast(`Não foi possível excluir o acesso: ${error.message}`, 'error');
+  }
+}
+
+async function setEventStatus(id, status) {
+  const eventRecord = (state.events || []).find(item => item.id === id);
+  if (!eventRecord) return;
+  const label = eventStatusLabel(status).toLowerCase();
+  if (!window.confirm(`${eventStatusLabel(status)} o evento “${eventRecord.title}”?`)) return;
+  try {
+    await apiRequest(`/api/church/events/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast(`Evento ${label} com sucesso.`);
+  } catch (error) {
+    showToast(`Não foi possível alterar a situação do evento: ${error.message}`, 'error');
+  }
+}
+
+async function deleteEvent(id) {
+  const eventRecord = (state.events || []).find(item => item.id === id);
+  if (!eventRecord) return;
+  if (!window.confirm(`Excluir o evento “${eventRecord.title}” de ${formatDateLong(eventRecord.date)}? Esta ação não pode ser desfeita.`)) return;
+  try {
+    await apiRequest(`/api/church/events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast(`Evento “${eventRecord.title}” excluído da agenda.`);
+  } catch (error) {
+    showToast(`Não foi possível excluir o evento: ${error.message}`, 'error');
+  }
 }
 
 async function deleteLeader(id) {
@@ -1331,8 +1422,8 @@ async function copyReceptionLink() {
 }
 
 function exportEvents() {
-  const headers = ['Evento', 'Data', 'Horário', 'Local', 'Categoria', 'Público'];
-  const rows = sortedEvents().map(event => [event.title, event.date, event.time, event.location, event.type, event.audience]);
+  const headers = ['Evento', 'Data', 'Horário', 'Local', 'Categoria', 'Público', 'Situação'];
+  const rows = sortedEvents().map(event => [event.title, event.date, event.time, event.location, event.type, event.audience, eventStatusLabel(event.status)]);
   const csv = [headers, ...rows].map(row => row.map(escapeCSV).join(';')).join('\n');
   downloadBlob(`agenda-${slugify(getActiveChurch()?.name || 'igreja')}-${TODAY}.csv`, `\ufeff${csv}`, 'text/csv;charset=utf-8;');
   showToast('Agenda exportada.');
@@ -1390,6 +1481,9 @@ function handleAction(actionEl) {
     case 'open-metric': openModal('metric', { metric: actionEl.dataset.metric }); break;
     case 'new-announcement': openModal('announcement'); break;
     case 'new-event': openModal('event'); break;
+    case 'edit-event': openModal('event-edit', { id: actionEl.dataset.id }); break;
+    case 'set-event-status': setEventStatus(actionEl.dataset.id, actionEl.dataset.status); break;
+    case 'delete-event': deleteEvent(actionEl.dataset.id); break;
     case 'new-church': if (!isPlatformAdmin()) showToast('Somente o administrador da plataforma pode cadastrar outra igreja.', 'error'); else openModal('church'); break;
     case 'new-leader': openModal('leader'); break;
     case 'new-member': openModal('member'); break;
@@ -1442,6 +1536,7 @@ function handleAction(actionEl) {
     case 'new-reception': openModal('reception'); break;
     case 'copy-reception-link': copyReceptionLink(); break;
     case 'reception-detail': openModal('reception-detail', { id: actionEl.dataset.id }); break;
+    case 'edit-reception-access': closeModal(); openModal('reception-edit', { id: actionEl.dataset.id }); break;
     case 'reset-reception-password': resetReceptionPassword(actionEl.dataset.id); break;
     case 'toggle-reception-access': toggleReceptionAccess(actionEl.dataset.id); break;
     case 'delete-reception-access': deleteReceptionAccess(actionEl.dataset.id); break;
