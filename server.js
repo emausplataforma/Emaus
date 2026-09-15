@@ -216,6 +216,21 @@ app.put('/api/church/settings', auth(['church_admin']), requireChurch, async (re
   res.json({ church: result.rows[0] });
 });
 
+app.get('/api/church/ministries', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const result = await query("SELECT id, church_id, name, status, created_at, updated_at FROM ministries WHERE church_id = $1 AND status = 'active' ORDER BY name ASC", [req.churchId]);
+  res.json({ ministries: result.rows });
+});
+
+app.post('/api/church/ministries', auth(['church_admin']), requireChurch, async (req, res) => {
+  const name = String(req.body.name || '').trim().replace(/\\s+/g, ' ');
+  if (!name) return res.status(400).json({ error: 'Informe o nome do ministério.' });
+  const existing = (await query('SELECT id, church_id, name, status, created_at, updated_at FROM ministries WHERE church_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1', [req.churchId, name])).rows[0];
+  if (existing) return res.json({ ministry: existing, created: false });
+  const result = await query('INSERT INTO ministries (church_id, name) VALUES ($1, $2) RETURNING id, church_id, name, status, created_at, updated_at', [req.churchId, name]);
+  await audit(req.user, 'ministry_created', { ministryId: result.rows[0].id, name }, req.churchId);
+  res.status(201).json({ ministry: result.rows[0], created: true });
+});
+
 app.get('/api/church/reception-users', auth(['church_admin']), requireChurch, async (req, res) => {
   const result = await query(`SELECT id, church_id, name, email, phone, job_role, status, permissions, created_at, updated_at
     FROM users WHERE church_id = $1 AND role = 'reception' ORDER BY name ASC`, [req.churchId]);
@@ -288,16 +303,16 @@ app.get('/api/church/members', auth(['church_admin', 'reception']), requireChurc
 app.post('/api/church/members', auth(['church_admin']), requireChurch, async (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nome do membro é obrigatório.' });
-  const result = await query(`INSERT INTO members (church_id, name, email, phone, ministry, status, joined_at)
-    VALUES ($1, $2, COALESCE($3, ''), COALESCE($4, ''), COALESCE($5, ''), $6, $7) RETURNING *`, [req.churchId, name, req.body.email || '', req.body.phone || '', req.body.ministry || '', req.body.status === 'inactive' ? 'inactive' : 'active', req.body.joinedAt || null]);
+  const result = await query(`INSERT INTO members (church_id, name, email, phone, ministry, ministry_id, status, joined_at)
+    VALUES ($1, $2, COALESCE($3, ''), COALESCE($4, ''), COALESCE($5, ''), $6, $7, $8) RETURNING *`, [req.churchId, name, req.body.email || '', req.body.phone || '', req.body.ministry || '', req.body.ministryId || null, req.body.status === 'inactive' ? 'inactive' : 'active', req.body.joinedAt || null]);
   await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1), updated_at = NOW() WHERE id = $1', [req.churchId]);
   await audit(req.user, 'member_created', { memberId: result.rows[0].id }, req.churchId);
   res.status(201).json({ member: result.rows[0] });
 });
 
 app.patch('/api/church/members/:memberId', auth(['church_admin']), requireChurch, async (req, res) => {
-  const result = await query(`UPDATE members SET name = COALESCE(NULLIF($1, ''), name), email = COALESCE($2, email), phone = COALESCE($3, phone), ministry = COALESCE($4, ministry), status = COALESCE($5, status), joined_at = COALESCE($6, joined_at), updated_at = NOW()
-    WHERE id = $7 AND church_id = $8 RETURNING *`, [req.body.name || '', req.body.email, req.body.phone, req.body.ministry, req.body.status, req.body.joinedAt || null, req.params.memberId, req.churchId]);
+  const result = await query(`UPDATE members SET name = COALESCE(NULLIF($1, ''), name), email = COALESCE($2, email), phone = COALESCE($3, phone), ministry = COALESCE($4, ministry), ministry_id = COALESCE($5, ministry_id), status = COALESCE($6, status), joined_at = COALESCE($7, joined_at), updated_at = NOW()
+    WHERE id = $8 AND church_id = $9 RETURNING *`, [req.body.name || '', req.body.email, req.body.phone, req.body.ministry, req.body.ministryId, req.body.status, req.body.joinedAt || null, req.params.memberId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Membro não encontrado.' });
   res.json({ member: result.rows[0] });
 });
@@ -422,6 +437,8 @@ async function ensureColumnCompatibility() {
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_role TEXT NOT NULL DEFAULT 'Recepção'");
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE church_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
+  await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS ministry_id UUID REFERENCES ministries(id) ON DELETE SET NULL");
+  await query("CREATE UNIQUE INDEX IF NOT EXISTS idx_ministries_church_name_lower ON ministries(church_id, LOWER(name))");
   await query("CREATE INDEX IF NOT EXISTS idx_members_church_name ON members(church_id, name)");
   await query("CREATE INDEX IF NOT EXISTS idx_events_church_date ON church_events(church_id, event_date, event_time)");
   await query("CREATE INDEX IF NOT EXISTS idx_leaders_church ON leaders(church_id, status)");

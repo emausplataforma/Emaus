@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS ministries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS visitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
@@ -94,6 +103,7 @@ CREATE TABLE IF NOT EXISTS members (
   email TEXT NOT NULL DEFAULT '',
   phone TEXT NOT NULL DEFAULT '',
   ministry TEXT NOT NULL DEFAULT '',
+  ministry_id UUID REFERENCES ministries(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   joined_at DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

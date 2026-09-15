@@ -20,6 +20,7 @@ const defaultState = {
   calendarMonth: TODAY.slice(0, 7),
   growthGoals: { visitors: 50, returns: 25, members: 300 },
   members: [],
+  ministries: [],
   currentUser: { name: 'Evandro & Simone', role: 'Pastor da igreja', roleKey: 'church_admin' },
   metrics: {
     visits: 0,
@@ -125,7 +126,10 @@ function mapApiEvent(event) {
   };
 }
 function mapApiMember(member) {
-  return { id: member.id, name: member.name, email: member.email || '', phone: member.phone || '', ministry: member.ministry || '', status: member.status || 'active', joinedAt: member.joined_at || '' };
+  return { id: member.id, name: member.name, email: member.email || '', phone: member.phone || '', ministry: member.ministry || '', ministryId: member.ministry_id || '', status: member.status || 'active', joinedAt: member.joined_at || '' };
+}
+function mapApiMinistry(ministry) {
+  return { id: ministry.id, name: ministry.name, churchId: ministry.church_id, status: ministry.status || 'active' };
 }
 function mapApiLeader(leader) {
   return { id: leader.id, name: leader.name, role: leader.role || 'Líder', phone: leader.phone || '', group: leader.group_name || leader.group || '', initials: initials(leader.name), tone: 'dark', status: leader.status || 'active' };
@@ -135,7 +139,7 @@ function mapApiReceptionUser(user) {
 }
 
 async function loadRemoteChurchState(user) {
-  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users'];
+  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users', '/api/church/ministries'];
   const results = await Promise.all(endpoints.map(endpoint => apiRequest(endpoint).then(payload => ({ ok: true, payload })).catch(error => ({ ok: false, error }))));
   const settingsPayload = results[0].payload || {};
   const visitorsPayload = results[1].payload || {};
@@ -143,6 +147,7 @@ async function loadRemoteChurchState(user) {
   const membersPayload = results[3].payload || {};
   const leadersPayload = results[4].payload || {};
   const receptionUsersPayload = results[5].payload || {};
+  const ministriesPayload = results[6].payload || {};
   const church = settingsPayload.church;
   const localChurch = (state.churches || []).find(item => item.id === church?.id || item.slug === church?.slug || item.name === church?.name);
   const serverPublicSettings = church?.public_settings && typeof church.public_settings === 'object' ? church.public_settings : {};
@@ -172,6 +177,7 @@ async function loadRemoteChurchState(user) {
   if (results[3].ok) state.members = (membersPayload.members || []).map(mapApiMember);
   if (results[4].ok) state.leaders = (leadersPayload.leaders || []).map(mapApiLeader);
   if (results[5].ok) state.receptionUsers = (receptionUsersPayload.users || []).map(mapApiReceptionUser);
+  if (results[6].ok) state.ministries = (ministriesPayload.ministries || []).map(mapApiMinistry);
   state.activity = [];
   state.announcements = [];
   state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: 0 };
@@ -261,7 +267,7 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && saved.visitors && saved.events && saved.churches) {
-      const merged = { ...structuredClone(defaultState), ...saved, currentUser: { ...defaultState.currentUser, ...(saved.currentUser || {}) }, metrics: { ...defaultState.metrics, ...(saved.metrics || {}) }, growthGoals: { ...defaultState.growthGoals, ...(saved.growthGoals || {}) }, members: Array.isArray(saved.members) ? saved.members : [], calendarMonth: saved.calendarMonth || defaultState.calendarMonth };
+      const merged = { ...structuredClone(defaultState), ...saved, currentUser: { ...defaultState.currentUser, ...(saved.currentUser || {}) }, metrics: { ...defaultState.metrics, ...(saved.metrics || {}) }, growthGoals: { ...defaultState.growthGoals, ...(saved.growthGoals || {}) }, members: Array.isArray(saved.members) ? saved.members : [], ministries: Array.isArray(saved.ministries) ? saved.ministries : [], calendarMonth: saved.calendarMonth || defaultState.calendarMonth };
       merged.visitors = merged.visitors.map(visitor => {
         const defaultVisitor = defaultState.visitors.find(item => item.id === visitor.id);
         return {
@@ -984,7 +990,7 @@ function openModal(type, data = {}) {
   } else if (type === 'member') {
     modalTitle = 'Novo membro';
     modalEyebrow = 'COMUNIDADE';
-    content = `<form data-form="member"><div class="form-grid"><div class="form-field full"><label for="memberName">Nome completo *</label><input class="input" id="memberName" name="name" required placeholder="Ex.: Ana Oliveira"></div><div class="form-field"><label for="memberPhone">Telefone</label><input class="input" id="memberPhone" name="phone" placeholder="(21) 99999-9999"></div><div class="form-field"><label for="memberEmail">E-mail</label><input class="input" id="memberEmail" name="email" type="email" placeholder="nome@email.com"></div><div class="form-field"><label for="memberMinistry">Ministério</label><input class="input" id="memberMinistry" name="ministry" placeholder="Ex.: Louvor"></div><div class="form-field"><label for="memberJoinedAt">Data de integração</label><input class="input" id="memberJoinedAt" name="joinedAt" type="date" value="${TODAY}"></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('users')} Salvar membro</button></div></form>`;
+    content = `<form data-form="member"><div class="form-grid"><div class="form-field full"><label for="memberName">Nome completo *</label><input class="input" id="memberName" name="name" required placeholder="Ex.: Ana Oliveira"></div><div class="form-field"><label for="memberPhone">Telefone</label><input class="input" id="memberPhone" name="phone" placeholder="(21) 99999-9999"></div><div class="form-field"><label for="memberEmail">E-mail</label><input class="input" id="memberEmail" name="email" type="email" placeholder="nome@email.com"></div><div class="form-field"><label for="memberMinistry">Ministério</label><input class="input" id="memberMinistry" name="ministry" list="memberMinistryOptions" autocomplete="off" placeholder="Ex.: Louvor"><datalist id="memberMinistryOptions">${(state.ministries || []).map(ministry => `<option value="${esc(ministry.name || ministry)}"></option>`).join('')}</datalist><p class="field-note">Escolha um ministério já cadastrado ou digite um novo. Antes de salvar, pediremos confirmação para cadastrar o novo ministério.</p></div><div class="form-field"><label for="memberJoinedAt">Data de integração</label><input class="input" id="memberJoinedAt" name="joinedAt" type="date" value="${TODAY}"></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('users')} Salvar membro</button></div></form>`;
   } else if (type === 'member-detail') {
     const member = (state.members || []).find(item => item.id === data.id);
     if (!member) return;
@@ -1204,9 +1210,18 @@ async function handleSubmit(event) {
     }
   } else if (formType === 'member') {
     const name = String(data.get('name') || '').trim();
+    const ministry = String(data.get('ministry') || '').trim().replace(/\s+/g, ' ');
     if (!name) return showToast('Informe o nome do membro.', 'error');
+    const knownMinistry = (state.ministries || []).find(item => String(item.name || item).trim().toLowerCase() === ministry.toLowerCase());
     try {
-      await apiRequest('/api/church/members', { method: 'POST', body: { name, email: String(data.get('email') || '').trim(), phone: String(data.get('phone') || '').trim(), ministry: String(data.get('ministry') || '').trim(), status: String(data.get('status') || 'active'), joinedAt: String(data.get('joinedAt') || '') || null } });
+      let ministryId = knownMinistry?.id || null;
+      if (ministry && !knownMinistry) {
+        const shouldCreate = window.confirm(`“${ministry}” ainda não está cadastrado nesta igreja. Deseja cadastrar este novo ministério para os próximos membros?`);
+        if (!shouldCreate) return showToast('O membro não foi salvo. Escolha um ministério existente ou confirme o cadastro do novo ministério.', 'error');
+        const ministryPayload = await apiRequest('/api/church/ministries', { method: 'POST', body: { name: ministry } });
+        ministryId = ministryPayload.ministry?.id || null;
+      }
+      await apiRequest('/api/church/members', { method: 'POST', body: { name, email: String(data.get('email') || '').trim(), phone: String(data.get('phone') || '').trim(), ministry, ministryId, status: String(data.get('status') || 'active'), joinedAt: String(data.get('joinedAt') || '') || null } });
       await loadRemoteChurchState(state.currentUser);
       closeModal(); render(); showToast(`${name} foi cadastrado como membro.`);
     } catch (error) {
