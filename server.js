@@ -126,7 +126,7 @@ app.get('/api/me', auth(), async (req, res) => {
 
 app.patch('/api/me/profile', auth(), async (req, res) => {
   const preferredName = String(req.body.preferredName || '').trim();
-  const gender = ['female', 'male', 'unspecified'].includes(req.body.gender) ? req.body.gender : 'unspecified';
+  const gender = ['female', 'male', 'plural', 'unspecified'].includes(req.body.gender) ? req.body.gender : 'unspecified';
   const result = await query('UPDATE users SET preferred_name = $1, gender = $2, updated_at = NOW() WHERE id = $3 RETURNING *', [preferredName, gender, req.user.id]);
   await audit(req.user, 'profile_updated', { fields: ['preferredName', 'gender'] }, req.user.church_id);
   res.json({ user: safeUser(result.rows[0]) });

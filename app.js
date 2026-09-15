@@ -411,34 +411,56 @@ function statusClass(status) {
   return ({ 'Novo': 'status-new', 'Contatado': 'status-contacted', 'Retornou': 'status-returned', 'Integrado': 'status-integrated' }[status] || 'status-new');
 }
 function normalizedGender(person = {}) {
-  return ['female', 'male'].includes(person.gender) ? person.gender : 'unspecified';
+  return ['female', 'male', 'plural'].includes(person.gender) ? person.gender : 'unspecified';
+}
+function isPluralPastoralPerson(person = {}) {
+  if (normalizedGender(person) === 'plural' || person.isPlural === true) return true;
+  const name = String(person.preferredName || person.preferred_name || person.name || '').toLowerCase();
+  return /\s(?:&|e)\s/.test(name);
 }
 function preferredDisplayName(person = {}) {
   return String(person.preferredName || person.preferred_name || person.name || '').trim();
 }
 function genderedGreeting(person = {}) {
   const name = preferredDisplayName(person) || 'pessoa querida';
+  if (isPluralPastoralPerson(person)) return `Sejam bem-vindos, ${name}`;
   if (normalizedGender(person) === 'female') return `Seja bem-vinda, ${name}`;
   if (normalizedGender(person) === 'male') return `Seja bem-vindo, ${name}`;
   return `Olá, ${name}`;
 }
 function genderedRole(person = {}, role = '') {
   const value = String(role || person.role || '').trim();
+  if (isPluralPastoralPerson(person)) return value.replace(/^Pastora? da igreja$/i, 'Pastores da igreja').replace(/^Pastora? titular$/i, 'Pastores titulares');
   if (normalizedGender(person) === 'female') return value.replace(/^Pastor da igreja$/i, 'Pastora da igreja').replace(/^Pastor titular$/i, 'Pastora titular').replace(/^Líder de/i, 'Líder de');
   if (normalizedGender(person) === 'male') return value.replace(/^Pastora da igreja$/i, 'Pastor da igreja').replace(/^Pastora titular$/i, 'Pastor titular');
   return value;
 }
 function personalizedMessageGreeting(person = {}) {
   const name = preferredDisplayName(person) || 'pessoa querida';
-  if (normalizedGender(person) === 'female') return `Olá, ${name}! Seja bem-vinda.`;
-  if (normalizedGender(person) === 'male') return `Olá, ${name}! Seja bem-vindo.`;
-  return `Olá, ${name}!`;
+  const greeting = timeGreeting();
+  if (isPluralPastoralPerson(person)) return `${greeting}, pastores ${name}!`;
+  if (normalizedGender(person) === 'female') return `${greeting}, ${name}! Seja bem-vinda.`;
+  if (normalizedGender(person) === 'male') return `${greeting}, ${name}! Seja bem-vindo.`;
+  return `${greeting}, ${name}!`;
+}
+function brasiliaHour(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).formatToParts(value);
+  const hour = Number(parts.find(part => part.type === 'hour')?.value || 0);
+  return hour === 24 ? 0 : hour;
+}
+function timeGreeting(value = new Date()) {
+  const hour = brasiliaHour(value);
+  if (hour >= 5 && hour < 12) return 'Bom dia';
+  if (hour >= 12 && hour < 18) return 'Boa tarde';
+  return 'Boa noite';
 }
 function dashboardGreetingFor(person = {}) {
   const name = preferredDisplayName(person) || 'Pastor';
-  if (normalizedGender(person) === 'female') return `Bom dia, Pastora ${name}`;
-  if (normalizedGender(person) === 'male') return `Bom dia, Pastor ${name}`;
-  return `Bom dia, ${name}`;
+  const greeting = timeGreeting();
+  if (isPluralPastoralPerson(person)) return `${greeting}, Pastores ${name}`;
+  if (normalizedGender(person) === 'female') return `${greeting}, Pastora ${name}`;
+  if (normalizedGender(person) === 'male') return `${greeting}, Pastor ${name}`;
+  return `${greeting}, ${name}`;
 }
 function eventStatusLabel(status) {
   return ({ active: 'Ativo', paused: 'Pausado', blocked: 'Bloqueado' }[status] || 'Ativo');
@@ -946,7 +968,7 @@ function renderSettings() {
   const latestBackup = backupHistory[0];
   const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Backup automático</h2><p>Uma cópia é criada a cada alteração salva na plataforma.</p></div><span class="backup-status"><span></span> ATIVO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Dados protegidos automaticamente</strong><p>Último backup: ${esc(formatBackupDate(latestBackup?.createdAt))}</p></div><span class="backup-version-count">${backupHistory.length} ${backupHistory.length === 1 ? 'versão guardada' : 'versões guardadas'}</span></div><p class="field-note backup-note">As versões recentes incluem visitantes, famílias, avisos, agenda, equipe e identidade da ${esc(church.name)}.</p></section>`;
   const profile = state.currentUser || {};
-  const profileCard = `<section class="settings-card treatment-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Forma de tratamento do pastor</h2><p>Escolha como a plataforma deve se dirigir a você no painel e nas futuras mensagens personalizadas.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><form data-form="profile"><div class="form-grid"><div class="form-field"><label for="profilePreferredName">Nome de preferência</label><input class="input" id="profilePreferredName" name="preferredName" value="${esc(profile.preferredName || '')}" placeholder="Como prefere ser chamado(a)"></div><div class="form-field"><label for="profileGender">Forma de tratamento</label><select class="select" id="profileGender" name="gender"><option value="unspecified" ${normalizedGender(profile) === 'unspecified' ? 'selected' : ''}>Não informar</option><option value="female" ${normalizedGender(profile) === 'female' ? 'selected' : ''}>Feminino — pastora, bem-vinda</option><option value="male" ${normalizedGender(profile) === 'male' ? 'selected' : ''}>Masculino — pastor, bem-vindo</option></select></div></div><p class="field-note">A Emaús não tenta adivinhar o tratamento pelo nome. A escolha fica sob controle da própria pessoa.</p><div class="modal-actions"><button type="submit" class="btn btn-gold">${ICON('check')} Salvar tratamento</button></div></form></section>`;
+  const profileCard = `<section class="settings-card treatment-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Forma de tratamento do pastor</h2><p>Escolha como a plataforma deve se dirigir a você no painel e nas futuras mensagens personalizadas.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><form data-form="profile"><div class="form-grid"><div class="form-field"><label for="profilePreferredName">Nome de preferência</label><input class="input" id="profilePreferredName" name="preferredName" value="${esc(profile.preferredName || '')}" placeholder="Como prefere ser chamado(a)"></div><div class="form-field"><label for="profileGender">Forma de tratamento</label><select class="select" id="profileGender" name="gender"><option value="unspecified" ${normalizedGender(profile) === 'unspecified' ? 'selected' : ''}>Não informar</option><option value="female" ${normalizedGender(profile) === 'female' ? 'selected' : ''}>Feminino — pastora, bem-vinda</option><option value="male" ${normalizedGender(profile) === 'male' ? 'selected' : ''}>Masculino — pastor, bem-vindo</option><option value="plural" ${normalizedGender(profile) === 'plural' ? 'selected' : ''}>Plural — pastores, bem-vindos</option></select></div></div><p class="field-note">A Emaús não tenta adivinhar o tratamento pelo nome. A escolha fica sob controle da própria pessoa.</p><div class="modal-actions"><button type="submit" class="btn btn-gold">${ICON('check')} Salvar tratamento</button></div></form></section>`;
   return `
     <section class="page-head"><div><span class="eyebrow">ÁREA ADMINISTRATIVA</span><h1>Configurações</h1><p>Personalize a experiência da ${esc(church.name)} e prepare sua igreja para crescer.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="open-public-page">${ICON('external')} Ver página pública</button><button class="btn btn-gold" data-action="save-settings">${ICON('check')} Salvar alterações</button></div></section>
     <div class="settings-layout"><aside class="settings-nav"><button class="active" data-settings-section="organization">${ICON('building')} Igreja</button><button data-settings-section="public">${ICON('external')} Página pública</button><button data-settings-section="notifications">${ICON('bell')} Notificações</button><button data-settings-section="team">${ICON('users')} Equipe e acesso</button>${isPlatformAdmin() ? `<button data-settings-section="saas">${ICON('crown')} Plataforma SaaS</button>` : ''}</aside><div class="settings-panels">
@@ -1319,7 +1341,7 @@ async function handleSubmit(event) {
     }
   } else if (formType === 'profile') {
     const preferredName = String(data.get('preferredName') || '').trim();
-    const gender = ['female', 'male', 'unspecified'].includes(String(data.get('gender') || '')) ? String(data.get('gender')) : 'unspecified';
+    const gender = ['female', 'male', 'plural', 'unspecified'].includes(String(data.get('gender') || '')) ? String(data.get('gender')) : 'unspecified';
     try {
       const payload = await apiRequest('/api/me/profile', { method: 'PATCH', body: { preferredName, gender } });
       state.currentUser = { ...(state.currentUser || {}), preferredName: payload.user?.preferredName || preferredName, gender, role: genderedRole({ gender }, 'Pastor da igreja') };
