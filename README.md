@@ -9,7 +9,7 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v47`;
+- Service worker: `emaus-shell-v49`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -47,6 +47,9 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - público de evento com a opção Visitantes;
 - menu de lideranças com edição, exclusão e troca de cargo;
 - metas de crescimento persistentes para visitantes, retornos e membros;
+- estratégia de cuidado e crescimento em marcos de 50 até 500 membros, com quatro práticas por etapa e diretrizes alinhadas ao evangelho;
+- forma de tratamento escolhida pela pessoa para membros, lideranças e pastor, com saudações femininas, masculinas ou neutras sem inferência pelo nome;
+- saudação personalizada preparada para avisos, convites e acompanhamentos futuros;
 - Bethesda mantida ativa sem números demonstrativos pré-carregados.
 
 ## Endpoints acrescentados
@@ -54,6 +57,7 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - `GET /api/public/church?slug=bethesda`;
 - `GET/POST/PATCH/DELETE /api/church/members`;
 - `GET/POST /api/church/ministries` — catálogo de ministérios por igreja, com confirmação ao cadastrar um nome novo;
+- `PATCH /api/me/profile` — salva a forma de tratamento do usuário pastor;
 - `GET/POST/PATCH/DELETE /api/church/events`, `POST /api/church/events/bulk` e `PUT /api/church/events/:eventId/series`; edição completa de nome, data, horário, local, categoria, público, recorrência e situação (ativo, pausado ou bloqueado);
 - `GET/POST/PATCH/DELETE /api/church/leaders`;
 - `GET/POST/PATCH/DELETE /api/church/reception-users`;

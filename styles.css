@@ -207,6 +207,38 @@ kbd { margin-left: auto; padding: 2px 6px; border: 1px solid #e4e0d8; border-rad
 .panel-link .icon { width: 12px; height: 12px; }
 .chart-panel { min-height: 347px; }
 .growth-panel { margin-top: 20px; }
+.growth-strategy-card { margin-top: 20px; overflow: hidden; }
+.growth-strategy-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .9fr); gap: 24px; padding: 0 22px 22px; }
+.growth-strategy-milestone { padding: 17px; border: 1px solid #eadfc9; border-radius: 12px; background: linear-gradient(135deg, #fffaf0, #fffdf9); }
+.growth-strategy-milestone strong { display: block; margin-top: 7px; color: var(--ink); font-family: var(--serif); font-size: 26px; font-weight: 500; }
+.growth-strategy-milestone p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.growth-strategy-progress { align-self: center; }
+.growth-strategy-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 10px; }
+.growth-strategy-progress-head strong { color: var(--ink); font-size: 13px; }
+.growth-strategy-progress .mini-progress { margin-top: 10px; }
+.growth-strategy-progress small { display: block; margin-top: 9px; color: var(--muted-2); font-size: 9px; line-height: 1.4; }
+.growth-strategy-intro { display: flex; align-items: flex-start; gap: 13px; padding: 15px; border: 1px solid #eadfc9; border-radius: 12px; background: linear-gradient(135deg, #fffaf0, #fffdf9); }
+.growth-strategy-intro .icon-tile { flex: 0 0 auto; }
+.growth-strategy-intro strong { display: block; color: var(--ink); font-size: 13px; }
+.growth-strategy-intro p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.growth-principles { margin-top: 15px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.growth-principles h3 { margin: 0 0 10px; color: var(--ink); font-size: 12px; }
+.growth-principles ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 18px; margin: 0; padding: 0; list-style: none; }
+.growth-principles li { display: flex; align-items: flex-start; gap: 7px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.growth-principles li .icon { width: 13px; height: 13px; flex: 0 0 auto; color: var(--success); }
+.growth-stage-list { display: grid; gap: 12px; margin-top: 15px; }
+.growth-stage { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.growth-stage-current { border-color: #dfbd70; box-shadow: 0 0 0 3px rgba(215,168,75,.1); }
+.growth-stage-done { opacity: .78; }
+.growth-stage-head { display: flex; align-items: flex-start; gap: 11px; }
+.growth-stage-number { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 12px; color: var(--ink); background: var(--gold-soft); font-family: var(--serif); font-size: 16px; }
+.growth-stage-current .growth-stage-number { color: #fff; background: var(--copper); }
+.growth-stage-head h3 { margin: 3px 0 0; color: var(--ink); font-size: 13px; }
+.growth-stage-head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.growth-stage ol { margin: 13px 0 0 51px; padding: 0 0 0 18px; color: var(--muted); }
+.growth-stage li { margin: 5px 0; padding-left: 2px; font-size: 10px; line-height: 1.5; }
+
+.growth-panel { margin-top: 20px; }
 .chart-legend { display: flex; align-items: center; gap: 15px; color: var(--muted); font-size: 10px; }
 .legend-key { display: inline-flex; align-items: center; gap: 6px; }
 .legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
@@ -778,6 +810,11 @@ tbody tr:hover td { background: #fcfbf9; }
   .event-quick-actions .btn { width: 100%; }
   .side-stack { display: flex; }
   .section-grid, .section-grid.three { grid-template-columns: 1fr; }
+  .growth-strategy-summary { grid-template-columns: 1fr; gap: 12px; padding-left: 16px; padding-right: 16px; }
+  .growth-principles ul { grid-template-columns: 1fr; }
+  .growth-stage ol { margin-left: 0; }
+  .growth-stage-head h3 { font-size: 14px; }
+  .growth-stage-head p, .growth-stage li { font-size: 11px; }
   .leader-grid { grid-template-columns: 1fr; }
   .toolbar { align-items: stretch; }
   .toolbar-left, .toolbar-right { width: 100%; }
