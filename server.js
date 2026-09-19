@@ -23,6 +23,8 @@ const BOT_DEFAULTS = Object.freeze({
   enabled: true,
   provider: 'zapster',
   channel: 'WhatsApp',
+  senderMode: 'platform_shared',
+  senderLabelMode: 'church_only',
   timezone: 'America/Sao_Paulo',
   visitorSequence: 'once_ever',
   visitorFirstTime: '22:30',
@@ -230,7 +232,7 @@ async function queueVisitorBotSequence(visitor, church) {
     body: renderBotTemplate(settings.visitorFirstTemplate, { name: visitor.name, church_name: church.name, public_url: publicUrl }),
     scheduledFor: firstScheduledFor,
     status: firstStatus,
-    metadata: { visitDate: String(visitor.visit_date).slice(0, 10), publicUrl, sequence: 'once_ever' },
+    metadata: { visitDate: String(visitor.visit_date).slice(0, 10), publicUrl, sequence: 'once_ever', senderMode: 'platform_shared', senderLabel: church.name },
     dedupeKey: `visitor:${church.id}:${recipientKey}:public-page`
   });
   const second = await enqueueBotDelivery({
@@ -244,7 +246,7 @@ async function queueVisitorBotSequence(visitor, church) {
     body: renderBotTemplate(settings.visitorSecondTemplate, { name: visitor.name, church_name: church.name, public_url: publicUrl, youtube_url: settings.youtubeUrl }),
     scheduledFor: secondScheduledFor,
     status: secondStatus,
-    metadata: { visitDate: String(visitor.visit_date).slice(0, 10), publicUrl, youtubeUrl: settings.youtubeUrl || '', asksOnce: true },
+    metadata: { visitDate: String(visitor.visit_date).slice(0, 10), publicUrl, youtubeUrl: settings.youtubeUrl || '', asksOnce: true, senderMode: 'platform_shared', senderLabel: church.name },
     dedupeKey: `visitor:${church.id}:${recipientKey}:video-optin`
   });
   return { queued: Number(Boolean(first)) + Number(Boolean(second)), firstStatus, secondStatus };
@@ -273,7 +275,7 @@ async function queueCultReminderForEvent(event, church) {
       body,
       scheduledFor,
       status: botScheduledStatus(scheduledFor),
-      metadata: { eventId: event.id, eventDate: String(event.event_date).slice(0, 10), eventType: event.event_type, timezone: settings.timezone },
+      metadata: { eventId: event.id, eventDate: String(event.event_date).slice(0, 10), eventType: event.event_type, timezone: settings.timezone, senderMode: 'platform_shared', senderLabel: church.name },
       dedupeKey: `cult:${church.id}:${event.id}:${member.id}`
     });
     if (item) queued += 1;
@@ -331,7 +333,7 @@ async function queueAnnouncementBotDeliveries(announcement, churchId) {
       body: announcement.body,
       scheduledFor,
       status: announcement.status === 'scheduled' ? 'planned' : 'planned',
-      metadata: { announcementId: announcement.id, audience: announcement.audience, title: announcement.title },
+      metadata: { announcementId: announcement.id, audience: announcement.audience, title: announcement.title, senderMode: 'platform_shared', senderLabel: church.name },
       dedupeKey: `announcement:${churchId}:${announcement.id}:${recipient.phone}`
     });
     if (item) queued += 1;
@@ -593,7 +595,7 @@ app.get('/api/church/bot-settings', auth(['church_admin']), requireChurch, async
   if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
   const bot = botSettingsFromChurch(result.rows[0]);
   const queue = await query(`SELECT status, COUNT(*)::int AS total FROM bot_delivery_queue WHERE church_id = $1 GROUP BY status ORDER BY status`, [req.churchId]);
-  res.json({ bot, providerConfigured: false, provider: 'zapster', queue: queue.rows });
+  res.json({ bot, providerConfigured: false, provider: 'zapster', instanceMode: 'platform_shared', senderLabelMode: 'church_only', queue: queue.rows });
 });
 
 app.put('/api/church/bot-settings', auth(['church_admin']), requireChurch, async (req, res) => {
@@ -619,19 +621,21 @@ app.put('/api/church/bot-settings', auth(['church_admin']), requireChurch, async
     timezone: 'America/Sao_Paulo',
     provider: 'zapster',
     channel: 'WhatsApp',
+    senderMode: 'platform_shared',
+    senderLabelMode: 'church_only',
     visitorSequence: 'once_ever'
   };
   const publicSettings = { ...(church.public_settings || {}), bot };
   const result = await query('UPDATE churches SET public_settings = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, slug, public_settings', [JSON.stringify(publicSettings), req.churchId]);
   await audit(req.user, 'bot_settings_updated', { fields: ['enabled', 'youtubeUrl', 'visitorFirstTime', 'visitorSecondTime', 'cultReminderTime'], provider: 'zapster', sending: false }, req.churchId);
   await syncBotQueuesForChurch(req.churchId);
-  res.json({ bot: botSettingsFromChurch(result.rows[0]), providerConfigured: false, delivery: 'not_configured' });
+  res.json({ bot: botSettingsFromChurch(result.rows[0]), providerConfigured: false, instanceMode: 'platform_shared', senderLabelMode: 'church_only', delivery: 'not_configured' });
 });
 
 app.get('/api/church/bot-queue', auth(['church_admin']), requireChurch, async (req, res) => {
   const result = await query(`SELECT id, recipient_type, recipient_name, phone_normalized, message_type, body, scheduled_for, status, provider, metadata, attempts, last_error, sent_at, created_at
     FROM bot_delivery_queue WHERE church_id = $1 ORDER BY scheduled_for ASC, created_at ASC LIMIT 500`, [req.churchId]);
-  res.json({ delivery: 'not_configured', provider: 'zapster', queue: result.rows });
+  res.json({ delivery: 'not_configured', provider: 'zapster', instanceMode: 'platform_shared', senderLabelMode: 'church_only', queue: result.rows });
 });
 
 app.post('/api/integrations/zapster/visitor-consent', async (req, res) => {

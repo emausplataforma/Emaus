@@ -1,10 +1,12 @@
-Emaús — automação preparada para Zapster v1.3
+Emaús — automação preparada para Zapster v1.4
 Frontend: shell v58 / app.js?v=58 / publica.js?v=58
 Backend: fila PostgreSQL idempotente no serviço Emaus; nenhuma mensagem externa é enviada nesta etapa.
+Instância: modo platform_shared — uma instância/número da plataforma atende várias igrejas; a mensagem usa o nome da igreja e o church_id mantém o isolamento.
 Fluxo visitante: página pública às 22:30 no dia da visita; vídeo do YouTube + pergunta SIM/NÃO às 17:00 do dia seguinte.
 Fluxo culto: lembrete às 17:00 do dia anterior para membros ativos com telefone e autorização de comunicação.
 Sequência do visitante: uma única vez por contato/telefone; pergunta de continuidade uma vez; NÃO cancela novos envios.
 Pastor: registro de divulgação para toda a igreja, membros, visitantes autorizados ou ministério específico.
 Vídeo vazio: segunda mensagem bloqueada até o pastor cadastrar link válido do YouTube.
 Canal futuro: WhatsApp via Zapster. Instância, webhook e credenciais ficam para ativação guiada.
+Identidade: o número central permanecerá visível; o texto usa o nome da igreja conforme escolha do responsável.
 Escopo: publicar somente no serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços.
