@@ -1,6 +1,6 @@
 const ICON = (name, className = 'icon') => `<svg class="${className}"><use href="#icon-${name}"></use></svg>`;
 const PLATFORM_NAME = 'Emaús';
-const STORAGE_KEY = 'batesda-platform-state-v1';
+const VISUAL_STORAGE_KEY = 'emaus-visual-preferences-v1';
 const TODAY = new Date().toISOString().slice(0, 10);
 const DEFAULT_APPEARANCE = { theme: 'light', font: 'editorial', primary: '#d7a84b', accent: '#b86f45' };
 const API_BASE = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
@@ -48,42 +48,12 @@ const defaultState = {
   churches: [
     { id: 'batesda', name: 'Bethesda', slug: 'bethesda', city: 'Itaboraí • RJ', phone: '(21) 00000-0000', pastors: 'Evandro e Simone', description: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', initials: 'BE', logoSymbol: 'B', logoImage: 'bethesda-logo.png', appearance: { ...DEFAULT_APPEARANCE }, publicSettings: { visible: true, headline: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', address: 'Itaboraí • RJ', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar' }, members: 0, status: 'Ativa', plan: 'Essencial' }
   ],
-  visitors: [
-    { id: 'v-1', name: 'Ana Clara Nogueira', familyName: 'Família Nogueira', familyMembers: ['Ana Clara Nogueira', 'Paulo Nogueira', 'Lara Nogueira'], arrivalType: 'Família', phone: '(21) 99842-1874', date: '2026-09-02', service: 'Culto de Celebração', neighborhood: 'Centro', invitedBy: 'Mariana Alves', status: 'Novo', responsible: 'Recepção', notes: 'Veio com a família.', consent: true },
-    { id: 'v-2', name: 'Marcos Vinícius Ribeiro', familyName: '', familyMembers: ['Marcos Vinícius Ribeiro'], arrivalType: 'Sozinho', phone: '(21) 99118-4420', date: '2026-08-30', service: 'Culto da Família', neighborhood: 'Manilha', invitedBy: 'João Pedro', status: 'Contatado', responsible: 'Pr. Evandro', notes: 'Agradeceu a recepção.', consent: true },
-    { id: 'v-3', name: 'Júlia Souza', familyName: '', familyMembers: ['Júlia Souza', 'Carlos Souza'], arrivalType: 'Em casal', phone: '(21) 99731-9002', date: '2026-08-23', service: 'Culto de Celebração', neighborhood: 'Outeiro', invitedBy: 'Camila Martins', status: 'Retornou', responsible: 'Simone', notes: 'Retornou no encontro de quarta.', consent: true },
-    { id: 'v-4', name: 'Rafael Oliveira', familyName: '', familyMembers: ['Rafael Oliveira'], arrivalType: 'Com amigos', phone: '(21) 98877-2106', date: '2026-08-16', service: 'Culto de Celebração', neighborhood: 'Nancilândia', invitedBy: '—', status: 'Novo', responsible: 'Recepção', notes: '', consent: true },
-    { id: 'v-5', name: 'Camila Martins', familyName: '', familyMembers: ['Camila Martins'], arrivalType: 'Família', phone: '(21) 99612-7361', date: '2026-08-09', service: 'Santa Ceia', neighborhood: 'Centro', invitedBy: 'Equipe de louvor', status: 'Integrado', responsible: 'Líder de célula', notes: 'Participa da célula do Centro.', consent: true }
-  ],
-  announcements: [
-    { id: 'a-1', title: 'Culto de Celebração', body: 'Neste domingo, às 19h. Convide alguém especial para estar conosco.', audience: 'Toda a igreja', channels: ['Push', 'WhatsApp'], date: '04 set 2026', status: 'Enviado', reach: '246 pessoas', tone: 'gold' },
-    { id: 'a-2', title: 'Encontro de Mulheres', body: 'Uma noite de comunhão, palavra e cuidado. Inscrições abertas na recepção.', audience: 'Ministério de Mulheres', channels: ['Push', 'E-mail'], date: '02 set 2026', status: 'Enviado', reach: '64 pessoas', tone: 'copper' },
-    { id: 'a-3', title: 'Escala de setembro', body: 'A escala dos obreiros já está disponível para consulta.', audience: 'Obreiros', channels: ['Push'], date: '30 ago 2026', status: 'Enviado', reach: '31 pessoas', tone: 'gold' }
-  ],
-  events: [
-    { id: 'e-1', title: 'Culto de Celebração', date: '2026-09-06', time: '19:00', location: 'Templo principal', type: 'Culto', audience: 'Toda a igreja' },
-    { id: 'e-2', title: 'Encontro de Mulheres', date: '2026-09-12', time: '18:30', location: 'Salão social', type: 'Encontro', audience: 'Ministério de Mulheres' },
-    { id: 'e-3', title: 'Culto de Ensino', date: '2026-09-16', time: '19:30', location: 'Templo principal', type: 'Culto', audience: 'Toda a igreja' },
-    { id: 'e-4', title: 'Café com líderes', date: '2026-09-19', time: '08:30', location: 'Sala de reuniões', type: 'Liderança', audience: 'Lideranças' }
-  ],
-  receptionUsers: [
-    { id: 'r-1', name: 'Mariana Alves', role: 'Recepção', roleKey: 'reception', churchId: 'batesda', login: 'mariana@bethesda.com.br', password: '123456', phone: '(21) 99704-2118', passwordStatus: 'Ativa', status: 'Ativo', lastAccess: 'Hoje, 10:42', permissions: ['acolhimento'], initials: 'MA', tone: 'copper' },
-    { id: 'r-2', name: 'João Pedro', role: 'Obreiro', roleKey: 'reception', churchId: 'batesda', login: 'joao@bethesda.com.br', password: '123456', phone: '(21) 99634-1822', passwordStatus: 'Ativa', status: 'Ativo', lastAccess: 'Domingo, 18:21', permissions: ['acolhimento'], initials: 'JP', tone: 'olive' }
-  ],
-  leaders: [
-    { id: 'l-1', name: 'Evandro', role: 'Pastor titular', phone: '(21) 99921-4421', group: 'Administração', initials: 'EV', tone: 'gold' },
-    { id: 'l-2', name: 'Simone', role: 'Pastora e cuidado', phone: '(21) 99812-7310', group: 'Acolhimento', initials: 'SI', tone: 'copper' },
-    { id: 'l-3', name: 'João Pedro', role: 'Líder de obreiros', phone: '(21) 99634-1822', group: 'Obreiros', initials: 'JP', tone: 'olive' },
-    { id: 'l-4', name: 'Mariana Alves', role: 'Líder de recepção', phone: '(21) 99704-2118', group: 'Recepção', initials: 'MA', tone: 'dark' },
-    { id: 'l-5', name: 'Camila Martins', role: 'Líder de célula', phone: '(21) 99572-3188', group: 'Célula Centro', initials: 'CM', tone: 'copper' },
-    { id: 'l-6', name: 'Daniel Souza', role: 'Ministério de louvor', phone: '(21) 99280-4471', group: 'Louvor', initials: 'DS', tone: 'olive' }
-  ],
-  activity: [
-    { type: 'visitor', name: 'Ana Clara Nogueira', text: 'foi cadastrada como nova visitante.', time: 'Hoje, 10:42', initials: 'AN', tone: 'copper' },
-    { type: 'announcement', name: 'Culto de Celebração', text: 'foi enviado para toda a igreja.', time: 'Hoje, 09:15', initials: 'CC', tone: 'gold' },
-    { type: 'return', name: 'Júlia Souza', text: 'retornou pela segunda vez.', time: 'Ontem, 20:18', initials: 'JS', tone: 'olive' },
-    { type: 'event', name: 'Encontro de Mulheres', text: 'foi adicionado à agenda.', time: '01 set, 14:06', initials: 'EM', tone: 'dark' }
-  ]
+  visitors: [],
+  announcements: [],
+  events: [],
+  receptionUsers: [],
+  leaders: [],
+  activity: []
 };
 
 let state = loadState();
@@ -196,6 +166,7 @@ function mapApiReceptionUser(user) {
 }
 
 async function loadRemoteChurchState(user) {
+  setSyncStatus('syncing');
   const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users', '/api/church/ministries', '/api/church/attendance', '/api/church/attendance/summary', '/api/church/care-tasks', '/api/church/announcements', '/api/church/activity'];
   const results = await Promise.all(endpoints.map(endpoint => apiRequest(endpoint).then(payload => ({ ok: true, payload })).catch(error => ({ ok: false, error }))));
   const settingsPayload = results[0].payload || {};
@@ -246,8 +217,18 @@ async function loadRemoteChurchState(user) {
   if (results[10].ok) state.announcements = (announcementsPayload.announcements || []).map(mapApiAnnouncement);
   if (results[11].ok) state.activity = (activityPayload.activity || []).map(mapApiActivity);
   state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: state.announcements.length };
-  state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || '' };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  setSyncStatus(results.every(result => result.ok) ? 'connected' : 'partial');
+  state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || '', twoFactorEnabled: Boolean(user?.twoFactorEnabled) };
+}
+
+function setSyncStatus(kind = 'idle') {
+  const element = $('#syncStatus');
+  if (!element) return;
+  const labels = { idle: 'Banco', syncing: 'Sincronizando', connected: 'Banco conectado', partial: 'Conexão parcial', error: 'Sem conexão' };
+  element.className = `sync-status is-${kind}`;
+  element.title = labels[kind] || labels.idle;
+  const label = element.querySelector('b');
+  if (label) label.textContent = labels[kind] || labels.idle;
 }
 
 function showChurchLogin() {
@@ -328,106 +309,43 @@ const viewMeta = {
   settings: { label: 'Configurações' }
 };
 
+function readVisualPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VISUAL_STORAGE_KEY) || '{}');
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch (error) {
+    return {};
+  }
+}
+
 function loadState() {
+  const visualPreferences = readVisualPreferences();
+  const freshState = structuredClone(defaultState);
+  freshState.churches = freshState.churches.map(church => ({
+    ...church,
+    appearance: { ...DEFAULT_APPEARANCE, ...(visualPreferences[church.id] || {}) }
+  }));
+  // Remove snapshots created by older prototype versions. Business data belongs in PostgreSQL.
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.visitors && saved.events && saved.churches) {
-      const merged = { ...structuredClone(defaultState), ...saved, currentUser: { ...defaultState.currentUser, ...(saved.currentUser || {}) }, metrics: { ...defaultState.metrics, ...(saved.metrics || {}) }, growthGoals: { ...defaultState.growthGoals, ...(saved.growthGoals || {}) }, members: Array.isArray(saved.members) ? saved.members : [], ministries: Array.isArray(saved.ministries) ? saved.ministries : [], attendance: Array.isArray(saved.attendance) ? saved.attendance : [], attendanceSummary: { ...defaultState.attendanceSummary, ...(saved.attendanceSummary || {}) }, careTasks: Array.isArray(saved.careTasks) ? saved.careTasks : [], calendarMonth: saved.calendarMonth || defaultState.calendarMonth };
-      merged.visitors = merged.visitors.map(visitor => {
-        const defaultVisitor = defaultState.visitors.find(item => item.id === visitor.id);
-        return {
-          ...visitor,
-          familyName: visitor.familyName || defaultVisitor?.familyName || '',
-          familyMembers: Array.isArray(visitor.familyMembers) && visitor.familyMembers.length ? visitor.familyMembers : (defaultVisitor?.familyMembers || [visitor.name]),
-          arrivalType: visitor.arrivalType || defaultVisitor?.arrivalType || 'Sozinho',
-          announced: Boolean(visitor.announced)
-        };
-      });
-      merged.churches = merged.churches.map(church => ({
-        ...church,
-        name: church.id === 'batesda' ? 'Bethesda' : church.name,
-        initials: church.id === 'batesda' ? 'BE' : (church.initials || initials(church.name)),
-        logoSymbol: church.logoSymbol || (church.id === 'batesda' ? 'B' : initials(church.name).slice(0, 2)),
-        logoImage: church.id === 'batesda' ? 'bethesda-logo.png' : (church.logoImage || ''),
-        phone: church.phone || '(21) 00000-0000',
-        pastors: church.pastors || 'Evandro e Simone',
-        description: church.description || 'Um lugar para pertencer, crescer e viver a fé em comunidade.',
-        slug: church.slug || slugify(church.name),
-        publicSettings: { visible: true, ...(church.publicSettings || {}) },
-        appearance: { ...DEFAULT_APPEARANCE, ...(church.appearance || {}) }
-      }));
-      merged.receptionUsers = (merged.receptionUsers || []).map((user, index) => ({
-        ...user,
-        roleKey: user.roleKey || 'reception',
-        churchId: user.churchId || 'batesda',
-        login: (user.login || `${slugify(user.name)}@${slugify(defaultState.churches[0]?.name || 'igreja')}.com.br`).replace(/@batesda\.com\.br$/i, '@bethesda.com.br'),
-        password: user.password || (/^(mariana|joao)@(batesda|bethesda)\.com\.br$/i.test(String(user.login || '')) ? '123456' : ''),
-        passwordStatus: user.passwordStatus || 'Ativa',
-        permissions: Array.isArray(user.permissions) && user.permissions.length ? user.permissions : ['acolhimento']
-      }));
-      return merged;
+    localStorage.removeItem('batesda-platform-state-v1');
+    localStorage.removeItem('emaus-platform-state-v2');
+    localStorage.removeItem('batesda-platform-backups-v1');
+  } catch (error) {
+    console.info('Não foi possível limpar o cache legado do navegador.', error);
+  }
+  return freshState;
+}
+
+function saveState(reason = 'Preferências visuais atualizadas') {
+  try {
+    const church = getActiveChurch();
+    if (church?.id) {
+      const preferences = readVisualPreferences();
+      preferences[church.id] = { theme: church.appearance?.theme || 'light', font: church.appearance?.font || 'editorial', primary: church.appearance?.primary || DEFAULT_APPEARANCE.primary, accent: church.appearance?.accent || DEFAULT_APPEARANCE.accent };
+      localStorage.setItem(VISUAL_STORAGE_KEY, JSON.stringify(preferences));
     }
   } catch (error) {
-    console.info('Iniciando uma nova área de trabalho.', error);
-  }
-  return structuredClone(defaultState);
-}
-
-const BACKUP_STORAGE_KEY = 'batesda-platform-backups-v1';
-const BACKUP_LIMIT = 30;
-
-function getBackupHistory() {
-  try {
-    const history = JSON.parse(localStorage.getItem(BACKUP_STORAGE_KEY));
-    return Array.isArray(history) ? history : [];
-  } catch (error) {
-    console.info('Não foi possível ler os backups automáticos.', error);
-    return [];
-  }
-}
-
-function persistBackupHistory(history) {
-  for (let limit = history.length; limit > 0; limit -= 1) {
-    try {
-      localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(history.slice(0, limit)));
-      return true;
-    } catch (error) {
-      // Se o navegador atingir o limite do armazenamento, conserva as versões mais recentes.
-    }
-  }
-  return false;
-}
-
-function createAutomaticBackup(reason = 'Alteração salva') {
-  const snapshot = structuredClone(state);
-  const history = getBackupHistory();
-  history.unshift({
-    id: `backup-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    createdAt: new Date().toISOString(),
-    reason,
-    churchId: state.activeChurchId,
-    state: snapshot
-  });
-  const saved = persistBackupHistory(history.slice(0, BACKUP_LIMIT));
-  if (!saved) console.info('Não foi possível criar o backup automático.');
-  return saved;
-}
-
-function formatBackupDate(date) {
-  if (!date) return 'ainda não realizado';
-  try {
-    return new Date(date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-  } catch (error) {
-    return 'agora';
-  }
-}
-
-function saveState(reason = 'Alteração salva') {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    createAutomaticBackup(reason);
-  } catch (error) {
-    console.info('Não foi possível salvar o protótipo.', error);
+    console.info('Não foi possível guardar o cache visual.', error);
   }
 }
 
@@ -814,6 +732,27 @@ function renderGrowthStrategyModal() {
   return `<div class="growth-strategy-intro"><div class="icon-tile gold">${ICON('sparkle')}</div><div><strong>Uma estratégia de crescimento fiel ao evangelho</strong><p>Use cada marco como um convite para cuidar melhor das pessoas, formar discípulos e servir a comunidade. Nunca como pressão por números.</p></div></div><div class="growth-principles"><h3>Diretrizes para todos os marcos</h3><ul>${GROWTH_STRATEGY_PRINCIPLES.map(principle => `<li>${ICON('check-circle')}<span>${esc(principle)}</span></li>`).join('')}</ul></div><div class="growth-stage-list">${stages}</div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-gold" data-action="growth-goals">${ICON('sparkle')} Ajustar meta de membros</button></div>`;
 }
 
+function onboardingSteps() {
+  const church = getActiveChurch();
+  const publicSettings = church?.publicSettings || {};
+  const onboarding = publicSettings.onboarding || {};
+  return [
+    { key: 'publicReviewed', label: 'Revisar a página pública', help: 'Confira texto, horários e contatos.', done: Boolean(onboarding.publicReviewed), view: 'settings' },
+    { key: 'reception', label: 'Cadastrar um acesso de recepção', help: 'Permita que uma pessoa autorizada acolha visitantes.', done: (state.receptionUsers || []).length > 0, action: 'new-reception' },
+    { key: 'member', label: 'Cadastrar o primeiro membro', help: 'Comece a base real da igreja.', done: (state.members || []).length > 0, action: 'new-member' },
+    { key: 'event', label: 'Confirmar a agenda', help: 'Adicione ou revise o próximo evento.', done: (state.events || []).length > 0, action: 'new-event' },
+    { key: 'goalsReviewed', label: 'Definir metas de cuidado', help: 'Use metas como orientação, não como pressão.', done: Boolean(onboarding.goalsReviewed), action: 'growth-goals' }
+  ];
+}
+function renderOnboardingPanel() {
+  if (state.currentUser?.role !== 'church_admin') return '';
+  const steps = onboardingSteps();
+  const completed = steps.filter(step => step.done).length;
+  if (completed === steps.length) return '';
+  const rows = steps.map(step => `<div class="onboarding-step ${step.done ? 'is-done' : ''}"><span class="onboarding-check">${step.done ? ICON('check') : ''}</span><div><strong>${esc(step.label)}</strong><small>${esc(step.help)}</small></div>${step.done ? '<span class="onboarding-done">Concluído</span>' : step.view ? `<button class="btn btn-secondary btn-small" data-view="${esc(step.view)}">Abrir</button>` : `<button class="btn btn-secondary btn-small" data-action="${esc(step.action)}">Abrir</button>`}</div>`).join('');
+  return `<section class="panel onboarding-panel"><div class="panel-header"><div class="panel-heading"><span class="scope-label">PRIMEIROS PASSOS</span><h2>Prepare a ${esc(getActiveChurch()?.name || 'igreja')}</h2><p>${completed} de ${steps.length} etapas concluídas. Os dados ficam no banco da igreja.</p></div><span class="onboarding-progress">${completed}/${steps.length}</span></div><div class="onboarding-list">${rows}</div><p class="field-note" style="margin-top:15px;">Faça uma etapa por vez. A Emaús não envia mensagens externas nesta fase.</p></section>`;
+}
+
 function renderCareSummaryPanel() {
   const tasks = (state.careTasks || []).filter(task => !['done', 'cancelled'].includes(task.status));
   const summary = state.attendanceSummary || {};
@@ -839,6 +778,8 @@ function renderDashboard() {
         <button class="btn btn-gold" data-action="new-visitor"><span>${ICON('plus')}</span> Novo visitante</button>
       </div>
     </section>
+
+    ${renderOnboardingPanel()}
 
     <div class="welcome-banner">
       <div class="welcome-copy"><div class="welcome-icon">${ICON('sparkle')}</div><div><strong>O cuidado começa na chegada.</strong><p>Há <b>${visitorCountByStatus('Novo')}</b> visitantes esperando um primeiro contato hoje.</p></div></div>
@@ -1041,9 +982,8 @@ function renderSettings() {
   const appearance = { ...DEFAULT_APPEARANCE, ...(church.appearance || {}) };
   const publicSettings = { visible: true, headline: church.description || '', address: church.city || '', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar', ...(church.publicSettings || {}) };
   const organizationManagement = isPlatformAdmin() ? `<section class="settings-card saas-card" data-settings-panel="saas"><div class="saas-content"><div class="settings-card-header" style="border:0;padding-bottom:0;margin-bottom:0;"><div><h2>Pronto para outras igrejas</h2><p>A administração da plataforma gerencia organizações, planos e responsáveis.</p></div><div class="icon-tile gold">${ICON('crown')}</div></div><div class="plan-line"><span class="plan-badge">Administrador da plataforma</span><span>${state.churches.length} organização${state.churches.length === 1 ? '' : 'ões'} cadastrada${state.churches.length === 1 ? '' : 's'}</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;"><div><strong style="font-size:12px;">Área de organizações</strong><p class="field-note" style="margin-top:5px;">Cadastre novas igrejas, planos e responsáveis em um único painel.</p></div><button class="btn btn-primary" data-action="new-church">${ICON('plus')} Adicionar igreja</button></div></div></section><section class="settings-card" data-settings-panel="saas"><div class="settings-card-header"><div><h2>Igrejas cadastradas</h2><p>Organizações disponíveis nesta conta administradora.</p></div><span class="status-pill status-integrated">${state.churches.length} ativa${state.churches.length === 1 ? '' : 's'}</span></div><div class="tenant-list">${state.churches.map(ch => `<div class="tenant-row"><div class="tenant-logo">${esc(ch.initials || initials(ch.name))}</div><div class="tenant-copy"><strong>${esc(ch.name)}</strong><span>${esc(ch.city)} · ${esc(ch.members || 0)} pessoas alcançadas</span></div><span class="tenant-status">${esc(ch.status || 'Ativa')}</span><button class="table-action" data-action="switch-church" data-id="${esc(ch.id)}" aria-label="Abrir ${esc(ch.name)}">${ICON('chevron-right')}</button></div>`).join('')}</div></section>` : `<section class="settings-card pastor-scope-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Acesso da sua igreja</h2><p>Você está conectado como pastor e administra somente os dados desta organização.</p></div><div class="icon-tile copper">${ICON('shield')}</div></div><div class="pastor-scope-grid"><div><span class="scope-label">IGREJA ATIVA</span><strong>${esc(church.name)}</strong><p>${esc(church.city)} · identidade, visitantes e avisos desta igreja.</p></div><span class="access-scope-badge">PASTOR DA IGREJA</span></div><div class="scope-note"><span>${ICON('check-circle')}</span><p><strong>Você pode editar o nome e o logo</strong> desta igreja em “Identidade da igreja”. As outras igrejas e seus dados ficam protegidos e são administrados pelo administrador da plataforma.</p></div></section>`;
-  const backupHistory = getBackupHistory();
-  const latestBackup = backupHistory[0];
-  const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Histórico local de segurança</h2><p>Uma cópia local é criada a cada alteração salva neste navegador.</p></div><span class="backup-status"><span></span> ATIVO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Versões recentes guardadas neste dispositivo</strong><p>Última cópia: ${esc(formatBackupDate(latestBackup?.createdAt))}</p></div><span class="backup-version-count">${backupHistory.length} ${backupHistory.length === 1 ? 'versão guardada' : 'versões guardadas'}</span></div><p class="field-note backup-note">Isso não substitui o backup do PostgreSQL no Railway. A rotina de backup do banco deve ser configurada separadamente antes da produção.</p></section>`;
+  const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Backup do banco de dados</h2><p>A proteção dos dados da igreja deve acontecer no PostgreSQL do Railway.</p></div><span class="backup-status"><span></span> GUIADO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Nenhuma cópia de dados é mantida neste navegador</strong><p>O pacote inclui o procedimento de backup e restauração do PostgreSQL.</p></div><span class="backup-version-count">Railway</span></div><p class="field-note backup-note">Ative o backup automático e faça um teste de restauração seguindo <strong>docs/BACKUP-RESTAURACAO-POSTGRES.md</strong>. A Emaús não pede credenciais por este painel.</p></section>`;
+  const securityCard = `<section class="settings-card security-settings-card" data-settings-panel="team"><div class="settings-card-header"><div><h2>Segurança adicional</h2><p>Preparação para autenticação em dois fatores, sem ativação automática.</p></div><div class="icon-tile green">${ICON('shield')}</div></div><div class="security-status-row"><span class="security-status-dot ${state.currentUser?.twoFactorEnabled ? 'is-on' : ''}"></span><div><strong>${state.currentUser?.twoFactorEnabled ? '2FA ativa para este acesso' : '2FA preparada para ativação guiada'}</strong><p>${state.currentUser?.twoFactorEnabled ? 'O acesso exige uma segunda etapa configurada.' : 'A coluna e a rota de status já estão preparadas, mas nada foi ativado sem orientação.'}</p></div><span class="status-pill ${state.currentUser?.twoFactorEnabled ? 'status-integrated' : 'status-contacted'}">${state.currentUser?.twoFactorEnabled ? 'Ativa' : 'Não ativada'}</span></div><p class="field-note">Para ativar, siga <strong>docs/SEGURANCA-2FA.md</strong> e faça primeiro um teste com uma conta autorizada. Nunca envie senhas, tokens ou códigos por mensagem.</p></section>`;
   const profile = state.currentUser || {};
   const profileCard = `<section class="settings-card treatment-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Forma de tratamento do pastor</h2><p>Escolha como a plataforma deve se dirigir a você no painel e nas futuras mensagens personalizadas.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><form data-form="profile"><div class="form-grid"><div class="form-field"><label for="profilePreferredName">Nome de preferência</label><input class="input" id="profilePreferredName" name="preferredName" value="${esc(profile.preferredName || '')}" placeholder="Como prefere ser chamado(a)"></div><div class="form-field"><label for="profileGender">Forma de tratamento</label><select class="select" id="profileGender" name="gender"><option value="unspecified" ${normalizedGender(profile) === 'unspecified' ? 'selected' : ''}>Não informar</option><option value="female" ${normalizedGender(profile) === 'female' ? 'selected' : ''}>Feminino — pastora, bem-vinda</option><option value="male" ${normalizedGender(profile) === 'male' ? 'selected' : ''}>Masculino — pastor, bem-vindo</option><option value="plural" ${normalizedGender(profile) === 'plural' ? 'selected' : ''}>Plural — pastores, bem-vindos</option></select></div></div><p class="field-note">A Emaús não tenta adivinhar o tratamento pelo nome. A escolha fica sob controle da própria pessoa.</p><div class="modal-actions"><button type="submit" class="btn btn-gold">${ICON('check')} Salvar tratamento</button></div></form></section>`;
   return `
@@ -1052,6 +992,7 @@ function renderSettings() {
       <section class="settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Identidade da igreja</h2><p>O pastor ou administrador desta igreja pode editar estas informações.</p></div><div style="display:flex;align-items:center;gap:9px;"><span class="access-scope-badge">${isPlatformAdmin() ? 'ADMIN DA PLATAFORMA' : 'PASTOR DA IGREJA'}</span><div class="icon-tile gold">${ICON('building')}</div></div></div><form data-form="organization"><div class="logo-editor"><div class="logo-preview" id="logoPreview"><span id="settingsLogoSymbol" ${churchLogo ? 'hidden' : ''}>${esc(churchLogoText(church))}</span><img id="settingsLogoImage" src="${esc(churchLogo)}" alt="Logo atual da igreja" ${churchLogo ? '' : 'hidden'}></div><div class="logo-editor-copy"><div class="form-field"><label for="churchLogoSymbol">Símbolo ou iniciais</label><input class="input" id="churchLogoSymbol" name="logoSymbol" maxlength="2" value="${esc(churchLogoText(church))}" placeholder="Ex.: B"></div><div class="file-upload-field"><label class="file-label" for="churchLogoFile">${ICON('download')} Enviar imagem do logo</label><input id="churchLogoFile" name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="file-input"></div><button type="button" class="btn btn-quiet logo-remove" data-action="remove-logo">Usar somente o símbolo de texto</button><p class="field-note">O logo escolhido aparece ao lado de “Início” e da lupa.</p></div></div><div class="form-grid"><div class="form-field"><label for="churchName">Nome da igreja</label><input class="input" id="churchName" name="churchName" value="${esc(church.name)}"></div><div class="form-field"><label for="churchCity">Cidade e estado</label><input class="input" id="churchCity" name="churchCity" value="${esc(church.city)}"></div><div class="form-field"><label for="pastorName">Pastores responsáveis</label><input class="input" id="pastorName" name="pastorName" value="${esc(churchPastors)}"></div><div class="form-field"><label for="churchPhone">Telefone principal</label><input class="input" id="churchPhone" name="churchPhone" type="tel" value="${esc(churchPhone)}" placeholder="(21) 99999-9999"></div><div class="form-field full"><label for="churchDescription">Mensagem de boas-vindas</label><textarea class="textarea" id="churchDescription" name="churchDescription" rows="3">${esc(churchDescription)}</textarea><p class="field-note">A identidade visual da ${esc(church.name)} usa fundo preto/chumbo com dourado e cobre.</p></div></div></form></section>
       <section class="settings-card appearance-settings" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Aparência da igreja</h2><p>O pastor pode personalizar o visual desta igreja sem afetar outras organizações.</p></div><div class="icon-tile gold">${ICON('sparkle')}</div></div><div class="form-grid"><div class="form-field"><label for="appearanceTheme">Tema</label><select class="select" id="appearanceTheme" data-appearance-control><option value="light" ${appearance.theme === 'light' ? 'selected' : ''}>Claro</option><option value="dark" ${appearance.theme === 'dark' ? 'selected' : ''}>Escuro</option><option value="auto" ${appearance.theme === 'auto' ? 'selected' : ''}>Automático</option></select><p class="field-note">Aplica-se ao painel do pastor e da equipe.</p></div><div class="form-field"><label for="appearanceFont">Fonte principal</label><select class="select" id="appearanceFont" data-appearance-control><option value="editorial" ${appearance.font === 'editorial' ? 'selected' : ''}>Editorial</option><option value="modern" ${appearance.font === 'modern' ? 'selected' : ''}>Moderna</option><option value="classic" ${appearance.font === 'classic' ? 'selected' : ''}>Clássica</option><option value="clean" ${appearance.font === 'clean' ? 'selected' : ''}>Limpa</option></select><p class="field-note">Escolha uma personalidade para a sua igreja.</p></div><div class="form-field"><label for="appearancePrimary">Cor principal</label><div class="color-control"><input type="color" id="appearancePrimary" value="${esc(appearance.primary)}" data-appearance-control><input class="input color-value" value="${esc(appearance.primary.toUpperCase())}" data-color-text="appearancePrimary" maxlength="7" aria-label="Código da cor principal"></div></div><div class="form-field"><label for="appearanceAccent">Cor de destaque</label><div class="color-control"><input type="color" id="appearanceAccent" value="${esc(appearance.accent)}" data-appearance-control><input class="input color-value" value="${esc(appearance.accent.toUpperCase())}" data-color-text="appearanceAccent" maxlength="7" aria-label="Código da cor de destaque"></div></div></div><div class="palette-block"><div><label>Paletas rápidas</label><p class="field-note">Comece por uma combinação e ajuste as cores se quiser.</p></div><div class="palette-list">${Object.entries(PALETTES).map(([key, palette]) => `<button type="button" class="palette-swatch" data-action="apply-palette" data-palette="${key}" title="${esc(palette.label)}"><span style="background:${palette.primary}"></span><i style="background:${palette.accent}"></i><small>${esc(palette.label)}</small></button>`).join('')}</div></div><div class="appearance-preview"><div class="preview-copy"><span class="eyebrow">PRÉVIA</span><strong>Assim a ${esc(church.name)} aparece para sua equipe</strong><p>As mudanças são aplicadas imediatamente e ficam salvas nesta igreja.</p></div><div class="preview-chip">${ICON('check')} Personalizado</div></div></section>
       ${profileCard}
+      ${securityCard}
       ${backupCard}
       <section class="settings-card public-settings-card" data-settings-panel="public"><div class="settings-card-header"><div><h2>Página pública da igreja</h2><p>Edite o conteúdo que qualquer pessoa pode ver, sem login.</p></div><div class="icon-tile gold">${ICON('external')}</div></div><form data-form="organization" data-public-settings-form><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('shield')}</span><p><strong>Link público:</strong> ${esc(`${window.location.origin}${(window.location.pathname || '/').replace(/[^/]*$/, '')}publica.html?igreja=${encodeURIComponent(church.slug || slugify(church.name))}`)}<br>O pastor pode deixar a página invisível enquanto prepara as informações.</p></div><div class="toggle-row"><div class="toggle-copy"><strong>Publicar página da igreja</strong><span>Quando desligada, visitantes receberão uma mensagem de indisponibilidade.</span></div><input type="checkbox" name="publicVisible" ${publicSettings.visible !== false ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--gold);" aria-label="Publicar página pública"></div><div class="form-grid"><div class="form-field full"><label for="publicHeadline">Chamada principal</label><input class="input" id="publicHeadline" name="publicHeadline" value="${esc(publicSettings.headline)}" placeholder="Ex.: Um lugar para pertencer"></div><div class="form-field full"><label for="publicAddress">Endereço ou referência</label><input class="input" id="publicAddress" name="publicAddress" value="${esc(publicSettings.address)}" placeholder="Rua, número, bairro e cidade"></div><div class="form-field"><label for="publicHours">Horários</label><input class="input" id="publicHours" name="publicHours" value="${esc(publicSettings.hours)}" placeholder="Domingos às 19h"></div><div class="form-field"><label for="publicCta">Botão de chamada</label><input class="input" id="publicCta" name="publicCta" value="${esc(publicSettings.cta)}" placeholder="Venha nos visitar"></div><div class="form-field"><label for="publicInstagram">Instagram</label><input class="input" id="publicInstagram" name="publicInstagram" value="${esc(publicSettings.instagram)}" placeholder="https://instagram.com/..."></div><div class="form-field"><label for="publicFacebook">Facebook</label><input class="input" id="publicFacebook" name="publicFacebook" value="${esc(publicSettings.facebook)}" placeholder="https://facebook.com/..."></div><div class="form-field"><label for="publicYoutube">YouTube</label><input class="input" id="publicYoutube" name="publicYoutube" value="${esc(publicSettings.youtube)}" placeholder="https://youtube.com/..."></div></div><p class="field-note">Clique em “Salvar alterações” no alto da página depois de editar os campos.</p></form></section>
       <section class="settings-card" data-settings-panel="notifications"><div class="settings-card-header"><div><h2>Preferências de notificação</h2><p>Escolha como a equipe recebe as informações importantes.</p></div><div class="icon-tile copper">${ICON('bell')}</div></div><div class="toggle-row"><div class="toggle-copy"><strong>Novo visitante para o pastor</strong><span>Enviar um alerta quando a recepção finalizar um cadastro.</span></div><button class="toggle on" data-toggle="pastorAlert" aria-label="Alternar alerta ao pastor"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>Resumo diário da igreja</strong><span>Receba um resumo com visitantes, avisos e eventos do dia.</span></div><button class="toggle on" data-toggle="dailySummary" aria-label="Alternar resumo diário"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>Confirmação de leitura</strong><span>Registrar quando uma pessoa visualizar um aviso.</span></div><button class="toggle on" data-toggle="readReceipt" aria-label="Alternar confirmação de leitura"></button></div></section>
@@ -1480,7 +1421,7 @@ async function handleSubmit(event) {
     try {
       const payload = await apiRequest('/api/me/profile', { method: 'PATCH', body: { preferredName, gender } });
       state.currentUser = { ...(state.currentUser || {}), preferredName: payload.user?.preferredName || preferredName, gender, role: genderedRole({ gender }, 'Pastor da igreja') };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      saveState('Preferência de tratamento atualizada');
       closeModal(); render(); showToast('Forma de tratamento salva para o painel e futuras mensagens personalizadas.');
     } catch (error) {
       showToast(`Não foi possível salvar a forma de tratamento: ${error.message}`, 'error');
@@ -1488,7 +1429,7 @@ async function handleSubmit(event) {
   } else if (formType === 'growth') {
     state.growthGoals = { visitors: Math.max(0, Number(data.get('visitors') || 0)), returns: Math.max(0, Number(data.get('returns') || 0)), members: Math.max(0, Number(data.get('members') || 0)) };
     const church = getActiveChurch();
-    church.publicSettings = { ...(church.publicSettings || {}), growthGoals: state.growthGoals };
+    church.publicSettings = { ...(church.publicSettings || {}), growthGoals: state.growthGoals, onboarding: { ...((church.publicSettings || {}).onboarding || {}), goalsReviewed: true } };
     try {
       await apiRequest('/api/church/settings', { method: 'PUT', body: { name: church.name, city: church.city, phone: church.phone || '', pastors: church.pastors || '', description: church.description || '', logoUrl: church.logoImage || '', publicSettings: church.publicSettings } });
       saveState('Metas de crescimento atualizadas'); closeModal(); render(); showToast('Metas de crescimento salvas.');
@@ -1538,7 +1479,7 @@ async function handleSubmit(event) {
     const publicForm = document.querySelector('[data-public-settings-form]');
     const publicData = publicForm ? new FormData(publicForm) : data;
     const publicValue = (key, fallback = '') => String(publicData.get(key) ?? fallback).trim();
-    const publicSettings = { ...(church.publicSettings || {}), visible: publicForm ? publicForm.querySelector('[name="publicVisible"]')?.checked !== false : (church.publicSettings?.visible !== false), headline: publicValue('publicHeadline', church.description || ''), address: publicValue('publicAddress', church.city || ''), hours: publicValue('publicHours', 'Domingos às 19h'), instagram: publicValue('publicInstagram', ''), facebook: publicValue('publicFacebook', ''), youtube: publicValue('publicYoutube', ''), cta: publicValue('publicCta', 'Venha nos visitar'), logoSymbol: church.logoSymbol || initials(church.name), appearance: { ...DEFAULT_APPEARANCE, ...(church.appearance || {}) } };
+    const publicSettings = { ...(church.publicSettings || {}), visible: publicForm ? publicForm.querySelector('[name="publicVisible"]')?.checked !== false : (church.publicSettings?.visible !== false), headline: publicValue('publicHeadline', church.description || ''), address: publicValue('publicAddress', church.city || ''), hours: publicValue('publicHours', 'Domingos às 19h'), instagram: publicValue('publicInstagram', ''), facebook: publicValue('publicFacebook', ''), youtube: publicValue('publicYoutube', ''), cta: publicValue('publicCta', 'Venha nos visitar'), logoSymbol: church.logoSymbol || initials(church.name), appearance: { ...DEFAULT_APPEARANCE, ...(church.appearance || {}) }, onboarding: { ...((church.publicSettings || {}).onboarding || {}), publicReviewed: true } };
     church.publicSettings = publicSettings;
     clearTimeout(appearanceSaveTimer);
     try {
@@ -1882,7 +1823,6 @@ function handleAction(actionEl) {
 
 function init() {
   applyAppearance();
-  if (!getBackupHistory().length) saveState('Backup inicial');
   render();
   document.addEventListener('click', event => {
     const nav = event.target.closest('[data-view]');

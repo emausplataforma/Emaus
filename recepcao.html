@@ -41,8 +41,8 @@
     .primary-button:hover { filter:brightness(1.06); }
     .secondary-button { min-height:37px; padding:0 12px; border:1px solid var(--line); border-radius:9px; color:var(--ink); background:var(--card-2); font-size:10px; font-weight:750; }
     .secondary-button:hover { border-color:#765d31; background:#363128; }
-    .demo-note,.info-note { margin-top:15px; padding:11px 12px; border:1px solid #5d4a27; border-radius:10px; color:#c7b68d; background:#302817; font-size:10px; line-height:1.5; }
-    .demo-note strong,.info-note strong { color:var(--gold-2); }
+    .access-note,.info-note { margin-top:15px; padding:11px 12px; border:1px solid #5d4a27; border-radius:10px; color:#c7b68d; background:#302817; font-size:10px; line-height:1.5; }
+    .access-note strong,.info-note strong { color:var(--gold-2); }
     .app-view { display:flex; flex-direction:column; gap:17px; }
     .welcome { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:21px 23px; border:1px solid #5d4a27; border-radius:var(--radius); background:linear-gradient(120deg,#302817,#3b2920); }
     .welcome strong { display:block; font-family:Georgia,serif; font-size:21px; font-weight:500; }
@@ -114,7 +114,7 @@
       textarea { min-height: 105px; }
       .primary-button { min-height: 49px; margin-top: 23px; font-size: 13px; }
       .secondary-button { min-height: 44px; padding: 0 14px; font-size: 12px; }
-      .demo-note, .info-note { font-size: 12px; line-height: 1.6; }
+      .access-note, .info-note { font-size: 12px; line-height: 1.6; }
       .welcome { padding: 20px; gap: 14px; }
       .welcome strong { font-size: 23px; }
       .welcome p { font-size: 12px; line-height: 1.55; }
@@ -172,7 +172,7 @@
         </div>
         <button class="primary-button" type="submit">Entrar na recepção</button>
       </form>
-      <div class="demo-note"><strong>Acesso protegido:</strong> use o login e a senha cadastrados no Railway para a equipe da recepção. A senha não é exibida nesta página.</div>
+      <div class="access-note"><strong>Acesso protegido:</strong> use o login e a senha cadastrados no Railway para a equipe da recepção. A senha não é exibida nesta página.</div>
       <p id="loginMessage" class="intro hidden" style="margin-top:14px;color:#e1a49a;"></p>
     </section>
 

@@ -1,0 +1,7 @@
+Emaús — atualização ampliada v1
+Frontend: shell v55 / app.js?v=55
+API: server.js com persistência de anúncios, atividade e status de segurança
+Banco: schema.sql com campos de preparação para 2FA
+Escopo: serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços
+Dados: fallback sem registros fictícios; PostgreSQL é a fonte de verdade
+Ativações guiadas depois do pacote: deploy Railway, backup/restauração e 2FA

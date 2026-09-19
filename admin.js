@@ -1,6 +1,4 @@
-const STATE_KEY = 'batesda-platform-state-v1';
 const ADMIN_SESSION_KEY = 'emaus-admin-session';
-const ADMIN_BACKUP_KEY = 'emaus-admin-backups-v1';
 const API_BASE = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
 const ADMIN_EMAIL = 'admin@emaus.com.br';
 const ADMIN_TOKEN_KEY = 'emaus-admin-token';
@@ -177,41 +175,22 @@ function normalizeChurch(church, plans = state.platformPlans || DEFAULT_PLANS) {
 }
 
 function loadState() {
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch (error) { saved = null; }
-  const base = saved && Array.isArray(saved.churches) ? saved : {
-    activeChurchId: 'batesda',
-    churches: [{ id: 'batesda', name: 'Bethesda', city: 'Itaboraí • RJ', initials: 'BE', logoSymbol: 'B', logoImage: 'bethesda-logo.png', plan: 'cuidado', status: 'Ativa', memberCount: 0, monthlyValue: 99.90, billingStatus: 'Em dia', nextDue: '10 set 2026' }],
+  const base = {
+    activeChurchId: null,
+    churches: [],
     visitors: [],
     receptionUsers: []
   };
-  const plans = base.platformPricingVersion === 3 && Array.isArray(base.platformPlans) && base.platformPlans.length
-    ? DEFAULT_PLANS.map(defaultPlan => {
-        const savedPlan = base.platformPlans.find(plan => plan.id === defaultPlan.id);
-        return { ...defaultPlan, ...(savedPlan || {}), features: Array.isArray(savedPlan?.features) && savedPlan.features.length ? savedPlan.features : defaultPlan.features };
-      })
-    : clone(DEFAULT_PLANS);
-  const policy = { ...DEFAULT_POLICY, ...(base.platformPolicy || {}), trialDays: 30, founderChurches: 40, founderUsed: Math.max(0, Number(base.platformPolicy?.founderUsed || 0)), priceFreezeMonths: 12, additionalFees: false };
-  const loadedState = { ...base, platformPricingVersion: 3, platformPlans: plans, platformPolicy: policy, platformFinance: base.platformFinance || clone(DEFAULT_FINANCE) };
-  loadedState.churches = loadedState.churches.map(church => normalizeChurch(church, plans));
-  loadedState.platformFinance.months = Array.isArray(loadedState.platformFinance.months) && loadedState.platformFinance.months.length ? loadedState.platformFinance.months : clone(DEFAULT_FINANCE.months);
-  loadedState.platformFinance.transactions = Array.isArray(loadedState.platformFinance.transactions) ? loadedState.platformFinance.transactions : clone(DEFAULT_FINANCE.transactions);
-  return loadedState;
-}
-
-function createBackup(reason) {
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem(ADMIN_BACKUP_KEY) || '[]'); } catch (error) { history = []; }
-  history.unshift({ id: `admin-backup-${Date.now()}`, createdAt: new Date().toISOString(), reason, state: clone(state) });
-  try { localStorage.setItem(ADMIN_BACKUP_KEY, JSON.stringify(history.slice(0, 30))); } catch (error) { console.info('Backup administrativo indisponível.', error); }
+  const plans = clone(DEFAULT_PLANS);
+  const policy = { ...DEFAULT_POLICY };
+  return { ...base, platformPricingVersion: 3, platformPlans: plans, platformPolicy: policy, platformFinance: clone(DEFAULT_FINANCE) };
 }
 
 function saveState(reason = 'Alteração administrativa salva') {
   state.platformPricingVersion = 3;
   state.platformPolicy = { ...DEFAULT_POLICY, ...(state.platformPolicy || {}) };
   state.churches = state.churches.map(church => normalizeChurch(church));
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-  createBackup(reason);
+  // Dados administrativos permanecem no PostgreSQL; não são espelhados no navegador.
 }
 
 function toast(message) {
@@ -278,12 +257,8 @@ function renderOverview() {
   return `<section class="page-head"><div><span class="eyebrow">CENTRAL DO ADMINISTRADOR</span><h1>Visão geral</h1><p>Controle as organizações, os planos e a saúde financeira da plataforma Emaús.</p></div><div class="page-actions"><button class="btn" data-admin-view="finance">Ver finanças</button><button class="btn btn-gold" data-admin-view="churches">Gerenciar igrejas</button></div></section>
   ${renderPolicyBanner()}
   ${renderKpis()}
-  <div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>Receita e gastos</h2><p>Visão demonstrativa dos últimos seis meses.</p></div><div class="legend"><span><i></i>Receita</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Resumo operacional</h2><p>Indicadores da administração central.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Receita mensal prevista</span><strong>${money(revenue)}</strong></div><div class="summary-row"><span>Gastos registrados</span><strong class="negative">${money(expense)}</strong></div><div class="summary-row"><span>Resultado estimado</span><strong class="positive">${money(revenue - expense)}</strong></div><div class="summary-row"><span>Contas bloqueadas</span><strong>${number(state.churches.filter(church => church.status === 'Bloqueada').length)}</strong></div><div class="summary-row"><span>Backups administrativos</span><strong>${getBackupCount()}</strong></div></div></div></section></div>
+  <div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>Receita e gastos</h2><p>Visão demonstrativa dos últimos seis meses.</p></div><div class="legend"><span><i></i>Receita</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Resumo operacional</h2><p>Indicadores da administração central.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Receita mensal prevista</span><strong>${money(revenue)}</strong></div><div class="summary-row"><span>Gastos registrados</span><strong class="negative">${money(expense)}</strong></div><div class="summary-row"><span>Resultado estimado</span><strong class="positive">${money(revenue - expense)}</strong></div><div class="summary-row"><span>Contas bloqueadas</span><strong>${number(state.churches.filter(church => church.status === 'Bloqueada').length)}</strong></div><div class="summary-row"><span>Backup PostgreSQL</span><strong>Guiado</strong></div></div></div></section></div>
   <section class="panel" style="margin-top:16px;"><div class="panel-head"><div><h2>Organizações recentes</h2><p>Ative ou bloqueie cada igreja e acompanhe o limite de pessoas do plano.</p></div><button class="btn btn-small" data-admin-view="churches">Ver todas</button></div><div class="table-wrap">${renderChurchTable(recent)}</div></section>`;
-}
-
-function getBackupCount() {
-  try { const history = JSON.parse(localStorage.getItem(ADMIN_BACKUP_KEY) || '[]'); return history.length; } catch (error) { return 0; }
 }
 
 function renderChurchTable(churches) {

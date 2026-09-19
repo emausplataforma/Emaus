@@ -9,7 +9,7 @@ const path = require('path');
 
 const PORT = Number(process.env.PORT || 8080);
 const DATABASE_URL = process.env.DATABASE_URL;
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-before-production';
+const JWT_SECRET = String(process.env.JWT_SECRET || '').trim();
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@emaus.com.br').trim().toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
@@ -22,8 +22,9 @@ if (!DATABASE_URL) {
   console.error('DATABASE_URL não foi configurada.');
   process.exit(1);
 }
-if (JWT_SECRET === 'change-this-secret-before-production') {
-  console.warn('JWT_SECRET ainda está com o valor de desenvolvimento. Troque no Railway antes de produção.');
+if (JWT_SECRET.length < 32) {
+  console.error('JWT_SECRET ausente ou curto demais. Configure uma chave aleatória com pelo menos 32 caracteres no Railway.');
+  process.exit(1);
 }
 
 const pool = new Pool({
@@ -40,6 +41,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
 app.use(cors({ origin: CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(',').map(value => value.trim()), credentials: true }));
@@ -96,7 +99,7 @@ function normalizeEmail(value = '') {
 
 function safeUser(row) {
   if (!row) return null;
-  return { id: row.id, churchId: row.church_id, name: row.name, preferredName: row.preferred_name || '', gender: row.gender || 'unspecified', email: row.email, phone: row.phone || '', jobRole: row.job_role || '', role: row.role, status: row.status, permissions: row.permissions || [] };
+  return { id: row.id, churchId: row.church_id, name: row.name, preferredName: row.preferred_name || '', gender: row.gender || 'unspecified', email: row.email, phone: row.phone || '', jobRole: row.job_role || '', role: row.role, status: row.status, permissions: row.permissions || [], twoFactorEnabled: Boolean(row.two_factor_enabled) };
 }
 
 function signUser(user) {
@@ -221,6 +224,10 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/me', auth(), async (req, res) => {
   res.json({ user: safeUser(req.user) });
+});
+
+app.get('/api/me/security', auth(), async (req, res) => {
+  res.json({ twoFactor: { enabled: Boolean(req.user.two_factor_enabled), prepared: true, enforced: false, activation: 'guided' } });
 });
 
 app.patch('/api/me/profile', auth(), async (req, res) => {
@@ -743,6 +750,10 @@ async function ensureColumnCompatibility() {
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'unspecified'");
+  await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE");
+  await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret_ciphertext TEXT NOT NULL DEFAULT ''");
+  await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_confirmed_at TIMESTAMPTZ");
+  await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_recovery_code_hashes JSONB NOT NULL DEFAULT '[]'::jsonb");
   await query("ALTER TABLE church_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
   await query("ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
@@ -783,29 +794,7 @@ async function seed() {
   if (ADMIN_PASSWORD) await seedUser(ADMIN_EMAIL, 'Administrador da plataforma', ADMIN_PASSWORD, 'platform_admin', null, []);
   if (PASTOR_PASSWORD) await seedUser(PASTOR_EMAIL, 'Evandro e Simone', PASTOR_PASSWORD, 'church_admin', church.id, ['church_settings', 'acolhimento']);
   if (RECEPTION_PASSWORD) await seedUser(RECEPTION_EMAIL, 'Mariana Alves', RECEPTION_PASSWORD, 'reception', church.id, ['acolhimento']);
-  const leaderCount = Number((await query('SELECT COUNT(*)::int AS total FROM leaders WHERE church_id = $1', [church.id])).rows[0].total || 0);
-  if (!leaderCount) {
-    const initialLeaders = [
-      ['Evandro', 'Pastor titular', '(21) 99921-4421', 'Administração'],
-      ['Simone', 'Pastora e cuidado', '(21) 99812-7310', 'Acolhimento'],
-      ['João Pedro', 'Líder de obreiros', '(21) 99634-1822', 'Obreiros'],
-      ['Mariana Alves', 'Líder de recepção', '(21) 99704-2118', 'Recepção'],
-      ['Camila Martins', 'Líder de célula', '(21) 99572-3188', 'Célula Centro'],
-      ['Daniel Souza', 'Ministério de louvor', '(21) 99280-4471', 'Louvor']
-    ];
-    for (const leader of initialLeaders) await query('INSERT INTO leaders (church_id, name, role, phone, group_name) VALUES ($1, $2, $3, $4, $5)', [church.id, ...leader]);
-  }
-  const eventCount = Number((await query('SELECT COUNT(*)::int AS total FROM church_events WHERE church_id = $1', [church.id])).rows[0].total || 0);
-  if (!eventCount) {
-    const initialEvents = [
-      ['Culto de Celebração', 3, '19:00', 'Templo principal', 'Culto', 'Toda a igreja'],
-      ['Encontro de Mulheres', 9, '18:30', 'Salão social', 'Encontro', 'Ministério de Mulheres'],
-      ['Culto de Ensino', 13, '19:30', 'Templo principal', 'Culto', 'Toda a igreja'],
-      ['Café com líderes', 16, '08:30', 'Sala de reuniões', 'Liderança', 'Lideranças']
-    ];
-    for (const item of initialEvents) await query(`INSERT INTO church_events (church_id, title, event_date, event_time, location, event_type, audience)
-      VALUES ($1, $2, CURRENT_DATE + ($3 || ' days')::interval, $4, $5, $6, $7)`, [church.id, item[0], item[1], item[2], item[3], item[4], item[5]]);
-  }
+  // Não há lideranças ou eventos fictícios. Eles só entram por cadastro autorizado.
   await zeroBethesdaDemoMetrics(church);
 }
 

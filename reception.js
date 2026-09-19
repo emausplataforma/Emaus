@@ -1,6 +1,3 @@
-const STATE_KEY = 'batesda-platform-state-v1';
-const BACKUP_KEY = 'batesda-platform-backups-v1';
-const BACKUP_LIMIT = 30;
 const SESSION_KEY = 'emaus-reception-session';
 const RECEPTION_TOKEN_KEY = 'emaus-reception-token';
 const RECEPTION_USER_KEY = 'emaus-reception-user';
@@ -13,10 +10,7 @@ const fallbackState = {
   churches: [{ id: 'batesda', name: 'Bethesda', city: 'Itaboraí • RJ', initials: 'BE', logoSymbol: 'B', logoImage: 'bethesda-logo.png' }],
   visitors: [],
   activity: [],
-  receptionUsers: [
-    { id: 'r-1', name: 'Mariana Alves', role: 'Recepção', login: 'mariana@bethesda.com.br', password: '123456', status: 'Ativo', permissions: ['acolhimento'] },
-    { id: 'r-2', name: 'João Pedro', role: 'Obreiro', login: 'joao@bethesda.com.br', password: '123456', status: 'Ativo', permissions: ['acolhimento'] }
-  ]
+  receptionUsers: []
 };
 
 let state = loadState();
@@ -47,25 +41,14 @@ async function loadRemoteChurchData() {
   state.visitors = (visitorPayload.visitors || []).map(visitor => ({
     id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: visitor.visit_date || TODAY, service: visitor.service || 'Culto de Celebração', neighborhood: '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: true, churchId: visitor.church_id
   }));
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
 }
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STATE_KEY));
-    if (saved && Array.isArray(saved.churches)) {
-      return {
-        ...fallbackState,
-        ...saved,
-        metrics: { ...fallbackState.metrics, ...(saved.metrics || {}) },
-        churches: (saved.churches.length ? saved.churches : fallbackState.churches).map(church => church.id === 'batesda' ? { ...church, name: 'Bethesda', initials: 'BE', logoImage: 'bethesda-logo.png' } : church),
-        visitors: Array.isArray(saved.visitors) ? saved.visitors : [],
-        activity: Array.isArray(saved.activity) ? saved.activity : [],
-        receptionUsers: (Array.isArray(saved.receptionUsers) && saved.receptionUsers.length ? saved.receptionUsers : fallbackState.receptionUsers).map(user => ({ ...user, login: String(user.login || '').replace(/@batesda\.com\.br$/i, '@bethesda.com.br'), permissions: Array.isArray(user.permissions) && user.permissions.length ? user.permissions : ['acolhimento'] }))
-      };
-    }
+    localStorage.removeItem('batesda-platform-state-v1');
+    localStorage.removeItem('batesda-platform-backups-v1');
   } catch (error) {
-    console.info('Iniciando uma nova recepção.', error);
+    console.info('Não foi possível limpar o cache legado da recepção.', error);
   }
   return JSON.parse(JSON.stringify(fallbackState));
 }
@@ -139,32 +122,6 @@ function addFamilyMember() {
   list.appendChild(row);
   row.querySelector('input').focus();
   updatePreview();
-}
-
-function persistBackup(reason) {
-  const snapshot = JSON.parse(JSON.stringify(state));
-  let history = [];
-  try {
-    const saved = JSON.parse(localStorage.getItem(BACKUP_KEY));
-    history = Array.isArray(saved) ? saved : [];
-  } catch (error) {
-    history = [];
-  }
-  history.unshift({ id: `backup-${Date.now()}`, createdAt: new Date().toISOString(), reason, churchId: state.activeChurchId, state: snapshot });
-  for (let limit = Math.min(history.length, BACKUP_LIMIT); limit > 0; limit -= 1) {
-    try {
-      localStorage.setItem(BACKUP_KEY, JSON.stringify(history.slice(0, limit)));
-      return true;
-    } catch (error) {
-      // Conserva as versões anteriores caso o navegador esteja sem espaço.
-    }
-  }
-  return false;
-}
-
-function saveReceptionState(reason = 'Cadastro feito pela recepção') {
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-  persistBackup(reason);
 }
 
 function showToast(message) {
@@ -301,7 +258,6 @@ async function init() {
     updatePreview();
   });
   document.querySelector('#logoutButton').addEventListener('click', showLoggedOutView);
-  document.querySelector('#loginEmail').value = 'mariana@bethesda.com.br';
   document.querySelector('#visitorDate').value = TODAY;
   const sessionUserId = sessionStorage.getItem(SESSION_KEY);
   const savedUser = sessionStorage.getItem(RECEPTION_USER_KEY);

@@ -9,7 +9,7 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v54`;
+- Service worker: `emaus-shell-v55`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -34,9 +34,9 @@ As senhas não são documentadas neste arquivo.
 
 ## Persistência e limites atuais
 
-Os dados de negócio são gravados no PostgreSQL do serviço Emaús e carregados novamente depois do login: membros, visitantes, configurações públicas, aparência, agenda, lideranças, ministérios, acessos da recepção, presença, consentimentos, tarefas de cuidado, avisos registrados e atividade. O `localStorage` continua sendo apenas um cache e uma cópia de recuperação do navegador; ele não substitui o banco.
+Os dados de negócio são gravados no PostgreSQL do serviço Emaús e carregados novamente depois do login: membros, visitantes, configurações públicas, aparência, agenda, lideranças, ministérios, acessos da recepção, presença, consentimentos, tarefas de cuidado, avisos registrados e atividade. O navegador guarda somente preferências visuais e a sessão temporária; não guarda cópia de visitantes, membros, avisos ou credenciais.
 
-Os avisos podem ser registrados ou agendados, mas nenhum Push, WhatsApp ou e-mail é enviado nesta fase. O backup automático do PostgreSQL deve ser configurado no Railway; o backup local do navegador não é suficiente para produção.
+Os avisos podem ser registrados ou agendados, mas nenhum Push, WhatsApp ou e-mail é enviado nesta fase. O backup automático do PostgreSQL deve ser configurado no Railway. O procedimento guiado de backup e restauração está em `docs/BACKUP-RESTAURACAO-POSTGRES.md`; nenhum backup de dados de negócio é mantido no navegador.
 
 ## Desenvolvimento
 
@@ -62,7 +62,11 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - bloqueio de duplicidade de membros por e-mail ou telefone dentro da igreja;
 - política de privacidade inicial em `privacidade.html` e checklist de produção em `docs/PRODUCAO-CHECKLIST.md`;
 - saudação personalizada preparada para avisos, convites e acompanhamentos futuros;
-- Bethesda mantida ativa sem números demonstrativos pré-carregados.
+- Bethesda mantida ativa sem registros fictícios no fallback do frontend; novos líderes e eventos entram somente por cadastro autorizado;
+- onboarding inicial da igreja com etapas de página pública, recepção, primeiro membro, agenda e metas;
+- indicador visível de sincronização com o banco e mensagens que distinguem banco, cache visual e falha;
+- preparação de 2FA sem ativação automática, com campos de segurança e rota de status;
+- backup e restauração do PostgreSQL documentados para ativação guiada.
 
 ## Endpoints acrescentados
 
@@ -80,6 +84,7 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - `GET/POST/PATCH /api/church/care-tasks` para tarefas de cuidado pastoral vinculadas a membro ou visitante;
 - `GET/POST /api/church/announcements` para registrar avisos e agendamentos sem disparo real;
 - `GET /api/church/activity` para histórico persistente da igreja;
+- `GET /api/me/security` para informar a preparação e o estado atual de 2FA;
 - `PATCH /api/church/visitors/:visitorId` para acompanhamento e apresentação persistentes;
 - login com limite de tentativas, cabeçalhos básicos de segurança e auditoria de falhas;
 - duplicidade de membros bloqueada por e-mail ou telefone dentro da mesma igreja;

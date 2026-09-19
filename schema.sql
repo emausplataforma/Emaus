@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS users (
   job_role TEXT NOT NULL DEFAULT 'Recepção',
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked')),
   permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  two_factor_secret_ciphertext TEXT NOT NULL DEFAULT '',
+  two_factor_confirmed_at TIMESTAMPTZ,
+  two_factor_recovery_code_hashes JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

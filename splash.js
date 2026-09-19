@@ -3,15 +3,8 @@
   if (!splash) return;
 
   const fallbackChurch = { id: 'batesda', name: 'Bethesda', initials: 'BE', logoSymbol: 'B', logoImage: 'bethesda-logo.png' };
-  let church = fallbackChurch;
-  try {
-    const saved = JSON.parse(localStorage.getItem('batesda-platform-state-v1') || 'null');
-    if (saved && Array.isArray(saved.churches)) {
-      church = saved.churches.find(item => item.id === saved.activeChurchId) || saved.churches[0] || fallbackChurch;
-    }
-  } catch (error) {
-    // Usa a identidade padrão se o navegador não conseguir ler o estado salvo.
-  }
+  // A identidade de produção vem do PostgreSQL depois do login; o splash não lê dados de negócio do navegador.
+  const church = fallbackChurch;
 
   const logo = document.querySelector('#splashLogo');
   const logoText = document.querySelector('#splashLogoText');
