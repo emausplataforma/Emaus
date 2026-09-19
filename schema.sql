@@ -85,6 +85,9 @@ CREATE TABLE IF NOT EXISTS visitors (
   service TEXT NOT NULL DEFAULT 'Culto de Celebração',
   invited_by TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
+  communication_consent BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_version TEXT NOT NULL DEFAULT '',
+  consent_updated_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'Novo',
   responsible TEXT NOT NULL DEFAULT 'Recepção',
   announced BOOLEAN NOT NULL DEFAULT FALSE,
@@ -191,6 +194,45 @@ CREATE TABLE IF NOT EXISTS church_activity (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS bot_contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  phone_normalized TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  visitor_id UUID REFERENCES visitors(id) ON DELETE SET NULL,
+  member_id UUID REFERENCES members(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'opted_in', 'opted_out')),
+  asked_at TIMESTAMPTZ,
+  responded_at TIMESTAMPTZ,
+  opted_in_at TIMESTAMPTZ,
+  opted_out_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (church_id, phone_normalized)
+);
+
+CREATE TABLE IF NOT EXISTS bot_delivery_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  recipient_type TEXT NOT NULL CHECK (recipient_type IN ('visitor', 'member')),
+  recipient_id UUID,
+  recipient_key TEXT NOT NULL,
+  recipient_name TEXT NOT NULL DEFAULT '',
+  phone_normalized TEXT NOT NULL DEFAULT '',
+  message_type TEXT NOT NULL CHECK (message_type IN ('visitor_public_page', 'visitor_video_optin', 'cult_reminder', 'pastor_broadcast')),
+  body TEXT NOT NULL DEFAULT '',
+  scheduled_for TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'blocked_missing_phone', 'blocked_missing_video', 'skipped_window', 'skipped_dependency', 'sent', 'failed', 'cancelled')),
+  provider TEXT NOT NULL DEFAULT 'zapster',
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  dedupe_key TEXT NOT NULL UNIQUE,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT NOT NULL DEFAULT '',
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS member_attendance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
@@ -239,6 +281,9 @@ CREATE TABLE IF NOT EXISTS care_tasks (
   CHECK (member_id IS NOT NULL OR visitor_id IS NOT NULL)
 );
 
+CREATE INDEX IF NOT EXISTS idx_bot_contacts_church_status ON bot_contacts(church_id, status);
+CREATE INDEX IF NOT EXISTS idx_bot_queue_church_scheduled ON bot_delivery_queue(church_id, status, scheduled_for);
+CREATE INDEX IF NOT EXISTS idx_bot_queue_recipient ON bot_delivery_queue(church_id, recipient_key, message_type);
 CREATE INDEX IF NOT EXISTS idx_announcements_church_created ON church_announcements(church_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_activity_church_created ON church_activity(church_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_users_church ON users(church_id);

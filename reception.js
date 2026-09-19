@@ -39,7 +39,7 @@ async function loadRemoteChurchData() {
     state.churches = [{ id: church.id, name: church.name, city: church.city, initials: initials(church.name), logoSymbol: initials(church.name).slice(0, 2), logoImage: String(church.slug || '').toLowerCase() === 'bethesda' ? 'bethesda-logo.png' : '' }];
   }
   state.visitors = (visitorPayload.visitors || []).map(visitor => ({
-    id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: visitor.visit_date || TODAY, service: visitor.service || 'Culto de Celebração', neighborhood: '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: true, churchId: visitor.church_id
+    id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: visitor.visit_date || TODAY, service: visitor.service || 'Culto de Celebração', neighborhood: '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: Boolean(visitor.communication_consent), communicationConsent: Boolean(visitor.communication_consent), churchId: visitor.church_id
   }));
 }
 
@@ -215,7 +215,9 @@ async function handleVisitorSubmit(event) {
       visitDate: String(data.get('date') || TODAY),
       service: String(data.get('service') || 'Culto de Celebração'),
       invitedBy: String(data.get('invitedBy') || '').trim(),
-      notes: String(data.get('notes') || '').trim()
+      notes: String(data.get('notes') || '').trim(),
+      communicationConsent: data.get('communicationConsent') === 'on',
+      consentVersion: 'reception-v1'
     }});
     await loadRemoteChurchData();
     document.querySelector('#successText').textContent = `${values.message}. O pastor já poderá visualizar este cadastro no Acolhimento.`;

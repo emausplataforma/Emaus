@@ -1,7 +1,10 @@
-Emaús — atualização ampliada v1.2
-Frontend: shell v57 / app.js?v=57 / publica.js?v=57
-Novos campos públicos: História da igreja e Sobre os pastores
-Os campos são salvos em publicSettings no PostgreSQL e aparecem na página pública após o pastor salvar.
-API: mesma versão já publicada com persistência de anúncios, atividade e status de segurança
-Escopo: serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços
-Ativações guiadas depois do pacote: backup/restauração e 2FA
+Emaús — automação preparada para Zapster v1.3
+Frontend: shell v58 / app.js?v=58 / publica.js?v=58
+Backend: fila PostgreSQL idempotente no serviço Emaus; nenhuma mensagem externa é enviada nesta etapa.
+Fluxo visitante: página pública às 22:30 no dia da visita; vídeo do YouTube + pergunta SIM/NÃO às 17:00 do dia seguinte.
+Fluxo culto: lembrete às 17:00 do dia anterior para membros ativos com telefone e autorização de comunicação.
+Sequência do visitante: uma única vez por contato/telefone; pergunta de continuidade uma vez; NÃO cancela novos envios.
+Pastor: registro de divulgação para toda a igreja, membros, visitantes autorizados ou ministério específico.
+Vídeo vazio: segunda mensagem bloqueada até o pastor cadastrar link válido do YouTube.
+Canal futuro: WhatsApp via Zapster. Instância, webhook e credenciais ficam para ativação guiada.
+Escopo: publicar somente no serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços.

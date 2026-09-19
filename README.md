@@ -9,7 +9,7 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v57`;
+- Service worker: `emaus-shell-v58`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -91,3 +91,5 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - acompanhamento de visitantes (contatado, responsável e apresentado) persistido no PostgreSQL;
 - avisos e agendamentos registrados no PostgreSQL, sem envio real enquanto os canais externos não forem configurados;
 - feed de atividade da igreja persistido e carregado por todos os acessos autorizados.
+
+- Bot WhatsApp preparado para futura instância Zapster: `docs/BOT-ZAPSTER.md`.

@@ -17,6 +17,21 @@ const PASTOR_EMAIL = (process.env.PASTOR_EMAIL || 'evandro@bethesda.com.br').tri
 const PASTOR_PASSWORD = process.env.PASTOR_PASSWORD || '';
 const RECEPTION_EMAIL = (process.env.RECEPTION_EMAIL || 'mariana@bethesda.com.br').trim().toLowerCase();
 const RECEPTION_PASSWORD = process.env.RECEPTION_PASSWORD || '';
+const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || 'https://emausplataforma.github.io/Emaus').replace(/\/$/, '');
+const ZAPSTER_WEBHOOK_SECRET = String(process.env.ZAPSTER_WEBHOOK_SECRET || '').trim();
+const BOT_DEFAULTS = Object.freeze({
+  enabled: true,
+  provider: 'zapster',
+  channel: 'WhatsApp',
+  timezone: 'America/Sao_Paulo',
+  visitorSequence: 'once_ever',
+  visitorFirstTime: '22:30',
+  visitorSecondTime: '17:00',
+  cultReminderTime: '17:00',
+  youtubeUrl: '',
+  visitorFirstTemplate: 'Olá, {name}! Foi uma alegria receber você na {church_name}. Conheça nossa igreja: {public_url}',
+  visitorSecondTemplate: 'Olá, {name}! Aqui está um vídeo sobre a {church_name}: {youtube_url}\n\nVocê deseja continuar recebendo convites para festividades e informações da igreja?\nResponda SIM para continuar ou NÃO para parar.'
+});
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL não foi configurada.');
@@ -108,6 +123,244 @@ function signUser(user) {
 
 async function query(text, params = []) {
   return pool.query(text, params);
+}
+
+function botSettingsFromChurch(church = {}) {
+  return { ...BOT_DEFAULTS, ...(church.public_settings?.bot || church.publicSettings?.bot || {}) };
+}
+
+function botPublicUrl(church = {}) {
+  return `${PUBLIC_APP_URL}/publica.html?igreja=${encodeURIComponent(church.slug || 'igreja')}`;
+}
+
+function addDaysIso(dateValue, amount) {
+  const date = new Date(`${String(dateValue).slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return String(dateValue).slice(0, 10);
+  date.setUTCDate(date.getUTCDate() + Number(amount || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function zonedDateTimeToUtc(dateValue, timeValue, timeZone = BOT_DEFAULTS.timezone) {
+  const [year, month, day] = String(dateValue || '').slice(0, 10).split('-').map(Number);
+  const [hour, minute] = String(timeValue || '00:00').split(':').map(Number);
+  if (![year, month, day, hour, minute].every(Number.isFinite)) return null;
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).formatToParts(guess).reduce((acc, part) => { if (part.type !== 'literal') acc[part.type] = part.value; return acc; }, {});
+  const localAtGuess = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
+  return new Date(guess.getTime() - (localAtGuess - guess.getTime()));
+}
+
+function botScheduledStatus(scheduledFor) {
+  return scheduledFor && scheduledFor.getTime() > Date.now() ? 'planned' : 'skipped_window';
+}
+
+function renderBotTemplate(template, context = {}) {
+  return String(template || '').replace(/\{(name|church_name|public_url|youtube_url|event_title|event_date|event_time|event_location)\}/g, (_, key) => String(context[key] || ''));
+}
+
+async function upsertBotContact({ churchId, visitorId = null, memberId = null, name = '', phone = '' }) {
+  const phoneNormalized = normalizePhone(phone) || (visitorId ? `visitor:${visitorId}` : memberId ? `member:${memberId}` : '');
+  if (!phoneNormalized) return null;
+  const result = await query(`INSERT INTO bot_contacts (church_id, phone_normalized, name, visitor_id, member_id)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (church_id, phone_normalized) DO UPDATE SET name = EXCLUDED.name,
+      visitor_id = COALESCE(bot_contacts.visitor_id, EXCLUDED.visitor_id),
+      member_id = COALESCE(bot_contacts.member_id, EXCLUDED.member_id), updated_at = NOW()
+    RETURNING *`, [churchId, phoneNormalized, String(name || '').slice(0, 180), visitorId, memberId]);
+  return result.rows[0] || null;
+}
+
+async function enqueueBotDelivery({ churchId, recipientType, recipientId = null, recipientKey, recipientName = '', phone = '', messageType, body, scheduledFor, status = 'planned', metadata = {}, provider = 'zapster', dedupeKey }) {
+  if (!churchId || !recipientKey || !messageType || !dedupeKey || !scheduledFor) return null;
+  const result = await query(`INSERT INTO bot_delivery_queue
+    (church_id, recipient_type, recipient_id, recipient_key, recipient_name, phone_normalized, message_type, body, scheduled_for, status, provider, metadata, dedupe_key)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ON CONFLICT (dedupe_key) DO NOTHING RETURNING *`, [
+    churchId,
+    recipientType,
+    recipientId,
+    recipientKey,
+    String(recipientName || '').slice(0, 180),
+    normalizePhone(phone),
+    messageType,
+    String(body || '').slice(0, 4000),
+    scheduledFor,
+    status,
+    provider,
+    JSON.stringify(metadata || {}),
+    dedupeKey
+  ]);
+  if (!result.rows[0]) return null;
+  return result.rows[0];
+}
+
+async function queueVisitorBotSequence(visitor, church) {
+  if (!visitor || !church) return { queued: 0, reason: 'missing_data' };
+  const settings = botSettingsFromChurch(church);
+  if (settings.enabled === false) return { queued: 0, reason: 'disabled' };
+  const phone = normalizePhone(visitor.phone || '');
+  const contact = await upsertBotContact({ churchId: church.id, visitorId: visitor.id, name: visitor.name, phone });
+  if (contact?.status === 'opted_out') return { queued: 0, reason: 'opted_out' };
+  const recipientKey = phone || `visitor:${visitor.id}`;
+  const existing = (await query(`SELECT id FROM bot_delivery_queue WHERE church_id = $1 AND recipient_key = $2 AND message_type IN ('visitor_public_page', 'visitor_video_optin') LIMIT 1`, [church.id, recipientKey])).rows[0];
+  if (existing) return { queued: 0, reason: 'already_planned' };
+  const publicUrl = botPublicUrl(church);
+  const firstScheduledFor = zonedDateTimeToUtc(visitor.visit_date, settings.visitorFirstTime, settings.timezone);
+  const secondScheduledFor = zonedDateTimeToUtc(addDaysIso(visitor.visit_date, 1), settings.visitorSecondTime, settings.timezone);
+  const missingPhone = !phone;
+  const firstStatus = missingPhone ? 'blocked_missing_phone' : botScheduledStatus(firstScheduledFor);
+  const secondStatus = missingPhone ? 'blocked_missing_phone' : !String(settings.youtubeUrl || '').trim() ? 'blocked_missing_video' : firstStatus === 'skipped_window' ? 'skipped_dependency' : botScheduledStatus(secondScheduledFor);
+  const first = await enqueueBotDelivery({
+    churchId: church.id,
+    recipientType: 'visitor',
+    recipientId: visitor.id,
+    recipientKey,
+    recipientName: visitor.name,
+    phone,
+    messageType: 'visitor_public_page',
+    body: renderBotTemplate(settings.visitorFirstTemplate, { name: visitor.name, church_name: church.name, public_url: publicUrl }),
+    scheduledFor: firstScheduledFor,
+    status: firstStatus,
+    metadata: { visitDate: String(visitor.visit_date).slice(0, 10), publicUrl, sequence: 'once_ever' },
+    dedupeKey: `visitor:${church.id}:${recipientKey}:public-page`
+  });
+  const second = await enqueueBotDelivery({
+    churchId: church.id,
+    recipientType: 'visitor',
+    recipientId: visitor.id,
+    recipientKey,
+    recipientName: visitor.name,
+    phone,
+    messageType: 'visitor_video_optin',
+    body: renderBotTemplate(settings.visitorSecondTemplate, { name: visitor.name, church_name: church.name, public_url: publicUrl, youtube_url: settings.youtubeUrl }),
+    scheduledFor: secondScheduledFor,
+    status: secondStatus,
+    metadata: { visitDate: String(visitor.visit_date).slice(0, 10), publicUrl, youtubeUrl: settings.youtubeUrl || '', asksOnce: true },
+    dedupeKey: `visitor:${church.id}:${recipientKey}:video-optin`
+  });
+  return { queued: Number(Boolean(first)) + Number(Boolean(second)), firstStatus, secondStatus };
+}
+
+async function queueCultReminderForEvent(event, church) {
+  if (!event || !church || String(event.event_type || '').toLowerCase() !== 'culto' || event.status === 'blocked' || event.status === 'paused') return 0;
+  const settings = botSettingsFromChurch(church);
+  if (settings.enabled === false) return 0;
+  const scheduledFor = zonedDateTimeToUtc(addDaysIso(event.event_date, -1), settings.cultReminderTime, settings.timezone);
+  if (!scheduledFor) return 0;
+  const members = (await query(`SELECT id, name, preferred_name, phone FROM members
+    WHERE church_id = $1 AND status = 'active' AND communication_consent = TRUE AND NULLIF(regexp_replace(phone, '[^0-9]', '', 'g'), '') IS NOT NULL`, [church.id])).rows;
+  let queued = 0;
+  for (const member of members) {
+    const displayName = member.preferred_name || member.name;
+    const body = `Olá, ${displayName}! Lembramos que amanhã teremos ${event.title} às ${event.event_time || '19:00'}, em ${event.location || 'Templo principal'}, na ${church.name}.`;
+    const item = await enqueueBotDelivery({
+      churchId: church.id,
+      recipientType: 'member',
+      recipientId: member.id,
+      recipientKey: `member:${member.id}`,
+      recipientName: displayName,
+      phone: member.phone,
+      messageType: 'cult_reminder',
+      body,
+      scheduledFor,
+      status: botScheduledStatus(scheduledFor),
+      metadata: { eventId: event.id, eventDate: String(event.event_date).slice(0, 10), eventType: event.event_type, timezone: settings.timezone },
+      dedupeKey: `cult:${church.id}:${event.id}:${member.id}`
+    });
+    if (item) queued += 1;
+  }
+  return queued;
+}
+
+async function collectBotBroadcastRecipients(churchId, audience) {
+  const normalizedAudience = String(audience || 'Toda a igreja').trim();
+  const recipients = new Map();
+  const add = (row, type) => {
+    const phone = normalizePhone(row.phone || '');
+    if (!phone || recipients.has(phone)) return;
+    recipients.set(phone, { type, id: row.id, name: row.preferred_name || row.name, phone });
+  };
+  const addMembers = async (where = '', params = []) => {
+    const result = await query(`SELECT id, name, preferred_name, phone FROM members WHERE church_id = $1 AND status = 'active' AND communication_consent = TRUE ${where}`, [churchId, ...params]);
+    result.rows.forEach(row => add(row, 'member'));
+  };
+  const addVisitors = async () => {
+    const result = await query(`SELECT c.visitor_id AS id, c.name, c.phone_normalized AS phone FROM bot_contacts c
+      WHERE c.church_id = $1 AND c.status = 'opted_in' AND c.visitor_id IS NOT NULL`, [churchId]);
+    result.rows.forEach(row => add(row, 'visitor'));
+  };
+  if (normalizedAudience === 'Toda a igreja' || normalizedAudience === 'Todos') {
+    await addMembers();
+    await addVisitors();
+  } else if (normalizedAudience === 'Membros') {
+    await addMembers();
+  } else if (normalizedAudience === 'Visitantes') {
+    await addVisitors();
+  } else {
+    const ministry = normalizedAudience.replace(/^Ministério:\s*/i, '').trim();
+    await addMembers('AND (LOWER(members.ministry) = LOWER($2) OR LOWER(COALESCE(members.ministry, \'\')) = LOWER($2))', [ministry]);
+  }
+  return [...recipients.values()];
+}
+
+async function queueAnnouncementBotDeliveries(announcement, churchId) {
+  if (!announcement || !churchId || !Array.isArray(announcement.channels) || !announcement.channels.includes('WhatsApp')) return 0;
+  const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [churchId])).rows[0];
+  if (!church || botSettingsFromChurch(church).enabled === false) return 0;
+  const recipients = await collectBotBroadcastRecipients(churchId, announcement.audience);
+  const scheduledFor = announcement.scheduled_for ? new Date(announcement.scheduled_for) : new Date();
+  let queued = 0;
+  for (const recipient of recipients) {
+    const item = await enqueueBotDelivery({
+      churchId,
+      recipientType: recipient.type,
+      recipientId: recipient.id,
+      recipientKey: recipient.phone,
+      recipientName: recipient.name,
+      phone: recipient.phone,
+      messageType: 'pastor_broadcast',
+      body: announcement.body,
+      scheduledFor,
+      status: announcement.status === 'scheduled' ? 'planned' : 'planned',
+      metadata: { announcementId: announcement.id, audience: announcement.audience, title: announcement.title },
+      dedupeKey: `announcement:${churchId}:${announcement.id}:${recipient.phone}`
+    });
+    if (item) queued += 1;
+  }
+  return queued;
+}
+
+async function syncBotQueuesForChurch(churchId) {
+  try {
+    const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1 AND status IN (\'active\', \'trial\')', [churchId])).rows[0];
+    if (!church || botSettingsFromChurch(church).enabled === false) return;
+    const visitors = (await query(`SELECT * FROM visitors WHERE church_id = $1 AND visit_date >= CURRENT_DATE - INTERVAL '1 day' ORDER BY visit_date ASC`, [churchId])).rows;
+    for (const visitor of visitors) {
+      if (visitor.communication_consent) await queueVisitorBotSequence(visitor, church);
+    }
+    const events = (await query(`SELECT * FROM church_events WHERE church_id = $1 AND status = 'active' AND event_date >= CURRENT_DATE AND event_date <= CURRENT_DATE + INTERVAL '90 days' AND LOWER(event_type) = 'culto'`, [churchId])).rows;
+    for (const event of events) await queueCultReminderForEvent(event, church);
+    if (String(botSettingsFromChurch(church).youtubeUrl || '').trim()) {
+      await query(`UPDATE bot_delivery_queue SET status = 'planned', updated_at = NOW()
+        WHERE church_id = $1 AND message_type = 'visitor_video_optin' AND status = 'blocked_missing_video' AND scheduled_for > NOW()`, [churchId]);
+    }
+  } catch (error) {
+    console.error('Não foi possível preparar a fila do bot:', error.message);
+  }
+}
+
+async function syncBotQueuesForAllChurches() {
+  const churches = (await query("SELECT id FROM churches WHERE status IN ('active', 'trial')")).rows;
+  for (const church of churches) await syncBotQueuesForChurch(church.id);
 }
 
 function activityInitials(name = '') {
@@ -327,10 +580,81 @@ app.post('/api/public/church/:slug/visitors', async (req, res) => {
   const consent = Boolean(req.body.consent);
   if (name.length < 2) return res.status(400).json({ error: 'Informe seu nome.' });
   if (!consent) return res.status(400).json({ error: 'É necessário autorizar o contato da igreja.' });
-  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, visit_date, service, invited_by, notes, status, responsible)
-    VALUES ($1, $2, '', $3, 'Sozinho', $4, CURRENT_DATE, 'Cadastro pela página pública', '', $5, 'Novo', 'Recepção') RETURNING id, name, visit_date`, [church.id, name, JSON.stringify([name]), phone, String(req.body.notes || '').trim()]);
+  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, visit_date, service, invited_by, notes, communication_consent, consent_version, consent_updated_at, status, responsible)
+    VALUES ($1, $2, '', $3, 'Sozinho', $4, CURRENT_DATE, 'Cadastro pela página pública', '', $5, TRUE, 'public-v1', NOW(), 'Novo', 'Recepção') RETURNING id, name, visit_date, communication_consent` , [church.id, name, JSON.stringify([name]), phone, String(req.body.notes || '').trim()]);
+  const visitor = { ...result.rows[0], phone, church_id: church.id };
   await audit(null, 'public_visitor_created', { visitorId: result.rows[0].id, churchId: church.id, name: result.rows[0].name }, church.id);
-  res.status(201).json({ ok: true, church: church.name, visitor: result.rows[0] });
+  await queueVisitorBotSequence(visitor, { id: church.id, name: church.name, slug, public_settings: {} });
+  res.status(201).json({ ok: true, church: church.name, visitor: result.rows[0], delivery: 'not_configured' });
+});
+
+app.get('/api/church/bot-settings', auth(['church_admin']), requireChurch, async (req, res) => {
+  const result = await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  const bot = botSettingsFromChurch(result.rows[0]);
+  const queue = await query(`SELECT status, COUNT(*)::int AS total FROM bot_delivery_queue WHERE church_id = $1 GROUP BY status ORDER BY status`, [req.churchId]);
+  res.json({ bot, providerConfigured: false, provider: 'zapster', queue: queue.rows });
+});
+
+app.put('/api/church/bot-settings', auth(['church_admin']), requireChurch, async (req, res) => {
+  const churchResult = await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId]);
+  const church = churchResult.rows[0];
+  if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  const input = req.body.bot && typeof req.body.bot === 'object' ? req.body.bot : {};
+  const current = botSettingsFromChurch(church);
+  const youtubeUrl = String(input.youtubeUrl ?? current.youtubeUrl ?? '').trim();
+  if (youtubeUrl && !/^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(youtubeUrl)) return res.status(400).json({ error: 'Informe um link válido do YouTube ou deixe o campo vazio.' });
+  const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const visitorFirstTime = String(input.visitorFirstTime || current.visitorFirstTime);
+  const visitorSecondTime = String(input.visitorSecondTime || current.visitorSecondTime);
+  const cultReminderTime = String(input.cultReminderTime || current.cultReminderTime);
+  if (![visitorFirstTime, visitorSecondTime, cultReminderTime].every(value => timePattern.test(value))) return res.status(400).json({ error: 'Os horários do bot devem estar no formato HH:MM.' });
+  const bot = {
+    ...current,
+    enabled: input.enabled !== undefined ? Boolean(input.enabled) : current.enabled,
+    youtubeUrl,
+    visitorFirstTime,
+    visitorSecondTime,
+    cultReminderTime,
+    timezone: 'America/Sao_Paulo',
+    provider: 'zapster',
+    channel: 'WhatsApp',
+    visitorSequence: 'once_ever'
+  };
+  const publicSettings = { ...(church.public_settings || {}), bot };
+  const result = await query('UPDATE churches SET public_settings = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, slug, public_settings', [JSON.stringify(publicSettings), req.churchId]);
+  await audit(req.user, 'bot_settings_updated', { fields: ['enabled', 'youtubeUrl', 'visitorFirstTime', 'visitorSecondTime', 'cultReminderTime'], provider: 'zapster', sending: false }, req.churchId);
+  await syncBotQueuesForChurch(req.churchId);
+  res.json({ bot: botSettingsFromChurch(result.rows[0]), providerConfigured: false, delivery: 'not_configured' });
+});
+
+app.get('/api/church/bot-queue', auth(['church_admin']), requireChurch, async (req, res) => {
+  const result = await query(`SELECT id, recipient_type, recipient_name, phone_normalized, message_type, body, scheduled_for, status, provider, metadata, attempts, last_error, sent_at, created_at
+    FROM bot_delivery_queue WHERE church_id = $1 ORDER BY scheduled_for ASC, created_at ASC LIMIT 500`, [req.churchId]);
+  res.json({ delivery: 'not_configured', provider: 'zapster', queue: result.rows });
+});
+
+app.post('/api/integrations/zapster/visitor-consent', async (req, res) => {
+  if (!ZAPSTER_WEBHOOK_SECRET) return res.status(503).json({ error: 'Webhook do Zapster ainda não foi ativado.' });
+  const received = String(req.headers['x-emaus-webhook-secret'] || '').trim();
+  const expected = Buffer.from(ZAPSTER_WEBHOOK_SECRET);
+  const actual = Buffer.from(received);
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return res.status(401).json({ error: 'Assinatura do webhook inválida.' });
+  const slug = String(req.body.slug || req.body.church || '').trim().toLowerCase();
+  const phone = normalizePhone(req.body.phone || req.body.from || '');
+  const answer = String(req.body.answer || req.body.text || '').trim().toLowerCase();
+  if (!slug || !phone || !answer) return res.status(400).json({ error: 'slug, telefone e resposta são obrigatórios.' });
+  const church = (await query("SELECT id FROM churches WHERE slug = $1 AND status IN ('active', 'trial')", [slug])).rows[0];
+  if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  const granted = ['sim', 's', 'yes', 'y', '1'].includes(answer);
+  const revoked = ['não', 'nao', 'n', 'no', '0'].includes(answer);
+  if (!granted && !revoked) return res.status(400).json({ error: 'Responda SIM para continuar ou NÃO para parar.' });
+  const contact = (await query('SELECT id FROM bot_contacts WHERE church_id = $1 AND phone_normalized = $2', [church.id, phone])).rows[0];
+  if (!contact) return res.status(404).json({ error: 'Contato não encontrado na sequência de visitantes.' });
+  const status = granted ? 'opted_in' : 'opted_out';
+  await query(`UPDATE bot_contacts SET status = $1, responded_at = NOW(), opted_in_at = CASE WHEN $2 THEN NOW() ELSE opted_in_at END, opted_out_at = CASE WHEN $3 THEN NOW() ELSE opted_out_at END, updated_at = NOW() WHERE id = $4`, [status, granted, revoked, contact.id]);
+  if (revoked) await query(`UPDATE bot_delivery_queue SET status = 'cancelled', updated_at = NOW(), last_error = 'Contato optou por não receber novas informações.' WHERE church_id = $1 AND phone_normalized = $2 AND status IN ('planned', 'blocked_missing_video')`, [church.id, phone]);
+  res.json({ ok: true, status, furtherMessages: granted });
 });
 
 app.get('/api/church/settings', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -343,7 +667,8 @@ app.put('/api/church/settings', auth(['church_admin']), requireChurch, async (re
   const publicSettings = req.body.publicSettings && typeof req.body.publicSettings === 'object' ? req.body.publicSettings : {};
   const result = await query(`UPDATE churches SET name = COALESCE(NULLIF($1, ''), name), city = COALESCE(NULLIF($2, ''), city), phone = $3, pastors = $4, description = $5, logo_url = $6, public_settings = $7, updated_at = NOW() WHERE id = $8 RETURNING *`, [req.body.name || '', req.body.city || '', req.body.phone || '', req.body.pastors || '', req.body.description || '', req.body.logoUrl || '', JSON.stringify(publicSettings), req.churchId]);
   await audit(req.user, 'church_settings_updated', { fields: ['name', 'city', 'phone', 'pastors', 'description', 'logoUrl', 'publicSettings'] }, req.churchId);
-  res.json({ church: result.rows[0] });
+  await syncBotQueuesForChurch(req.churchId);
+  res.json({ church: result.rows[0], delivery: 'not_configured' });
 });
 
 app.get('/api/church/announcements', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -364,7 +689,8 @@ app.post('/api/church/announcements', auth(['church_admin']), requireChurch, asy
   const result = await query(`INSERT INTO church_announcements (church_id, title, body, audience, channels, personalize_greeting, status, scheduled_for, created_by)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, [req.churchId, title, body, audience, JSON.stringify(channels), Boolean(req.body.personalizeGreeting), mode, mode === 'scheduled' ? validScheduledFor : null, req.user.id]);
   await audit(req.user, 'announcement_created', { announcementId: result.rows[0].id, title, status: mode }, req.churchId);
-  res.status(201).json({ announcement: result.rows[0], delivery: 'not_configured' });
+  const botQueued = await queueAnnouncementBotDeliveries(result.rows[0], req.churchId);
+  res.status(201).json({ announcement: result.rows[0], delivery: 'not_configured', botQueued });
 });
 
 app.get('/api/church/activity', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -445,10 +771,16 @@ app.get('/api/church/visitors', auth(['church_admin', 'reception']), requireChur
 app.post('/api/church/visitors', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nome do visitante é obrigatório.' });
-  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, neighborhood, visit_date, service, invited_by, notes, responsible, created_by)
-    VALUES ($1, $2, $3, $4, $5, COALESCE($6, ''), COALESCE($7, ''), COALESCE($8, CURRENT_DATE), COALESCE($9, 'Culto de Celebração'), COALESCE($10, ''), COALESCE($11, ''), $12, $13) RETURNING *`, [req.churchId, name, req.body.familyName || '', JSON.stringify(req.body.familyMembers || [name]), req.body.arrivalType || 'Sozinho', req.body.phone || '', req.body.neighborhood || '', req.body.visitDate || null, req.body.service || 'Culto de Celebração', req.body.invitedBy || '', req.body.notes || '', req.user.name, req.user.id]);
-  await audit(req.user, 'visitor_created', { visitorId: result.rows[0].id, name: result.rows[0].name }, req.churchId);
-  res.status(201).json({ visitor: result.rows[0] });
+  const communicationConsent = Boolean(req.body.communicationConsent);
+  const consentVersion = communicationConsent ? String(req.body.consentVersion || 'reception-v1') : '';
+  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, neighborhood, visit_date, service, invited_by, notes, communication_consent, consent_version, consent_updated_at, responsible, created_by)
+    VALUES ($1, $2, $3, $4, $5, COALESCE($6, ''), COALESCE($7, ''), COALESCE($8, CURRENT_DATE), COALESCE($9, 'Culto de Celebração'), COALESCE($10, ''), COALESCE($11, ''), $12, $13, CASE WHEN $12 THEN NOW() ELSE NULL END, $14, $15) RETURNING *`, [req.churchId, name, req.body.familyName || '', JSON.stringify(req.body.familyMembers || [name]), req.body.arrivalType || 'Sozinho', req.body.phone || '', req.body.neighborhood || '', req.body.visitDate || null, req.body.service || 'Culto de Celebração', req.body.invitedBy || '', req.body.notes || '', communicationConsent, consentVersion, req.user.name, req.user.id]);
+  await audit(req.user, 'visitor_created', { visitorId: result.rows[0].id, name: result.rows[0].name, communicationConsent }, req.churchId);
+  if (communicationConsent) {
+    const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId])).rows[0];
+    await queueVisitorBotSequence(result.rows[0], church);
+  }
+  res.status(201).json({ visitor: result.rows[0], delivery: 'not_configured' });
 });
 
 app.patch('/api/church/visitors/:visitorId', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -457,19 +789,27 @@ app.patch('/api/church/visitors/:visitorId', auth(['church_admin', 'reception'])
   const hasNotes = Object.prototype.hasOwnProperty.call(req.body, 'notes');
   const hasNeighborhood = Object.prototype.hasOwnProperty.call(req.body, 'neighborhood');
   const hasAnnounced = Object.prototype.hasOwnProperty.call(req.body, 'announced');
+  const hasPhone = Object.prototype.hasOwnProperty.call(req.body, 'phone');
+  const hasCommunicationConsent = Object.prototype.hasOwnProperty.call(req.body, 'communicationConsent');
   const status = hasStatus ? String(req.body.status || '').trim() : null;
   const responsible = hasResponsible ? String(req.body.responsible || '').trim() : null;
   const notes = hasNotes ? String(req.body.notes || '').trim() : null;
   const neighborhood = hasNeighborhood ? String(req.body.neighborhood || '').trim() : null;
   const announced = hasAnnounced ? Boolean(req.body.announced) : null;
-  if (!hasStatus && !hasResponsible && !hasNotes && !hasNeighborhood && !hasAnnounced) return res.status(400).json({ error: 'Nenhuma alteração foi informada.' });
-  const result = await query(`UPDATE visitors SET status = COALESCE($1, status), responsible = COALESCE($2, responsible), notes = COALESCE($3, notes), neighborhood = COALESCE($4, neighborhood), announced = COALESCE($5, announced), updated_at = NOW()
-    WHERE id = $6 AND church_id = $7 RETURNING *`, [status || null, responsible, notes, neighborhood, announced, req.params.visitorId, req.churchId]);
+  const phone = hasPhone ? normalizePhone(req.body.phone || '') : null;
+  const communicationConsent = hasCommunicationConsent ? Boolean(req.body.communicationConsent) : null;
+  if (!hasStatus && !hasResponsible && !hasNotes && !hasNeighborhood && !hasAnnounced && !hasPhone && !hasCommunicationConsent) return res.status(400).json({ error: 'Nenhuma alteração foi informada.' });
+  const result = await query(`UPDATE visitors SET status = COALESCE($1, status), responsible = COALESCE($2, responsible), notes = COALESCE($3, notes), neighborhood = COALESCE($4, neighborhood), announced = COALESCE($5, announced), phone = COALESCE($6, phone), communication_consent = COALESCE($7, communication_consent), consent_version = CASE WHEN $7 IS NOT NULL THEN COALESCE(NULLIF($8, ''), consent_version) ELSE consent_version END, consent_updated_at = CASE WHEN $7 IS NOT NULL THEN NOW() ELSE consent_updated_at END, updated_at = NOW()
+    WHERE id = $9 AND church_id = $10 RETURNING *`, [status || null, responsible, notes, neighborhood, announced, phone, communicationConsent, String(req.body.consentVersion || ''), req.params.visitorId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Visitante não encontrado.' });
   const visitor = result.rows[0];
   const activityText = hasStatus && status === 'Contatado' ? 'foi marcado para acompanhamento.' : hasAnnounced && announced ? 'foi marcado para anúncio.' : 'teve o acompanhamento atualizado.';
-  await audit(req.user, 'visitor_status_updated', { visitorId: visitor.id, name: visitor.name, status: visitor.status, announced: visitor.announced, activityText }, req.churchId);
-  res.json({ visitor });
+  await audit(req.user, 'visitor_status_updated', { visitorId: visitor.id, name: visitor.name, status: visitor.status, announced: visitor.announced, activityText, communicationConsent: visitor.communication_consent }, req.churchId);
+  if (visitor.communication_consent) {
+    const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId])).rows[0];
+    await queueVisitorBotSequence(visitor, church);
+  }
+  res.json({ visitor, delivery: 'not_configured' });
 });
 
 app.get('/api/church/members', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -624,7 +964,10 @@ app.post('/api/church/events/bulk', auth(['church_admin']), requireChurch, async
     inserted.push(result.rows[0]);
   }
   await audit(req.user, 'events_created', { count: inserted.length }, req.churchId);
-  res.status(201).json({ events: inserted });
+  const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId])).rows[0];
+  let botQueued = 0;
+  for (const event of inserted) botQueued += await queueCultReminderForEvent(event, church);
+  res.status(201).json({ events: inserted, delivery: 'not_configured', botQueued });
 });
 
 app.patch('/api/church/events/:eventId', auth(['church_admin']), requireChurch, async (req, res) => {
@@ -642,7 +985,10 @@ app.patch('/api/church/events/:eventId', auth(['church_admin']), requireChurch, 
       WHERE church_id = $8 AND recurrence_id = $9 AND id <> $10`, [String(req.body.title || '').trim(), req.body.time ?? null, req.body.location ?? null, req.body.type ?? null, req.body.audience ?? null, eventStatus, recurrenceRuleValue, req.churchId, recurrenceId, req.params.eventId]);
   }
   await audit(req.user, 'event_updated', { eventId: req.params.eventId, updateSeries }, req.churchId);
-  res.json({ event: result.rows[0] });
+  await query(`DELETE FROM bot_delivery_queue WHERE church_id = $1 AND message_type = 'cult_reminder' AND metadata->>'eventId' = $2 AND status IN ('planned', 'skipped_window')`, [req.churchId, req.params.eventId]);
+  const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId])).rows[0];
+  const botQueued = await queueCultReminderForEvent(result.rows[0], church);
+  res.json({ event: result.rows[0], delivery: 'not_configured', botQueued });
 });
 
 app.put('/api/church/events/:eventId/series', auth(['church_admin']), requireChurch, async (req, res) => {
@@ -664,7 +1010,11 @@ app.put('/api/church/events/:eventId/series', auth(['church_admin']), requireChu
     }
     await client.query('COMMIT');
     await audit(req.user, 'event_series_replaced', { eventId: req.params.eventId, count: inserted.length }, req.churchId);
-    res.json({ events: inserted });
+    await query(`DELETE FROM bot_delivery_queue WHERE church_id = $1 AND message_type = 'cult_reminder' AND status IN ('planned', 'skipped_window')`, [req.churchId]);
+    const church = (await query('SELECT id, name, slug, public_settings FROM churches WHERE id = $1', [req.churchId])).rows[0];
+    let botQueued = 0;
+    for (const event of inserted) botQueued += await queueCultReminderForEvent(event, church);
+    res.json({ events: inserted, delivery: 'not_configured', botQueued });
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: 'Não foi possível atualizar a série de eventos.' });
@@ -677,7 +1027,8 @@ app.delete('/api/church/events/:eventId', auth(['church_admin']), requireChurch,
   const result = await query('DELETE FROM church_events WHERE id = $1 AND church_id = $2 RETURNING id', [req.params.eventId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Evento não encontrado.' });
   await audit(req.user, 'event_deleted', { eventId: req.params.eventId }, req.churchId);
-  res.json({ ok: true });
+  await query(`UPDATE bot_delivery_queue SET status = 'cancelled', updated_at = NOW(), last_error = 'Evento removido da agenda.' WHERE church_id = $1 AND message_type = 'cult_reminder' AND metadata->>'eventId' = $2 AND status IN ('planned', 'skipped_window')`, [req.churchId, req.params.eventId]);
+  res.json({ ok: true, delivery: 'not_configured' });
 });
 
 app.get('/api/church/leaders', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -742,6 +1093,46 @@ async function ensureColumnCompatibility() {
     actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await query(`CREATE TABLE IF NOT EXISTS bot_contacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+    phone_normalized TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    visitor_id UUID REFERENCES visitors(id) ON DELETE SET NULL,
+    member_id UUID REFERENCES members(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    asked_at TIMESTAMPTZ,
+    responded_at TIMESTAMPTZ,
+    opted_in_at TIMESTAMPTZ,
+    opted_out_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (church_id, phone_normalized)
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS bot_delivery_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+    recipient_type TEXT NOT NULL,
+    recipient_id UUID,
+    recipient_key TEXT NOT NULL,
+    recipient_name TEXT NOT NULL DEFAULT '',
+    phone_normalized TEXT NOT NULL DEFAULT '',
+    message_type TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    scheduled_for TIMESTAMPTZ NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned',
+    provider TEXT NOT NULL DEFAULT 'zapster',
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    dedupe_key TEXT NOT NULL UNIQUE,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    sent_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query("CREATE INDEX IF NOT EXISTS idx_bot_contacts_church_status ON bot_contacts(church_id, status)");
+  await query("CREATE INDEX IF NOT EXISTS idx_bot_queue_church_scheduled ON bot_delivery_queue(church_id, status, scheduled_for)");
+  await query("CREATE INDEX IF NOT EXISTS idx_bot_queue_recipient ON bot_delivery_queue(church_id, recipient_key, message_type)");
   await query("CREATE INDEX IF NOT EXISTS idx_announcements_church_created ON church_announcements(church_id, created_at DESC)");
   await query("CREATE INDEX IF NOT EXISTS idx_activity_church_created ON church_activity(church_id, created_at DESC)");
   await query("ALTER TABLE churches ADD COLUMN IF NOT EXISTS founder_price_freeze BOOLEAN NOT NULL DEFAULT FALSE");
@@ -756,6 +1147,9 @@ async function ensureColumnCompatibility() {
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_recovery_code_hashes JSONB NOT NULL DEFAULT '[]'::jsonb");
   await query("ALTER TABLE church_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
   await query("ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT NOT NULL DEFAULT ''");
+  await query("ALTER TABLE visitors ADD COLUMN IF NOT EXISTS communication_consent BOOLEAN NOT NULL DEFAULT FALSE");
+  await query("ALTER TABLE visitors ADD COLUMN IF NOT EXISTS consent_version TEXT NOT NULL DEFAULT ''");
+  await query("ALTER TABLE visitors ADD COLUMN IF NOT EXISTS consent_updated_at TIMESTAMPTZ");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'unspecified'");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS ministry_id UUID REFERENCES ministries(id) ON DELETE SET NULL");
@@ -816,7 +1210,12 @@ async function seedUser(email, name, password, role, churchId, permissions) {
 async function start() {
   try {
     await seed();
-    app.listen(PORT, '0.0.0.0', () => console.log(`Emaús API online na porta ${PORT}`));
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Emaús API online na porta ${PORT}`);
+      console.log('Bot WhatsApp preparado em modo registro: nenhum envio externo está habilitado.');
+      setTimeout(() => syncBotQueuesForAllChurches().catch(error => console.error('Falha na preparação inicial do bot:', error.message)), 1500);
+      setInterval(() => syncBotQueuesForAllChurches().catch(error => console.error('Falha na sincronização do bot:', error.message)), 5 * 60 * 1000);
+    });
   } catch (error) {
     console.error('Falha ao iniciar Emaús API:', error);
     process.exit(1);
