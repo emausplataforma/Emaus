@@ -630,7 +630,7 @@ function familyMemberRow(value = '', index = 1) {
 function dateDay(date) { return parseDate(date).getDate(); }
 function dateMonth(date) { return parseDate(date).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(); }
 function sortedEvents() { return [...state.events].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)); }
-function upcomingEvents() { return sortedEvents().filter(event => !['paused', 'blocked'].includes(event.status || 'active')); }
+function upcomingEvents() { return sortedEvents().filter(event => event.date >= TODAY && !['paused', 'blocked'].includes(event.status || 'active')); }
 function escapeCSV(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
 
 function applySettingsSection(section = state.settingsSection || 'organization') {
@@ -745,7 +745,7 @@ function onboardingSteps() {
   ];
 }
 function renderOnboardingPanel() {
-  if (state.currentUser?.role !== 'church_admin') return '';
+  if (state.currentUser?.roleKey !== 'church_admin') return '';
   const steps = onboardingSteps();
   const completed = steps.filter(step => step.done).length;
   if (completed === steps.length) return '';

@@ -1,7 +1,6 @@
-Emaús — atualização ampliada v1
-Frontend: shell v55 / app.js?v=55
-API: server.js com persistência de anúncios, atividade e status de segurança
-Banco: schema.sql com campos de preparação para 2FA
+Emaús — correção final da atualização ampliada v1.1
+Frontend: shell v56 / app.js?v=56
+Correções: onboarding aparece para church_admin; card Próximo culto ignora eventos passados
+API: mesma versão já publicada com persistência de anúncios, atividade e status de segurança
 Escopo: serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços
-Dados: fallback sem registros fictícios; PostgreSQL é a fonte de verdade
-Ativações guiadas depois do pacote: deploy Railway, backup/restauração e 2FA
+Ativações guiadas depois do pacote: backup/restauração e 2FA
