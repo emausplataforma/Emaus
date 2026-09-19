@@ -951,3 +951,18 @@ td { font-size: 12px; }
   .church-login-error { font-size: 12px; line-height: 1.5; }
   .church-login-note { font-size: 10px; line-height: 1.55; }
 }
+/* Componentes adicionados na atualização de cuidado e presença */
+.care-dashboard-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:20px;margin-top:20px}
+.care-task-list{padding:0 22px 16px}
+.care-task-row{display:flex;align-items:center;gap:12px;border-bottom:1px solid #f0ede7;padding:13px 0}
+.care-task-row:last-child{border-bottom:0}
+.care-task-row>div{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.care-task-row strong{font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.care-task-row small{font-size:10px;color:var(--muted)}
+.care-task-dot{width:9px;height:9px;border-radius:50%;flex:none;background:#d7a84b}
+.care-task-high{background:#b86f45}.care-task-low{background:#8e9b72}
+.compact-empty{padding:22px 0 10px}.selected-person-note{padding:11px 12px;border:1px solid #eee8dc;border-radius:10px;background:#fbfaf7;color:var(--ink);font-size:12px}
+.check-row{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid #eee8dc;border-radius:10px;background:#fbfaf7;cursor:pointer}
+.check-row input{margin-top:3px;accent-color:#b98938}.check-row span{display:flex;flex-direction:column;gap:4px}.check-row strong{font-size:11px;color:var(--ink)}.check-row small{font-size:10px;color:var(--muted);line-height:1.4}
+.attendance-list{display:flex;flex-direction:column;gap:8px}.attendance-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0ede7}.attendance-row>div:nth-child(2){min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.attendance-row strong{font-size:11px}.attendance-row small{font-size:10px;color:var(--muted)}
+@media (max-width:800px){.care-dashboard-grid{grid-template-columns:1fr}.care-task-row{padding:14px 0}}

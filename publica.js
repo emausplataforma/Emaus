@@ -79,7 +79,8 @@ function renderPage(payload) {
   setText('contactDescription', description);
   setText('footerName', church.name, 'Igreja');
   document.title = `${church.name || 'Igreja'} · Emaús`;
-  ['headerCta', 'heroCta', 'contactCta'].forEach(id => { const el = document.getElementById(id); if (el) { el.firstChild.nodeValue = `${cta} `; } });
+  const visitorPath = `visita.html?igreja=${encodeURIComponent(church.slug || slug)}`;
+  ['headerCta', 'heroCta', 'contactCta'].forEach(id => { const el = document.getElementById(id); if (el) { el.firstChild.nodeValue = `${cta} `; el.href = visitorPath; } });
   setLogo('brandSymbol', 'brandImage', church, settings.logoSymbol || '');
   setLogo('heroSymbol', 'heroImage', church, settings.logoSymbol || '');
   renderEvents(payload.events || []);

@@ -9,7 +9,7 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v51`;
+- Service worker: `emaus-shell-v52`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -41,6 +41,7 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 ## Recursos desta atualização
 
 - página pública editável pelo pastor em Configurações → Página pública;
+- formulário público de primeiro contato em `visita.html?igreja=bethesda`, com consentimento obrigatório e limite de tentativas;
 - link da recepção com o slug da igreja, como `recepcao.html?igreja=bethesda`;
 - navegação com Acolhimento e Membros;
 - eventos únicos e recorrentes por dia da semana, com ocorrências até 31 de dezembro;
@@ -49,16 +50,27 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - metas de crescimento persistentes para visitantes, retornos e membros;
 - estratégia de cuidado e crescimento em marcos de 50 até 500 membros, com quatro práticas por etapa e diretrizes alinhadas ao evangelho;
 - forma de tratamento escolhida pela pessoa para membros, lideranças e pastor, incluindo saudação plural para mais de um pastor, sem inferência indevida pelo nome;
+- tarefas de cuidado pastoral vinculadas a membros ou visitantes, com prioridade, prazo e conclusão;
+- registros internos de presença vinculados a uma única igreja, sem armazenar localização exata;
+- consentimentos separados para comunicação e recurso futuro de localização;
+- bloqueio de duplicidade de membros por e-mail ou telefone dentro da igreja;
+- política de privacidade inicial em `privacidade.html` e checklist de produção em `docs/PRODUCAO-CHECKLIST.md`;
 - saudação personalizada preparada para avisos, convites e acompanhamentos futuros;
 - Bethesda mantida ativa sem números demonstrativos pré-carregados.
 
 ## Endpoints acrescentados
 
 - `GET /api/public/church?slug=bethesda`;
+- `POST /api/public/church/:slug/visitors` — primeiro contato público, sem login, com consentimento e proteção contra excesso de cadastros;
 - `GET/POST/PATCH/DELETE /api/church/members`;
 - `GET/POST /api/church/ministries` — catálogo de ministérios por igreja, com confirmação ao cadastrar um nome novo;
 - `PATCH /api/me/profile` — salva a forma de tratamento do usuário pastor;
 - `GET/POST/PATCH/DELETE /api/church/events`, `POST /api/church/events/bulk` e `PUT /api/church/events/:eventId/series`; edição completa de nome, data, horário, local, categoria, público, recorrência e situação (ativo, pausado ou bloqueado);
 - `GET/POST/PATCH/DELETE /api/church/leaders`;
 - `GET/POST/PATCH/DELETE /api/church/reception-users`;
-- `PUT /api/church/settings` agora salva também `publicSettings`.
+- `PUT /api/church/settings` agora salva também `publicSettings`;
+- `GET/POST /api/church/attendance` e `GET /api/church/attendance/summary` para presenças internas vinculadas à igreja;
+- `POST /api/church/members/:memberId/consents` para autorizações de comunicação, privacidade e recurso futuro de localização;
+- `GET/POST/PATCH /api/church/care-tasks` para tarefas de cuidado pastoral vinculadas a membro ou visitante;
+- login com limite de tentativas, cabeçalhos básicos de segurança e auditoria de falhas;
+- duplicidade de membros bloqueada por e-mail ou telefone dentro da mesma igreja.

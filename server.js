@@ -35,8 +35,45 @@ const pool = new Pool({
 
 const app = express();
 app.set('trust proxy', 1);
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=()');
+  next();
+});
 app.use(cors({ origin: CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(',').map(value => value.trim()), credentials: true }));
 app.use(express.json({ limit: '2mb' }));
+
+const loginAttempts = new Map();
+const publicVisitAttempts = new Map();
+function publicVisitAllowed(ip) {
+  const key = String(ip || 'unknown');
+  const now = Date.now();
+  const current = publicVisitAttempts.get(key) || { count: 0, firstAt: now };
+  if (now - current.firstAt > 60 * 60 * 1000) {
+    publicVisitAttempts.set(key, { count: 1, firstAt: now });
+    return true;
+  }
+  if (current.count >= 20) return false;
+  publicVisitAttempts.set(key, { count: current.count + 1, firstAt: current.firstAt });
+  return true;
+}
+function loginRateLimit(email) {
+  const key = String(email || '').toLowerCase();
+  const now = Date.now();
+  const current = loginAttempts.get(key) || { count: 0, firstAt: now };
+  if (now - current.firstAt > 15 * 60 * 1000) return loginAttempts.delete(key), false;
+  return current.count >= 8;
+}
+function registerLoginFailure(email) {
+  const key = String(email || '').toLowerCase();
+  const now = Date.now();
+  const current = loginAttempts.get(key) || { count: 0, firstAt: now };
+  if (now - current.firstAt > 15 * 60 * 1000) loginAttempts.set(key, { count: 1, firstAt: now });
+  else loginAttempts.set(key, { count: current.count + 1, firstAt: current.firstAt });
+}
+function clearLoginFailures(email) { loginAttempts.delete(String(email || '').toLowerCase()); }
 
 function slugify(value = '') {
   return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `igreja-${Date.now()}`;
@@ -50,9 +87,16 @@ function moneyFromCents(value) {
   return Number(value || 0) / 100;
 }
 
+function normalizePhone(value = '') {
+  return String(value || '').replace(/\D/g, '');
+}
+function normalizeEmail(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
 function safeUser(row) {
   if (!row) return null;
-  return { id: row.id, churchId: row.church_id, name: row.name, preferredName: row.preferred_name || '', gender: row.gender || 'unspecified', email: row.email, role: row.role, status: row.status, permissions: row.permissions || [] };
+  return { id: row.id, churchId: row.church_id, name: row.name, preferredName: row.preferred_name || '', gender: row.gender || 'unspecified', email: row.email, phone: row.phone || '', jobRole: row.job_role || '', role: row.role, status: row.status, permissions: row.permissions || [] };
 }
 
 function signUser(user) {
@@ -113,9 +157,15 @@ app.post('/api/auth/login', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   if (!email || !password) return res.status(400).json({ error: 'Informe login e senha.' });
+  if (loginRateLimit(email)) return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.' });
   const result = await query('SELECT * FROM users WHERE email = $1', [email]);
   const user = result.rows[0];
-  if (!user || user.status !== 'active' || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Login ou senha inválidos.' });
+  if (!user || user.status !== 'active' || !(await bcrypt.compare(password, user.password_hash))) {
+    registerLoginFailure(email);
+    if (user) await audit(user, 'login_failed', { reason: 'invalid_credentials' }, user.church_id);
+    return res.status(401).json({ error: 'Login ou senha inválidos.' });
+  }
+  clearLoginFailures(email);
   await audit(user, 'login');
   res.json({ token: signUser(user), user: safeUser(user) });
 });
@@ -211,6 +261,22 @@ app.get('/api/public/church', async (req, res) => {
   res.json({ church: { ...church, publicSettings }, events: events.rows });
 });
 
+app.post('/api/public/church/:slug/visitors', async (req, res) => {
+  if (!publicVisitAllowed(req.ip)) return res.status(429).json({ error: 'Muitos cadastros neste momento. Tente novamente mais tarde.' });
+  const slug = String(req.params.slug || '').trim().toLowerCase();
+  const church = (await query("SELECT id, name FROM churches WHERE slug = $1 AND status IN ('active', 'trial')", [slug])).rows[0];
+  if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  const name = String(req.body.name || '').trim();
+  const phone = normalizePhone(req.body.phone || '');
+  const consent = Boolean(req.body.consent);
+  if (name.length < 2) return res.status(400).json({ error: 'Informe seu nome.' });
+  if (!consent) return res.status(400).json({ error: 'É necessário autorizar o contato da igreja.' });
+  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, visit_date, service, invited_by, notes, status, responsible)
+    VALUES ($1, $2, '', $3, 'Sozinho', $4, CURRENT_DATE, 'Cadastro pela página pública', '', $5, 'Novo', 'Recepção') RETURNING id, name, visit_date`, [church.id, name, JSON.stringify([name]), phone, String(req.body.notes || '').trim()]);
+  await audit(null, 'public_visitor_created', { visitorId: result.rows[0].id, churchId: church.id }, church.id);
+  res.status(201).json({ ok: true, church: church.name, visitor: result.rows[0] });
+});
+
 app.get('/api/church/settings', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
   const result = await query('SELECT * FROM churches WHERE id = $1', [req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
@@ -298,41 +364,143 @@ app.post('/api/church/visitors', auth(['church_admin', 'reception']), requireChu
   if (!name) return res.status(400).json({ error: 'Nome do visitante é obrigatório.' });
   const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, visit_date, service, invited_by, notes, responsible, created_by)
     VALUES ($1, $2, $3, $4, $5, COALESCE($6, ''), COALESCE($7, CURRENT_DATE), COALESCE($8, 'Culto de Celebração'), COALESCE($9, ''), COALESCE($10, ''), $11, $12) RETURNING *`, [req.churchId, name, req.body.familyName || '', JSON.stringify(req.body.familyMembers || [name]), req.body.arrivalType || 'Sozinho', req.body.phone || '', req.body.visitDate || null, req.body.service || 'Culto de Celebração', req.body.invitedBy || '', req.body.notes || '', req.user.name, req.user.id]);
-  await query('UPDATE churches SET member_count = member_count + 1, updated_at = NOW() WHERE id = $1', [req.churchId]);
   await audit(req.user, 'visitor_created', { visitorId: result.rows[0].id }, req.churchId);
   res.status(201).json({ visitor: result.rows[0] });
 });
 
 app.get('/api/church/members', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
-  const result = await query('SELECT * FROM members WHERE church_id = $1 ORDER BY name ASC LIMIT 2000', [req.churchId]);
+  const result = await query(`SELECT m.*, MAX(a.checked_in_at) AS latest_attendance
+    FROM members m LEFT JOIN member_attendance a ON a.member_id = m.id AND a.church_id = m.church_id
+    WHERE m.church_id = $1 GROUP BY m.id ORDER BY m.name ASC LIMIT 2000`, [req.churchId]);
   res.json({ members: result.rows });
 });
 
 app.post('/api/church/members', auth(['church_admin']), requireChurch, async (req, res) => {
   const name = String(req.body.name || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  const phone = normalizePhone(req.body.phone || '');
   if (!name) return res.status(400).json({ error: 'Nome do membro é obrigatório.' });
+  const duplicate = (await query(`SELECT id, name, email, phone FROM members WHERE church_id = $1 AND ((NULLIF($2, '') IS NOT NULL AND email <> '' AND LOWER(email) = $2) OR (NULLIF($3, '') IS NOT NULL AND phone <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = $3)) LIMIT 1`, [req.churchId, email, phone])).rows[0];
+  if (duplicate) return res.status(409).json({ error: `Já existe um cadastro semelhante para ${duplicate.name}.`, duplicate });
   const gender = ['female', 'male', 'unspecified'].includes(req.body.gender) ? req.body.gender : 'unspecified';
-  const result = await query(`INSERT INTO members (church_id, name, preferred_name, gender, email, phone, ministry, ministry_id, status, joined_at)
-    VALUES ($1, $2, COALESCE($3, ''), $4, COALESCE($5, ''), COALESCE($6, ''), COALESCE($7, ''), $8, $9, $10) RETURNING *`, [req.churchId, name, req.body.preferredName || '', gender, req.body.email || '', req.body.phone || '', req.body.ministry || '', req.body.ministryId || null, req.body.status === 'inactive' ? 'inactive' : 'active', req.body.joinedAt || null]);
-  await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1), updated_at = NOW() WHERE id = $1', [req.churchId]);
-  await audit(req.user, 'member_created', { memberId: result.rows[0].id }, req.churchId);
+  const communicationConsent = Boolean(req.body.communicationConsent);
+  const locationConsent = Boolean(req.body.locationConsent);
+  const consentVersion = communicationConsent || locationConsent ? String(req.body.consentVersion || 'web-v1') : '';
+  const result = await query(`INSERT INTO members (church_id, name, preferred_name, gender, email, phone, ministry, ministry_id, status, joined_at, communication_consent, location_consent, consent_version, consent_updated_at)
+    VALUES ($1, $2, COALESCE($3, ''), $4, COALESCE($5, ''), COALESCE($6, ''), COALESCE($7, ''), $8, $9, $10, $11, $12, $13, CASE WHEN $11 OR $12 THEN NOW() ELSE NULL END) RETURNING *`, [req.churchId, name, req.body.preferredName || '', gender, email, phone, req.body.ministry || '', req.body.ministryId || null, req.body.status === 'inactive' ? 'inactive' : 'active', req.body.joinedAt || null, communicationConsent, locationConsent, consentVersion]);
+  await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1 AND status = \'active\'), updated_at = NOW() WHERE id = $1', [req.churchId]);
+  await audit(req.user, 'member_created', { memberId: result.rows[0].id, communicationConsent, locationConsent }, req.churchId);
   res.status(201).json({ member: result.rows[0] });
 });
 
 app.patch('/api/church/members/:memberId', auth(['church_admin']), requireChurch, async (req, res) => {
   const gender = ['female', 'male', 'unspecified'].includes(req.body.gender) ? req.body.gender : null;
-  const result = await query(`UPDATE members SET name = COALESCE(NULLIF($1, ''), name), preferred_name = COALESCE($2, preferred_name), gender = COALESCE($3, gender), email = COALESCE($4, email), phone = COALESCE($5, phone), ministry = COALESCE($6, ministry), ministry_id = COALESCE($7, ministry_id), status = COALESCE($8, status), joined_at = COALESCE($9, joined_at), updated_at = NOW()
-    WHERE id = $10 AND church_id = $11 RETURNING *`, [req.body.name || '', req.body.preferredName, gender, req.body.email, req.body.phone, req.body.ministry, req.body.ministryId, req.body.status, req.body.joinedAt || null, req.params.memberId, req.churchId]);
+  const email = Object.prototype.hasOwnProperty.call(req.body, 'email') ? normalizeEmail(req.body.email) : null;
+  const phone = Object.prototype.hasOwnProperty.call(req.body, 'phone') ? normalizePhone(req.body.phone) : null;
+  const duplicate = (await query(`SELECT id, name FROM members WHERE church_id = $1 AND id <> $2 AND ((NULLIF($3, '') IS NOT NULL AND email <> '' AND LOWER(email) = $3) OR (NULLIF($4, '') IS NOT NULL AND phone <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = $4)) LIMIT 1`, [req.churchId, req.params.memberId, email, phone])).rows[0];
+  if (duplicate) return res.status(409).json({ error: `Os dados informados já pertencem a ${duplicate.name}.`, duplicate });
+  const hasCommunicationConsent = Object.prototype.hasOwnProperty.call(req.body, 'communicationConsent');
+  const hasLocationConsent = Object.prototype.hasOwnProperty.call(req.body, 'locationConsent');
+  const communicationConsent = hasCommunicationConsent ? Boolean(req.body.communicationConsent) : null;
+  const locationConsent = hasLocationConsent ? Boolean(req.body.locationConsent) : null;
+  const result = await query(`UPDATE members SET name = COALESCE(NULLIF($1, ''), name), preferred_name = COALESCE($2, preferred_name), gender = COALESCE($3, gender), email = COALESCE($4, email), phone = COALESCE($5, phone), ministry = COALESCE($6, ministry), ministry_id = COALESCE($7, ministry_id), status = COALESCE($8, status), joined_at = COALESCE($9, joined_at), communication_consent = COALESCE($10, communication_consent), location_consent = COALESCE($11, location_consent), consent_version = CASE WHEN $10 IS NOT NULL OR $11 IS NOT NULL THEN COALESCE(NULLIF($12, ''), consent_version) ELSE consent_version END, consent_updated_at = CASE WHEN $10 IS NOT NULL OR $11 IS NOT NULL THEN NOW() ELSE consent_updated_at END, updated_at = NOW()
+    WHERE id = $13 AND church_id = $14 RETURNING *`, [req.body.name || '', req.body.preferredName, gender, email, phone, req.body.ministry, req.body.ministryId, req.body.status, req.body.joinedAt || null, communicationConsent, locationConsent, String(req.body.consentVersion || ''), req.params.memberId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Membro não encontrado.' });
+  await audit(req.user, 'member_updated', { memberId: req.params.memberId, consentChanged: hasCommunicationConsent || hasLocationConsent }, req.churchId);
   res.json({ member: result.rows[0] });
 });
 
 app.delete('/api/church/members/:memberId', auth(['church_admin']), requireChurch, async (req, res) => {
   const result = await query('DELETE FROM members WHERE id = $1 AND church_id = $2 RETURNING id', [req.params.memberId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Membro não encontrado.' });
-  await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1), updated_at = NOW() WHERE id = $1', [req.churchId]);
+  await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1 AND status = \'active\'), updated_at = NOW() WHERE id = $1', [req.churchId]);
   await audit(req.user, 'member_deleted', { memberId: req.params.memberId }, req.churchId);
   res.json({ ok: true });
+});
+
+app.get('/api/church/attendance', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit || 200), 1), 1000);
+  const result = await query(`SELECT a.*, m.name AS member_name, m.preferred_name, e.title AS event_title
+    FROM member_attendance a JOIN members m ON m.id = a.member_id
+    LEFT JOIN church_events e ON e.id = a.event_id
+    WHERE a.church_id = $1 ORDER BY a.checked_in_at DESC LIMIT $2`, [req.churchId, limit]);
+  res.json({ attendance: result.rows });
+});
+
+app.post('/api/church/attendance', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const memberId = String(req.body.memberId || '').trim();
+  if (!memberId) return res.status(400).json({ error: 'Membro é obrigatório.' });
+  const member = (await query("SELECT * FROM members WHERE id = $1 AND church_id = $2 AND status = 'active'", [memberId, req.churchId])).rows[0];
+  if (!member) return res.status(404).json({ error: 'Membro ativo não encontrado nesta igreja.' });
+  const recent = (await query(`SELECT * FROM member_attendance WHERE member_id = $1 AND church_id = $2 AND checked_in_at > NOW() - INTERVAL '3 hours' ORDER BY checked_in_at DESC LIMIT 1`, [memberId, req.churchId])).rows[0];
+  if (recent) return res.json({ attendance: recent, duplicate: true, message: 'A presença deste membro já foi registrada recentemente.' });
+  const source = ['manual', 'web', 'qr', 'import'].includes(req.body.source) ? req.body.source : 'manual';
+  const geoVerified = Boolean(req.body.geoVerified);
+  const distanceM = Number.isFinite(Number(req.body.distanceM)) ? Number(req.body.distanceM) : null;
+  const accuracyM = Number.isFinite(Number(req.body.accuracyM)) ? Number(req.body.accuracyM) : null;
+  const result = await query(`INSERT INTO member_attendance (church_id, member_id, event_id, source, geo_verified, distance_m, accuracy_m, notes, created_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, [req.churchId, memberId, req.body.eventId || null, source, geoVerified, distanceM, accuracyM, String(req.body.notes || '').trim(), req.user.id]);
+  await query('UPDATE members SET last_attended_at = NOW(), updated_at = NOW() WHERE id = $1 AND church_id = $2', [memberId, req.churchId]);
+  await audit(req.user, 'member_attendance_created', { memberId, attendanceId: result.rows[0].id, source, geoVerified }, req.churchId);
+  res.status(201).json({ attendance: result.rows[0], duplicate: false });
+});
+
+app.get('/api/church/attendance/summary', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const [today, month, members] = await Promise.all([
+    query("SELECT COUNT(DISTINCT member_id)::int AS total FROM member_attendance WHERE church_id = $1 AND checked_in_at::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date", [req.churchId]),
+    query("SELECT COUNT(DISTINCT member_id)::int AS total FROM member_attendance WHERE church_id = $1 AND checked_in_at >= date_trunc('month', NOW() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo'", [req.churchId]),
+    query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE last_attended_at IS NOT NULL)::int AS with_attendance FROM members WHERE church_id = $1 AND status = 'active'", [req.churchId])
+  ]);
+  res.json({ today: today.rows[0].total, month: month.rows[0].total, members: members.rows[0] });
+});
+
+app.post('/api/church/members/:memberId/consents', auth(['church_admin']), requireChurch, async (req, res) => {
+  const memberId = req.params.memberId;
+  const member = (await query('SELECT id FROM members WHERE id = $1 AND church_id = $2', [memberId, req.churchId])).rows[0];
+  if (!member) return res.status(404).json({ error: 'Membro não encontrado.' });
+  const consentType = ['communication', 'location', 'privacy'].includes(req.body.consentType) ? req.body.consentType : null;
+  if (!consentType) return res.status(400).json({ error: 'Tipo de consentimento inválido.' });
+  const granted = Boolean(req.body.granted);
+  const version = String(req.body.version || 'web-v1');
+  const result = await query(`INSERT INTO member_consents (church_id, member_id, consent_type, granted, version, source, granted_at, revoked_at)
+    VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $4 THEN NOW() ELSE NULL END, CASE WHEN NOT $4 THEN NOW() ELSE NULL END)
+    ON CONFLICT (member_id, consent_type) DO UPDATE SET granted = EXCLUDED.granted, version = EXCLUDED.version, source = EXCLUDED.source, granted_at = EXCLUDED.granted_at, revoked_at = EXCLUDED.revoked_at
+    RETURNING *`, [req.churchId, memberId, consentType, granted, version, String(req.body.source || 'church_admin')]);
+  const column = consentType === 'communication' ? 'communication_consent' : consentType === 'location' ? 'location_consent' : null;
+  if (column) await query(`UPDATE members SET ${column} = $1, consent_version = $2, consent_updated_at = NOW(), updated_at = NOW() WHERE id = $3 AND church_id = $4`, [granted, version, memberId, req.churchId]);
+  await audit(req.user, 'member_consent_updated', { memberId, consentType, granted, version }, req.churchId);
+  res.json({ consent: result.rows[0] });
+});
+
+app.get('/api/church/care-tasks', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const result = await query(`SELECT t.*, m.name AS member_name, m.preferred_name, v.name AS visitor_name, u.name AS assignee_name
+    FROM care_tasks t LEFT JOIN members m ON m.id = t.member_id LEFT JOIN visitors v ON v.id = t.visitor_id LEFT JOIN users u ON u.id = t.assigned_to
+    WHERE t.church_id = $1 ORDER BY CASE t.status WHEN 'pending' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date NULLS LAST, t.created_at DESC LIMIT 500`, [req.churchId]);
+  res.json({ tasks: result.rows });
+});
+
+app.post('/api/church/care-tasks', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const title = String(req.body.title || '').trim();
+  const memberId = req.body.memberId || null;
+  const visitorId = req.body.visitorId || null;
+  if (!title || (!memberId && !visitorId)) return res.status(400).json({ error: 'Título e pessoa vinculada são obrigatórios.' });
+  if (memberId && !(await query('SELECT id FROM members WHERE id = $1 AND church_id = $2', [memberId, req.churchId])).rows[0]) return res.status(404).json({ error: 'Membro não encontrado nesta igreja.' });
+  if (visitorId && !(await query('SELECT id FROM visitors WHERE id = $1 AND church_id = $2', [visitorId, req.churchId])).rows[0]) return res.status(404).json({ error: 'Visitante não encontrado nesta igreja.' });
+  const taskType = ['follow_up', 'prayer', 'visit', 'integration', 'other'].includes(req.body.taskType) ? req.body.taskType : 'follow_up';
+  const priority = ['low', 'normal', 'high'].includes(req.body.priority) ? req.body.priority : 'normal';
+  const result = await query(`INSERT INTO care_tasks (church_id, member_id, visitor_id, title, description, task_type, priority, due_date, assigned_to, created_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`, [req.churchId, memberId, visitorId, title, String(req.body.description || '').trim(), taskType, priority, req.body.dueDate || null, req.body.assignedTo || null, req.user.id]);
+  await audit(req.user, 'care_task_created', { taskId: result.rows[0].id, memberId, visitorId, taskType }, req.churchId);
+  res.status(201).json({ task: result.rows[0] });
+});
+
+app.patch('/api/church/care-tasks/:taskId', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const status = ['pending', 'in_progress', 'done', 'cancelled'].includes(req.body.status) ? req.body.status : null;
+  const result = await query(`UPDATE care_tasks SET title = COALESCE(NULLIF($1, ''), title), description = COALESCE($2, description), priority = COALESCE($3, priority), due_date = COALESCE($4, due_date), status = COALESCE($5, status), completed_at = CASE WHEN $5 = 'done' THEN NOW() WHEN $5 IS NOT NULL THEN NULL ELSE completed_at END, updated_at = NOW()
+    WHERE id = $6 AND church_id = $7 RETURNING *`, [String(req.body.title || '').trim(), req.body.description, ['low', 'normal', 'high'].includes(req.body.priority) ? req.body.priority : null, req.body.dueDate || null, status, req.params.taskId, req.churchId]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Tarefa de cuidado não encontrada.' });
+  await audit(req.user, 'care_task_updated', { taskId: req.params.taskId, status }, req.churchId);
+  res.json({ task: result.rows[0] });
 });
 
 app.get('/api/church/events', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -454,6 +622,17 @@ async function ensureColumnCompatibility() {
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'unspecified'");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS ministry_id UUID REFERENCES ministries(id) ON DELETE SET NULL");
+  await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS communication_consent BOOLEAN NOT NULL DEFAULT FALSE");
+  await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS location_consent BOOLEAN NOT NULL DEFAULT FALSE");
+  await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS consent_version TEXT NOT NULL DEFAULT ''");
+  await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS consent_updated_at TIMESTAMPTZ");
+  await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS last_attended_at TIMESTAMPTZ");
+  await query("CREATE TABLE IF NOT EXISTS member_attendance (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE, member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE, event_id UUID REFERENCES church_events(id) ON DELETE SET NULL, source TEXT NOT NULL DEFAULT 'manual', checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), geo_verified BOOLEAN NOT NULL DEFAULT FALSE, distance_m NUMERIC(8,2), accuracy_m NUMERIC(8,2), notes TEXT NOT NULL DEFAULT '', created_by UUID REFERENCES users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+  await query("CREATE TABLE IF NOT EXISTS member_consents (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE, member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE, consent_type TEXT NOT NULL, granted BOOLEAN NOT NULL DEFAULT FALSE, version TEXT NOT NULL DEFAULT 'v1', source TEXT NOT NULL DEFAULT 'church_admin', granted_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (member_id, consent_type))");
+  await query("CREATE TABLE IF NOT EXISTS care_tasks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE, member_id UUID REFERENCES members(id) ON DELETE CASCADE, visitor_id UUID REFERENCES visitors(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', task_type TEXT NOT NULL DEFAULT 'follow_up', priority TEXT NOT NULL DEFAULT 'normal', status TEXT NOT NULL DEFAULT 'pending', due_date DATE, assigned_to UUID REFERENCES users(id) ON DELETE SET NULL, created_by UUID REFERENCES users(id), completed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+  await query("CREATE UNIQUE INDEX IF NOT EXISTS idx_member_consents_unique ON member_consents(member_id, consent_type)");
+  await query("CREATE INDEX IF NOT EXISTS idx_attendance_church_member ON member_attendance(church_id, member_id, checked_in_at DESC)");
+  await query("CREATE INDEX IF NOT EXISTS idx_care_tasks_church_status ON care_tasks(church_id, status, due_date)");
   await query("ALTER TABLE leaders ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE leaders ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'unspecified'");
   await query("CREATE UNIQUE INDEX IF NOT EXISTS idx_ministries_church_name_lower ON ministries(church_id, LOWER(name))");

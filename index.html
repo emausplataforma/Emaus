@@ -7,7 +7,7 @@
   <meta name="description" content="Emaús — plataforma de gestão e comunicação para igrejas." />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="splash.css" />
-  <link rel="stylesheet" href="styles.css?v=51" />
+  <link rel="stylesheet" href="styles.css?v=52" />
   <title>Emaús • Plataforma da Igreja</title>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <div class="church-login-brand"><img src="emaus-admin-logo.png" alt="Emaús"><div><strong>Emaús</strong><span>Área da igreja</span></div></div>
       <span class="eyebrow">ACESSO PROTEGIDO</span>
       <h1>Entrar na área da igreja</h1>
-      <p>Use o acesso do pastor ou administrador local para acompanhar o acolhimento e a vida da Bethesda.</p>
+      <p>Use o acesso do pastor, administrador local ou recepção autorizada para acompanhar o acolhimento e a vida da Bethesda.</p>
       <form id="churchLoginForm">
         <label for="churchLoginEmail">E-mail</label>
         <input id="churchLoginEmail" name="email" type="email" autocomplete="username" placeholder="evandro@bethesda.com.br" required>
@@ -38,7 +38,7 @@
         <button class="church-login-button" type="submit">Entrar na área da igreja</button>
         <p class="church-login-error is-hidden" id="churchLoginError"></p>
       </form>
-      <small class="church-login-note">A autenticação é feita pela API segura da Emaús. Os dados da igreja não ficam somente no navegador.</small>
+      <small class="church-login-note">A autenticação é feita pela API segura da Emaús. Os dados da igreja não ficam somente no navegador.<br><a href="privacidade.html" target="_blank" rel="noopener">Leia a política de privacidade</a></small>
     </div>
   </section>
   <svg aria-hidden="true" class="svg-sprite" xmlns="http://www.w3.org/2000/svg">
@@ -164,7 +164,7 @@
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
   <script src="splash.js"></script>
-  <script src="api-config.js?v=51"></script>
-  <script src="app.js?v=51"></script>
+  <script src="api-config.js?v=52"></script>
+  <script src="app.js?v=52"></script>
 </body>
 </html>

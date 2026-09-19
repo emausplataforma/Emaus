@@ -110,6 +110,11 @@ CREATE TABLE IF NOT EXISTS members (
   ministry_id UUID REFERENCES ministries(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   joined_at DATE,
+  communication_consent BOOLEAN NOT NULL DEFAULT FALSE,
+  location_consent BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_version TEXT NOT NULL DEFAULT '',
+  consent_updated_at TIMESTAMPTZ,
+  last_attended_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -153,6 +158,57 @@ CREATE TABLE IF NOT EXISTS audit_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS member_attendance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  event_id UUID REFERENCES church_events(id) ON DELETE SET NULL,
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'web', 'qr', 'import')),
+  checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  geo_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  distance_m NUMERIC(8,2),
+  accuracy_m NUMERIC(8,2),
+  notes TEXT NOT NULL DEFAULT '',
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS member_consents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  consent_type TEXT NOT NULL CHECK (consent_type IN ('communication', 'location', 'privacy')),
+  granted BOOLEAN NOT NULL DEFAULT FALSE,
+  version TEXT NOT NULL DEFAULT 'v1',
+  source TEXT NOT NULL DEFAULT 'church_admin',
+  granted_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (member_id, consent_type)
+);
+
+CREATE TABLE IF NOT EXISTS care_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  member_id UUID REFERENCES members(id) ON DELETE CASCADE,
+  visitor_id UUID REFERENCES visitors(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  task_type TEXT NOT NULL DEFAULT 'follow_up' CHECK (task_type IN ('follow_up', 'prayer', 'visit', 'integration', 'other')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'done', 'cancelled')),
+  due_date DATE,
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id),
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (member_id IS NOT NULL OR visitor_id IS NOT NULL)
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_church ON users(church_id);
 CREATE INDEX IF NOT EXISTS idx_visitors_church_date ON visitors(church_id, visit_date DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_attendance_church_member ON member_attendance(church_id, member_id, checked_in_at DESC);
+CREATE INDEX IF NOT EXISTS idx_care_tasks_church_status ON care_tasks(church_id, status, due_date);
+CREATE INDEX IF NOT EXISTS idx_member_consents_church ON member_consents(church_id, member_id);

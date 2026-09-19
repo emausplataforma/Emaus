@@ -35,6 +35,9 @@ const defaultState = {
   growthGoals: { visitors: 50, returns: 25, members: 300 },
   members: [],
   ministries: [],
+  attendance: [],
+  attendanceSummary: { today: 0, month: 0, members: { total: 0, with_attendance: 0 } },
+  careTasks: [],
   currentUser: { name: 'Evandro & Simone', preferredName: '', gender: 'unspecified', role: 'Pastor da igreja', roleKey: 'church_admin' },
   metrics: {
     visits: 0,
@@ -140,7 +143,13 @@ function mapApiEvent(event) {
   };
 }
 function mapApiMember(member) {
-  return { id: member.id, name: member.name, preferredName: member.preferred_name || member.preferredName || '', gender: member.gender || 'unspecified', email: member.email || '', phone: member.phone || '', ministry: member.ministry || '', ministryId: member.ministry_id || '', status: member.status || 'active', joinedAt: member.joined_at || '' };
+  return { id: member.id, name: member.name, preferredName: member.preferred_name || member.preferredName || '', gender: member.gender || 'unspecified', email: member.email || '', phone: member.phone || '', ministry: member.ministry || '', ministryId: member.ministry_id || '', status: member.status || 'active', joinedAt: member.joined_at || '', communicationConsent: Boolean(member.communication_consent), locationConsent: Boolean(member.location_consent), consentVersion: member.consent_version || '', lastAttendedAt: member.latest_attendance || member.last_attended_at || '' };
+}
+function mapApiAttendance(item) {
+  return { id: item.id, memberId: item.member_id, memberName: item.preferred_name || item.member_name || '', eventId: item.event_id || '', eventTitle: item.event_title || '', source: item.source || 'manual', checkedInAt: item.checked_in_at || '', geoVerified: Boolean(item.geo_verified), distanceM: item.distance_m == null ? null : Number(item.distance_m), accuracyM: item.accuracy_m == null ? null : Number(item.accuracy_m), notes: item.notes || '' };
+}
+function mapApiCareTask(task) {
+  return { id: task.id, memberId: task.member_id || '', visitorId: task.visitor_id || '', memberName: task.preferred_name || task.member_name || '', visitorName: task.visitor_name || '', title: task.title, description: task.description || '', taskType: task.task_type || 'follow_up', priority: task.priority || 'normal', status: task.status || 'pending', dueDate: task.due_date || '', assignedTo: task.assigned_to || '', assigneeName: task.assignee_name || '' };
 }
 function mapApiMinistry(ministry) {
   return { id: ministry.id, name: ministry.name, churchId: ministry.church_id, status: ministry.status || 'active' };
@@ -153,7 +162,7 @@ function mapApiReceptionUser(user) {
 }
 
 async function loadRemoteChurchState(user) {
-  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users', '/api/church/ministries'];
+  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users', '/api/church/ministries', '/api/church/attendance', '/api/church/attendance/summary', '/api/church/care-tasks'];
   const results = await Promise.all(endpoints.map(endpoint => apiRequest(endpoint).then(payload => ({ ok: true, payload })).catch(error => ({ ok: false, error }))));
   const settingsPayload = results[0].payload || {};
   const visitorsPayload = results[1].payload || {};
@@ -162,6 +171,9 @@ async function loadRemoteChurchState(user) {
   const leadersPayload = results[4].payload || {};
   const receptionUsersPayload = results[5].payload || {};
   const ministriesPayload = results[6].payload || {};
+  const attendancePayload = results[7].payload || {};
+  const attendanceSummaryPayload = results[8].payload || {};
+  const careTasksPayload = results[9].payload || {};
   const church = settingsPayload.church;
   const localChurch = (state.churches || []).find(item => item.id === church?.id || item.slug === church?.slug || item.name === church?.name);
   const serverPublicSettings = church?.public_settings && typeof church.public_settings === 'object' ? church.public_settings : {};
@@ -192,10 +204,13 @@ async function loadRemoteChurchState(user) {
   if (results[4].ok) state.leaders = (leadersPayload.leaders || []).map(mapApiLeader);
   if (results[5].ok) state.receptionUsers = (receptionUsersPayload.users || []).map(mapApiReceptionUser);
   if (results[6].ok) state.ministries = (ministriesPayload.ministries || []).map(mapApiMinistry);
+  if (results[7].ok) state.attendance = (attendancePayload.attendance || []).map(mapApiAttendance);
+  if (results[8].ok) state.attendanceSummary = { ...(state.attendanceSummary || {}), ...(attendanceSummaryPayload || {}) };
+  if (results[9].ok) state.careTasks = (careTasksPayload.tasks || []).map(mapApiCareTask);
   state.activity = [];
   state.announcements = [];
   state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: 0 };
-  state.currentUser = { name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId };
+  state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || '' };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -223,7 +238,7 @@ async function handleChurchLogin(event) {
   button.textContent = 'Conectando...';
   try {
     const payload = await apiRequest('/api/auth/login', { method: 'POST', body: { email, password } });
-    if (!['church_admin'].includes(payload.user?.role)) throw new Error('Este acesso não pertence à área do pastor.');
+    if (!['church_admin', 'reception'].includes(payload.user?.role)) throw new Error('Este acesso não pertence à área da igreja.');
     sessionStorage.setItem(CHURCH_TOKEN_KEY, payload.token);
     sessionStorage.setItem(CHURCH_USER_KEY, JSON.stringify(payload.user));
     await loadRemoteChurchState(payload.user);
@@ -248,7 +263,7 @@ async function bootstrapChurchAuth() {
   if (!token || !savedUser) return;
   try {
     const me = await apiRequest('/api/me');
-    if (me.user?.role !== 'church_admin') throw new Error('Acesso não autorizado.');
+    if (!['church_admin', 'reception'].includes(me.user?.role)) throw new Error('Acesso não autorizado.');
     await loadRemoteChurchState(me.user);
     showChurchApp();
   } catch (error) {
@@ -281,7 +296,7 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && saved.visitors && saved.events && saved.churches) {
-      const merged = { ...structuredClone(defaultState), ...saved, currentUser: { ...defaultState.currentUser, ...(saved.currentUser || {}) }, metrics: { ...defaultState.metrics, ...(saved.metrics || {}) }, growthGoals: { ...defaultState.growthGoals, ...(saved.growthGoals || {}) }, members: Array.isArray(saved.members) ? saved.members : [], ministries: Array.isArray(saved.ministries) ? saved.ministries : [], calendarMonth: saved.calendarMonth || defaultState.calendarMonth };
+      const merged = { ...structuredClone(defaultState), ...saved, currentUser: { ...defaultState.currentUser, ...(saved.currentUser || {}) }, metrics: { ...defaultState.metrics, ...(saved.metrics || {}) }, growthGoals: { ...defaultState.growthGoals, ...(saved.growthGoals || {}) }, members: Array.isArray(saved.members) ? saved.members : [], ministries: Array.isArray(saved.ministries) ? saved.ministries : [], attendance: Array.isArray(saved.attendance) ? saved.attendance : [], attendanceSummary: { ...defaultState.attendanceSummary, ...(saved.attendanceSummary || {}) }, careTasks: Array.isArray(saved.careTasks) ? saved.careTasks : [], calendarMonth: saved.calendarMonth || defaultState.calendarMonth };
       merged.visitors = merged.visitors.map(visitor => {
         const defaultVisitor = defaultState.visitors.find(item => item.id === visitor.id);
         return {
@@ -477,12 +492,13 @@ function isPlatformAdmin() {
 function getCurrentReceptionAccess() {
   if (state.currentUser?.roleKey !== 'reception') return null;
   const users = state.receptionUsers || [];
-  return users.find(user => (user.id === state.currentUser.receptionUserId || user.login === state.currentUser.login || user.name === state.currentUser.name) && (!user.churchId || user.churchId === state.activeChurchId)) || null;
+  const access = users.find(user => (user.id === state.currentUser.receptionUserId || user.login === state.currentUser.login || user.name === state.currentUser.name) && (!user.churchId || user.churchId === state.activeChurchId));
+  return access || { permissions: state.currentUser.permissions || ['acolhimento'], status: state.currentUser.status || 'active' };
 }
 function canAccessAcolhimento() {
   if (state.currentUser?.roleKey !== 'reception') return true;
   const access = getCurrentReceptionAccess();
-  return Boolean(access && access.status !== 'Bloqueado' && (access.permissions || []).includes('acolhimento'));
+  return Boolean(access && access.status !== 'Bloqueado' && access.status !== 'blocked' && (access.permissions || []).includes('acolhimento'));
 }
 function slugify(value = '') {
   return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'igreja';
@@ -745,6 +761,13 @@ function renderGrowthStrategyModal() {
   return `<div class="growth-strategy-intro"><div class="icon-tile gold">${ICON('sparkle')}</div><div><strong>Uma estratégia de crescimento fiel ao evangelho</strong><p>Use cada marco como um convite para cuidar melhor das pessoas, formar discípulos e servir a comunidade. Nunca como pressão por números.</p></div></div><div class="growth-principles"><h3>Diretrizes para todos os marcos</h3><ul>${GROWTH_STRATEGY_PRINCIPLES.map(principle => `<li>${ICON('check-circle')}<span>${esc(principle)}</span></li>`).join('')}</ul></div><div class="growth-stage-list">${stages}</div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-gold" data-action="growth-goals">${ICON('sparkle')} Ajustar meta de membros</button></div>`;
 }
 
+function renderCareSummaryPanel() {
+  const tasks = (state.careTasks || []).filter(task => !['done', 'cancelled'].includes(task.status));
+  const summary = state.attendanceSummary || {};
+  const taskRows = tasks.slice(0, 4).map(task => `<div class="care-task-row"><span class="care-task-dot care-task-${esc(task.priority || 'normal')}"></span><div><strong>${esc(task.title)}</strong><small>${esc(task.memberName || task.visitorName || 'Pessoa vinculada')}${task.dueDate ? ` · até ${esc(formatDateShort(task.dueDate))}` : ''}</small></div><button class="table-action" data-action="care-task-detail" data-id="${esc(task.id)}" aria-label="Abrir cuidado">${ICON('chevron-right')}</button></div>`).join('');
+  return `<section class="care-dashboard-grid"><article class="panel"><div class="panel-header"><div class="panel-heading"><h2>Cuidado em andamento</h2><p>Próximos acompanhamentos da igreja.</p></div><button class="panel-link" data-action="new-care-task">Novo cuidado ${ICON('plus')}</button></div><div class="care-task-list">${taskRows || `<div class="empty-state compact-empty"><div class="icon-tile green">${ICON('heart')}</div><h3>Nenhum cuidado pendente</h3><p>Quando houver alguém para acompanhar, registre aqui.</p></div>`}</div>${tasks.length > 4 ? `<button class="btn btn-secondary btn-full" data-view="acolhimento">Ver todos os acompanhamentos</button>` : ''}</article><article class="panel info-card"><div class="card-topline"><div><h3>Presença dos membros</h3><p>Registros internos da ${esc(getActiveChurch()?.name || 'igreja')}.</p></div><div class="icon-tile olive">${ICON('check-circle')}</div></div><div class="split-stat"><div><small>Hoje</small><strong>${esc(summary.today || 0)}</strong></div><div><small>Este mês</small><strong>${esc(summary.month || 0)}</strong></div><div><small>Com registro</small><strong>${esc(summary.members?.with_attendance || 0)}</strong></div></div><p class="field-note" style="margin-top:14px;">A presença é um registro pastoral, não um ranking de pessoas.</p><button class="btn btn-secondary btn-full" style="margin-top:16px;" data-action="attendance-report">${ICON('clipboard-check')} Ver registros</button></article></section>`;
+}
+
 function renderDashboard() {
   const church = getActiveChurch();
   const events = upcomingEvents();
@@ -789,6 +812,7 @@ function renderDashboard() {
       <div class="chart-footer"><span>Este mês</span><strong>${state.metrics.visits} visitantes</strong><span class="stat-trend">${state.metrics.visits ? `${ICON('arrow-up-right')} 18,4%` : '—'}</span><button class="panel-link" data-action="growth-goals">${ICON('sparkle')} Metas de crescimento</button></div>
     </section>
     <section class="panel" style="margin-top:20px;"><div class="panel-header"><div class="panel-heading"><h2>Metas de crescimento</h2><p>Acompanhe objetivos simples para a próxima fase da igreja.</p></div><button class="btn btn-secondary" data-action="growth-goals">Editar metas</button></div><div class="split-stat" style="padding:0 22px 22px;"><div><small>Visitantes</small><strong>${esc(state.metrics.visits)} / ${esc(state.growthGoals?.visitors || 0)}</strong></div><div><small>Retornos</small><strong>${esc(state.metrics.returns)} / ${esc(state.growthGoals?.returns || 0)}</strong></div><div><small>Membros</small><strong>${esc(activeMemberCount())} / ${esc(state.growthGoals?.members || 0)}</strong></div></div></section>
+    ${renderCareSummaryPanel()}
     ${renderGrowthStrategyPanel()}
   `;
 }
@@ -812,8 +836,8 @@ function renderMembers() {
   const members = state.members || [];
   const total = members.length || Number(church?.members || 0);
   const active = members.filter(member => member.status !== 'inactive').length || total;
-  const rows = members.length ? members.map(member => `<div class="team-user-row"><div class="avatar avatar-olive">${esc(initials(member.name))}</div><div class="team-user-copy"><strong>${esc(preferredDisplayName(member))}</strong><span>${esc(member.ministry || 'Membro')} · ${esc(member.phone || 'Telefone não informado')}</span><small>${member.email ? esc(member.email) : 'E-mail não informado'}</small></div><span class="team-status">${member.status === 'inactive' ? 'Inativo' : 'Ativo'}</span><button class="table-action" data-action="member-detail" data-id="${esc(member.id)}" aria-label="Abrir membro">${ICON('more')}</button></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>A base de membros está pronta</h3><p>Cadastre os membros da ${esc(church.name)} para começar o acompanhamento.</p><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Cadastrar primeiro membro</button></div>`;
-  return `<section class="page-head"><div><span class="eyebrow">COMUNIDADE</span><h1>Membros</h1><p>Uma base organizada para cuidar das pessoas que fazem parte da ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-members">${ICON('download')} Exportar membros</button><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Novo membro</button></div></section><div class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Membros cadastrados</span><span class="stat-icon copper">${ICON('users')}</span></div><div class="stat-number">${esc(total)}</div><div class="stat-bottom"><span>base da igreja</span><span>multi-igreja</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Ativos</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(active)}</div><div class="stat-bottom"><span>em acompanhamento</span><span>status atualizado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Meta de crescimento</span><span class="stat-icon gold">${ICON('arrow-up-right')}</span></div><div class="stat-number">${esc(state.growthGoals?.members || 0)}</div><div class="stat-bottom"><span>membros até o fim do ciclo</span><button class="panel-link" data-action="growth-goals">Editar meta ${ICON('arrow-up-right')}</button></div></article></div><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Cadastro de membros</h2><p>Dados separados e protegidos para esta igreja.</p></div><span class="status-pill status-integrated">${esc(total)} ${total === 1 ? 'membro' : 'membros'}</span></div><div class="team-list" style="padding:0 22px 22px;">${rows}</div></section>`;
+  const rows = members.length ? members.map(member => `<div class="team-user-row"><div class="avatar avatar-olive">${esc(initials(member.name))}</div><div class="team-user-copy"><strong>${esc(preferredDisplayName(member))}</strong><span>${esc(member.ministry || 'Membro')} · ${esc(member.phone || 'Telefone não informado')}</span><small>${member.email ? esc(member.email) : 'E-mail não informado'}${member.lastAttendedAt ? ` · última presença ${esc(formatDateShort(String(member.lastAttendedAt).slice(0, 10)))}` : ''}</small></div><span class="team-status">${member.status === 'inactive' ? 'Inativo' : 'Ativo'}</span><button class="table-action" data-action="member-detail" data-id="${esc(member.id)}" aria-label="Abrir membro">${ICON('more')}</button></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>A base de membros está pronta</h3><p>Cadastre os membros da ${esc(church.name)} para começar o acompanhamento.</p><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Cadastrar primeiro membro</button></div>`;
+  return `<section class="page-head"><div><span class="eyebrow">COMUNIDADE</span><h1>Membros</h1><p>Uma base organizada para cuidar das pessoas que fazem parte da ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-members">${ICON('download')} Exportar membros</button><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Novo membro</button></div></section><div class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Membros cadastrados</span><span class="stat-icon copper">${ICON('users')}</span></div><div class="stat-number">${esc(total)}</div><div class="stat-bottom"><span>base da igreja</span><span>multi-igreja</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Ativos</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(active)}</div><div class="stat-bottom"><span>em acompanhamento</span><span>status atualizado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Meta de crescimento</span><span class="stat-icon gold">${ICON('arrow-up-right')}</span></div><div class="stat-number">${esc(state.growthGoals?.members || 0)}</div><div class="stat-bottom"><span>membros até o fim do ciclo</span><button class="panel-link" data-action="growth-goals">Editar meta ${ICON('arrow-up-right')}</button></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Presenças no mês</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(state.attendanceSummary?.month || 0)}</div><div class="stat-bottom"><span>membros registrados</span><span>cuidado, não ranking</span></div></article></div><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Cadastro de membros</h2><p>Dados separados e protegidos para esta igreja.</p></div><span class="status-pill status-integrated">${esc(total)} ${total === 1 ? 'membro' : 'membros'}</span></div><div class="team-list" style="padding:0 22px 22px;">${rows}</div></section>`;
 }
 
 function renderAcolhimento() {
@@ -966,7 +990,7 @@ function renderSettings() {
   const organizationManagement = isPlatformAdmin() ? `<section class="settings-card saas-card" data-settings-panel="saas"><div class="saas-content"><div class="settings-card-header" style="border:0;padding-bottom:0;margin-bottom:0;"><div><h2>Pronto para outras igrejas</h2><p>A administração da plataforma gerencia organizações, planos e responsáveis.</p></div><div class="icon-tile gold">${ICON('crown')}</div></div><div class="plan-line"><span class="plan-badge">Administrador da plataforma</span><span>${state.churches.length} organização${state.churches.length === 1 ? '' : 'ões'} cadastrada${state.churches.length === 1 ? '' : 's'}</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;"><div><strong style="font-size:12px;">Área de organizações</strong><p class="field-note" style="margin-top:5px;">Cadastre novas igrejas, planos e responsáveis em um único painel.</p></div><button class="btn btn-primary" data-action="new-church">${ICON('plus')} Adicionar igreja</button></div></div></section><section class="settings-card" data-settings-panel="saas"><div class="settings-card-header"><div><h2>Igrejas cadastradas</h2><p>Organizações disponíveis nesta conta administradora.</p></div><span class="status-pill status-integrated">${state.churches.length} ativa${state.churches.length === 1 ? '' : 's'}</span></div><div class="tenant-list">${state.churches.map(ch => `<div class="tenant-row"><div class="tenant-logo">${esc(ch.initials || initials(ch.name))}</div><div class="tenant-copy"><strong>${esc(ch.name)}</strong><span>${esc(ch.city)} · ${esc(ch.members || 0)} pessoas alcançadas</span></div><span class="tenant-status">${esc(ch.status || 'Ativa')}</span><button class="table-action" data-action="switch-church" data-id="${esc(ch.id)}" aria-label="Abrir ${esc(ch.name)}">${ICON('chevron-right')}</button></div>`).join('')}</div></section>` : `<section class="settings-card pastor-scope-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Acesso da sua igreja</h2><p>Você está conectado como pastor e administra somente os dados desta organização.</p></div><div class="icon-tile copper">${ICON('shield')}</div></div><div class="pastor-scope-grid"><div><span class="scope-label">IGREJA ATIVA</span><strong>${esc(church.name)}</strong><p>${esc(church.city)} · identidade, visitantes e avisos desta igreja.</p></div><span class="access-scope-badge">PASTOR DA IGREJA</span></div><div class="scope-note"><span>${ICON('check-circle')}</span><p><strong>Você pode editar o nome e o logo</strong> desta igreja em “Identidade da igreja”. As outras igrejas e seus dados ficam protegidos e são administrados pelo administrador da plataforma.</p></div></section>`;
   const backupHistory = getBackupHistory();
   const latestBackup = backupHistory[0];
-  const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Backup automático</h2><p>Uma cópia é criada a cada alteração salva na plataforma.</p></div><span class="backup-status"><span></span> ATIVO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Dados protegidos automaticamente</strong><p>Último backup: ${esc(formatBackupDate(latestBackup?.createdAt))}</p></div><span class="backup-version-count">${backupHistory.length} ${backupHistory.length === 1 ? 'versão guardada' : 'versões guardadas'}</span></div><p class="field-note backup-note">As versões recentes incluem visitantes, famílias, avisos, agenda, equipe e identidade da ${esc(church.name)}.</p></section>`;
+  const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Histórico local de segurança</h2><p>Uma cópia local é criada a cada alteração salva neste navegador.</p></div><span class="backup-status"><span></span> ATIVO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Versões recentes guardadas neste dispositivo</strong><p>Última cópia: ${esc(formatBackupDate(latestBackup?.createdAt))}</p></div><span class="backup-version-count">${backupHistory.length} ${backupHistory.length === 1 ? 'versão guardada' : 'versões guardadas'}</span></div><p class="field-note backup-note">Isso não substitui o backup do PostgreSQL no Railway. A rotina de backup do banco deve ser configurada separadamente antes da produção.</p></section>`;
   const profile = state.currentUser || {};
   const profileCard = `<section class="settings-card treatment-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Forma de tratamento do pastor</h2><p>Escolha como a plataforma deve se dirigir a você no painel e nas futuras mensagens personalizadas.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><form data-form="profile"><div class="form-grid"><div class="form-field"><label for="profilePreferredName">Nome de preferência</label><input class="input" id="profilePreferredName" name="preferredName" value="${esc(profile.preferredName || '')}" placeholder="Como prefere ser chamado(a)"></div><div class="form-field"><label for="profileGender">Forma de tratamento</label><select class="select" id="profileGender" name="gender"><option value="unspecified" ${normalizedGender(profile) === 'unspecified' ? 'selected' : ''}>Não informar</option><option value="female" ${normalizedGender(profile) === 'female' ? 'selected' : ''}>Feminino — pastora, bem-vinda</option><option value="male" ${normalizedGender(profile) === 'male' ? 'selected' : ''}>Masculino — pastor, bem-vindo</option><option value="plural" ${normalizedGender(profile) === 'plural' ? 'selected' : ''}>Plural — pastores, bem-vindos</option></select></div></div><p class="field-note">A Emaús não tenta adivinhar o tratamento pelo nome. A escolha fica sob controle da própria pessoa.</p><div class="modal-actions"><button type="submit" class="btn btn-gold">${ICON('check')} Salvar tratamento</button></div></form></section>`;
   return `
@@ -1072,7 +1096,7 @@ function openModal(type, data = {}) {
     modalTitle = visitor.name;
     modalEyebrow = 'DETALHES DO VISITANTE';
     const familyMembers = getFamilyMembers(visitor);
-    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(initials(visitor.name))}</div><div><strong style="font-size:14px;">${esc(visitor.name)}</strong><span style="font-size:10px;margin-top:5px;">Visitou em ${esc(formatDateLong(visitor.date))}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.phone || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></div></div><div class="form-field"><label>Como veio</label><div>${arrivalPill(visitor.arrivalType || 'Sozinho')}</div></div><div class="form-field"><label>Culto ou evento</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.service)}</div></div><div class="form-field"><label>Responsável</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.responsible)}</div></div><div class="form-field full"><label>${esc(visitor.familyName || 'Pessoas que vieram juntas')}</label><div class="family-detail-list">${familyMembers.map((member, index) => `<div class="family-detail-item"><span>${index + 1}</span>${esc(member)}</div>`).join('')}</div><p class="field-note" style="margin-top:7px;">Todos os nomes ficam disponíveis para o anúncio dos pastores à igreja.</p></div><div class="form-field full"><label>Observações</label><div style="padding:11px;border-radius:9px;background:var(--paper);color:var(--muted);font-size:10px;line-height:1.5;">${esc(visitor.notes || 'Sem observações registradas.')}</div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-primary" data-action="announce-visitor" data-id="${esc(visitor.id)}">${ICON('megaphone')} Preparar anúncio</button>${visitor.status === 'Novo' ? `<button type="button" class="btn btn-gold" data-action="mark-contacted" data-id="${esc(visitor.id)}">${ICON('check')} Marcar como contatado</button>` : `<button type="button" class="btn btn-primary" data-action="visitor-message" data-id="${esc(visitor.id)}">${ICON('send')} Registrar contato</button>`}</div>`;
+    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(initials(visitor.name))}</div><div><strong style="font-size:14px;">${esc(visitor.name)}</strong><span style="font-size:10px;margin-top:5px;">Visitou em ${esc(formatDateLong(visitor.date))}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.phone || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></div></div><div class="form-field"><label>Como veio</label><div>${arrivalPill(visitor.arrivalType || 'Sozinho')}</div></div><div class="form-field"><label>Culto ou evento</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.service)}</div></div><div class="form-field"><label>Responsável</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.responsible)}</div></div><div class="form-field full"><label>${esc(visitor.familyName || 'Pessoas que vieram juntas')}</label><div class="family-detail-list">${familyMembers.map((member, index) => `<div class="family-detail-item"><span>${index + 1}</span>${esc(member)}</div>`).join('')}</div><p class="field-note" style="margin-top:7px;">Todos os nomes ficam disponíveis para o anúncio dos pastores à igreja.</p></div><div class="form-field full"><label>Observações</label><div style="padding:11px;border-radius:9px;background:var(--paper);color:var(--muted);font-size:10px;line-height:1.5;">${esc(visitor.notes || 'Sem observações registradas.')}</div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-secondary" data-action="new-care-task" data-visitor-id="${esc(visitor.id)}">${ICON('heart')} Criar cuidado</button><button type="button" class="btn btn-primary" data-action="announce-visitor" data-id="${esc(visitor.id)}">${ICON('megaphone')} Preparar anúncio</button>${visitor.status === 'Novo' ? `<button type="button" class="btn btn-gold" data-action="mark-contacted" data-id="${esc(visitor.id)}">${ICON('check')} Marcar como contatado</button>` : `<button type="button" class="btn btn-primary" data-action="visitor-message" data-id="${esc(visitor.id)}">${ICON('send')} Registrar contato</button>`}</div>`;
   } else if (type === 'notifications') {
     modalTitle = 'Notificações';
     modalEyebrow = 'CENTRAL DE ALERTAS';
@@ -1098,13 +1122,36 @@ function openModal(type, data = {}) {
   } else if (type === 'member') {
     modalTitle = 'Novo membro';
     modalEyebrow = 'COMUNIDADE';
-    content = `<form data-form="member"><div class="form-grid"><div class="form-field full"><label for="memberName">Nome completo *</label><input class="input" id="memberName" name="name" required placeholder="Ex.: Ana Oliveira"></div><div class="form-field"><label for="memberPreferredName">Como prefere ser chamada?</label><input class="input" id="memberPreferredName" name="preferredName" placeholder="Nome de preferência"></div><div class="form-field"><label for="memberGender">Forma de tratamento</label><select class="select" id="memberGender" name="gender"><option value="unspecified">Não informar</option><option value="female">Feminino</option><option value="male">Masculino</option></select></div><div class="form-field"><label for="memberPhone">Telefone</label><input class="input" id="memberPhone" name="phone" placeholder="(21) 99999-9999"></div><div class="form-field"><label for="memberEmail">E-mail</label><input class="input" id="memberEmail" name="email" type="email" placeholder="nome@email.com"></div><div class="form-field"><label for="memberMinistry">Ministério</label><input class="input" id="memberMinistry" name="ministry" list="memberMinistryOptions" autocomplete="off" placeholder="Ex.: Louvor"><datalist id="memberMinistryOptions">${(state.ministries || []).map(ministry => `<option value="${esc(ministry.name || ministry)}"></option>`).join('')}</datalist><p class="field-note">Escolha um ministério já cadastrado ou digite um novo. Antes de salvar, pediremos confirmação para cadastrar o novo ministério.</p></div><div class="form-field"><label for="memberJoinedAt">Data de integração</label><input class="input" id="memberJoinedAt" name="joinedAt" type="date" value="${TODAY}"></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('users')} Salvar membro</button></div></form>`;
+    content = `<form data-form="member"><div class="form-grid"><div class="form-field full"><label for="memberName">Nome completo *</label><input class="input" id="memberName" name="name" required placeholder="Ex.: Ana Oliveira"></div><div class="form-field"><label for="memberPreferredName">Como prefere ser chamada?</label><input class="input" id="memberPreferredName" name="preferredName" placeholder="Nome de preferência"></div><div class="form-field"><label for="memberGender">Forma de tratamento</label><select class="select" id="memberGender" name="gender"><option value="unspecified">Não informar</option><option value="female">Feminino</option><option value="male">Masculino</option></select></div><div class="form-field"><label for="memberPhone">Telefone</label><input class="input" id="memberPhone" name="phone" placeholder="(21) 99999-9999"></div><div class="form-field"><label for="memberEmail">E-mail</label><input class="input" id="memberEmail" name="email" type="email" placeholder="nome@email.com"></div><div class="form-field"><label for="memberMinistry">Ministério</label><input class="input" id="memberMinistry" name="ministry" list="memberMinistryOptions" autocomplete="off" placeholder="Ex.: Louvor"><datalist id="memberMinistryOptions">${(state.ministries || []).map(ministry => `<option value="${esc(ministry.name || ministry)}"></option>`).join('')}</datalist><p class="field-note">Escolha um ministério já cadastrado ou digite um novo. Antes de salvar, pediremos confirmação para cadastrar o novo ministério.</p></div><div class="form-field"><label for="memberJoinedAt">Data de integração</label><input class="input" id="memberJoinedAt" name="joinedAt" type="date" value="${TODAY}"></div><div class="form-field full"><label class="check-row"><input type="checkbox" name="communicationConsent"><span><strong>Autoriza comunicações da igreja</strong><small>Use somente para avisos e contatos pastorais autorizados.</small></span></label><label class="check-row" style="margin-top:10px;"><input type="checkbox" name="locationConsent"><span><strong>Autoriza recurso futuro de presença por localização</strong><small>Esta autorização não ativa rastreamento automático enquanto a Emaús não tiver o recurso móvel correspondente.</small></span></label></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('users')} Salvar membro</button></div></form>`;
   } else if (type === 'member-detail') {
     const member = (state.members || []).find(item => item.id === data.id);
     if (!member) return;
     modalTitle = member.name;
     modalEyebrow = 'MEMBRO';
-    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-olive" style="width:46px;height:46px;">${esc(initials(member.name))}</div><div><strong style="font-size:14px;">${esc(preferredDisplayName(member))}</strong><span style="font-size:10px;margin-top:5px;">${esc(member.ministry || 'Membro')}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div>${esc(member.phone || 'Não informado')}</div></div><div class="form-field"><label>E-mail</label><div>${esc(member.email || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${member.status === 'inactive' ? 'status-contacted' : 'status-integrated'}">${member.status === 'inactive' ? 'Inativo' : 'Ativo'}</span></div></div><div class="form-field"><label>Integração</label><div>${esc(member.joinedAt || 'Não informado')}</div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button></div>`;
+    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-olive" style="width:46px;height:46px;">${esc(initials(member.name))}</div><div><strong style="font-size:14px;">${esc(preferredDisplayName(member))}</strong><span style="font-size:10px;margin-top:5px;">${esc(member.ministry || 'Membro')}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div>${esc(member.phone || 'Não informado')}</div></div><div class="form-field"><label>E-mail</label><div>${esc(member.email || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${member.status === 'inactive' ? 'status-contacted' : 'status-integrated'}">${member.status === 'inactive' ? 'Inativo' : 'Ativo'}</span></div></div><div class="form-field"><label>Integração</label><div>${esc(member.joinedAt || 'Não informado')}</div></div><div class="form-field"><label>Última presença</label><div>${esc(member.lastAttendedAt ? formatDateShort(String(member.lastAttendedAt).slice(0, 10)) : 'Ainda não registrada')}</div></div><div class="form-field"><label>Autorizações</label><div><span class="status-pill ${member.communicationConsent ? 'status-integrated' : 'status-contacted'}">${member.communicationConsent ? 'Comunicação autorizada' : 'Sem comunicação'}</span><span class="status-pill ${member.locationConsent ? 'status-integrated' : 'status-contacted'}" style="margin-left:5px;">${member.locationConsent ? 'Localização autorizada' : 'Localização não autorizada'}</span></div></div></div><div class="scope-note" style="margin-top:18px;"><span>${ICON('heart')}</span><p>Presença e autorização servem para cuidado pastoral. Não são ranking, pontuação ou forma de pressionar ninguém.</p></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="new-care-task" data-member-id="${esc(member.id)}">${ICON('heart')} Criar cuidado</button><button type="button" class="btn btn-gold" data-action="register-attendance" data-member-id="${esc(member.id)}">${ICON('check')} Registrar presença</button><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button></div>`;
+  } else if (type === 'care-task') {
+    modalTitle = 'Novo cuidado';
+    modalEyebrow = 'ACOMPANHAMENTO PASTORAL';
+    const selectedMember = (state.members || []).find(member => member.id === data.memberId);
+    const selectedVisitor = (state.visitors || []).find(visitor => visitor.id === data.visitorId);
+    const personPicker = data.memberId || data.visitorId ? '' : `<div class="form-field full"><label for="careTaskPerson">Vincular este cuidado a *</label><select class="select" id="careTaskPerson" name="personRef" required><option value="">Selecione uma pessoa</option><optgroup label="Membros">${(state.members || []).filter(member => member.status !== 'inactive').map(member => `<option value="member:${esc(member.id)}">${esc(preferredDisplayName(member))}</option>`).join('')}</optgroup><optgroup label="Visitantes">${(state.visitors || []).slice(0, 200).map(visitor => `<option value="visitor:${esc(visitor.id)}">${esc(visitor.name)}</option>`).join('')}</optgroup></select></div>`;
+    content = `<form data-form="care-task"><input type="hidden" name="memberId" value="${esc(data.memberId || '')}"><input type="hidden" name="visitorId" value="${esc(data.visitorId || '')}"><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('heart')}</span><p>Registre um próximo passo de cuidado, sem transformar a pessoa em uma meta. A tarefa fica visível somente para a equipe autorizada da igreja.</p></div>${personPicker}<div class="form-field full"><label>Pessoa</label><div class="selected-person-note">${esc(selectedMember?.name || selectedVisitor?.name || 'Pessoa selecionada')}</div></div><div class="form-field full"><label for="careTaskTitle">O que precisa ser feito? *</label><input class="input" id="careTaskTitle" name="title" required placeholder="Ex.: Fazer primeiro contato"></div><div class="form-grid"><div class="form-field"><label for="careTaskType">Tipo de cuidado</label><select class="select" id="careTaskType" name="taskType"><option value="follow_up">Primeiro contato</option><option value="prayer">Pedido de oração</option><option value="visit">Visita ou conversa</option><option value="integration">Integração na igreja</option><option value="other">Outro</option></select></div><div class="form-field"><label for="careTaskPriority">Prioridade</label><select class="select" id="careTaskPriority" name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="low">Baixa</option></select></div><div class="form-field"><label for="careTaskDueDate">Prazo</label><input class="input" id="careTaskDueDate" name="dueDate" type="date" value="${TODAY}"></div><div class="form-field full"><label for="careTaskDescription">Observação interna</label><textarea class="textarea" id="careTaskDescription" name="description" rows="3" placeholder="Escreva somente o necessário para o cuidado."></textarea></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('heart')} Salvar cuidado</button></div></form>`;
+  } else if (type === 'care-task-detail') {
+    const task = (state.careTasks || []).find(item => item.id === data.id);
+    if (!task) return;
+    modalTitle = task.title;
+    modalEyebrow = 'ACOMPANHAMENTO PASTORAL';
+    content = `<div class="scope-note" style="margin:0 0 18px;"><span>${ICON('heart')}</span><p><strong>${esc(task.memberName || task.visitorName || 'Pessoa vinculada')}</strong><br>${esc(task.description || 'Sem observação interna.')}</p></div><div class="form-grid"><div class="form-field"><label>Tipo</label><div>${esc(task.taskType)}</div></div><div class="form-field"><label>Prioridade</label><div>${esc(task.priority)}</div></div><div class="form-field"><label>Prazo</label><div>${esc(task.dueDate ? formatDateShort(task.dueDate) : 'Sem prazo')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${task.status === 'done' ? 'status-integrated' : 'status-new'}">${esc(task.status)}</span></div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button>${task.status !== 'done' ? `<button type="button" class="btn btn-gold" data-action="complete-care-task" data-id="${esc(task.id)}">${ICON('check')} Marcar como concluído</button>` : ''}</div>`;
+  } else if (type === 'attendance') {
+    const selectedMember = (state.members || []).find(member => member.id === data.memberId);
+    modalTitle = 'Registrar presença';
+    modalEyebrow = 'PRESENÇA INTERNA';
+    content = `<form data-form="attendance"><input type="hidden" name="memberId" value="${esc(data.memberId || '')}"><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('check-circle')}</span><p>Este registro fica vinculado à <strong>${esc(getActiveChurch()?.name || 'igreja')}</strong> e ao membro selecionado. Ele serve para cuidado pastoral e não cria ranking.</p></div><div class="form-field full"><label>Membro</label><div class="selected-person-note">${esc(selectedMember?.name || 'Membro selecionado')}</div></div><div class="form-field full"><label for="attendanceNotes">Observação opcional</label><textarea class="textarea" id="attendanceNotes" name="notes" rows="3" placeholder="Ex.: presença no culto de celebração"></textarea></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Confirmar presença</button></div></form>`;
+  } else if (type === 'attendance-report') {
+    modalTitle = 'Registros de presença';
+    modalEyebrow = 'CUIDADO DA IGREJA';
+    const attendance = (state.attendance || []).slice(0, 30);
+    content = `<div class="scope-note" style="margin:0 0 18px;"><span>${ICON('shield')}</span><p>Os registros são internos, vinculados somente à ${esc(getActiveChurch()?.name || 'igreja')} e não exibem localização exata.</p></div><div class="attendance-list">${attendance.length ? attendance.map(item => `<div class="attendance-row"><div class="avatar avatar-olive">${esc(initials(item.memberName))}</div><div><strong>${esc(item.memberName)}</strong><small>${esc(formatDateShort(String(item.checkedInAt).slice(0, 10)))} · ${esc(item.source === 'manual' ? 'Recepção' : item.source)}</small></div><span class="status-pill ${item.geoVerified ? 'status-integrated' : 'status-contacted'}">${item.geoVerified ? 'Verificado' : 'Manual'}</span></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('check-circle')}</div><h3>Nenhuma presença registrada</h3><p>Registros feitos pelos membros ou pela recepção aparecerão aqui.</p></div>`}</div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button></div>`;
   } else if (type === 'growth-strategy') {
     modalTitle = 'Estratégia de crescimento';
     modalEyebrow = 'CUIDADO, DISCIPULADO E SERVIÇO';
@@ -1282,7 +1329,6 @@ async function handleSubmit(event) {
       showToast(`Não foi possível editar o evento: ${error.message}`, 'error');
     }
   } else if (formType === 'event') {
-  } else if (formType === 'event') {
     const title = String(data.get('title') || '').trim();
     if (!title) return showToast('Informe o nome do evento.', 'error');
     const startDate = String(data.get('date') || TODAY);
@@ -1333,11 +1379,40 @@ async function handleSubmit(event) {
         const ministryPayload = await apiRequest('/api/church/ministries', { method: 'POST', body: { name: ministry } });
         ministryId = ministryPayload.ministry?.id || null;
       }
-      await apiRequest('/api/church/members', { method: 'POST', body: { name, preferredName: String(data.get('preferredName') || '').trim(), gender: String(data.get('gender') || 'unspecified'), email: String(data.get('email') || '').trim(), phone: String(data.get('phone') || '').trim(), ministry, ministryId, status: String(data.get('status') || 'active'), joinedAt: String(data.get('joinedAt') || '') || null } });
+      await apiRequest('/api/church/members', { method: 'POST', body: { name, preferredName: String(data.get('preferredName') || '').trim(), gender: String(data.get('gender') || 'unspecified'), email: String(data.get('email') || '').trim(), phone: String(data.get('phone') || '').trim(), ministry, ministryId, status: String(data.get('status') || 'active'), joinedAt: String(data.get('joinedAt') || '') || null, communicationConsent: data.get('communicationConsent') === 'on', locationConsent: data.get('locationConsent') === 'on', consentVersion: 'web-v1' } });
       await loadRemoteChurchState(state.currentUser);
       closeModal(); render(); showToast(`${name} foi cadastrado como membro.`);
     } catch (error) {
       showToast(`Não foi possível salvar o membro: ${error.message}`, 'error');
+    }
+  } else if (formType === 'care-task') {
+    const title = String(data.get('title') || '').trim();
+    if (!title) return showToast('Informe o próximo passo de cuidado.', 'error');
+    let memberId = String(data.get('memberId') || '').trim() || null;
+    let visitorId = String(data.get('visitorId') || '').trim() || null;
+    const personRef = String(data.get('personRef') || '').trim();
+    if (!memberId && !visitorId && personRef.includes(':')) {
+      const [personType, personId] = personRef.split(':');
+      if (personType === 'member') memberId = personId;
+      if (personType === 'visitor') visitorId = personId;
+    }
+    if (!memberId && !visitorId) return showToast('Escolha a pessoa que receberá este cuidado.', 'error');
+    try {
+      await apiRequest('/api/church/care-tasks', { method: 'POST', body: { memberId, visitorId, title, description: String(data.get('description') || '').trim(), taskType: String(data.get('taskType') || 'follow_up'), priority: String(data.get('priority') || 'normal'), dueDate: String(data.get('dueDate') || '') || null } });
+      await loadRemoteChurchState(state.currentUser);
+      closeModal(); render(); showToast('Cuidado registrado para a equipe autorizada.');
+    } catch (error) {
+      showToast(`Não foi possível salvar o cuidado: ${error.message}`, 'error');
+    }
+  } else if (formType === 'attendance') {
+    const memberId = String(data.get('memberId') || '').trim();
+    if (!memberId) return showToast('Membro não selecionado.', 'error');
+    try {
+      const result = await apiRequest('/api/church/attendance', { method: 'POST', body: { memberId, source: 'manual', notes: String(data.get('notes') || '').trim() } });
+      await loadRemoteChurchState(state.currentUser);
+      closeModal(); render(); showToast(result.duplicate ? 'A presença já estava registrada recentemente.' : 'Presença registrada com vínculo à igreja.');
+    } catch (error) {
+      showToast(`Não foi possível registrar a presença: ${error.message}`, 'error');
     }
   } else if (formType === 'profile') {
     const preferredName = String(data.get('preferredName') || '').trim();
@@ -1414,6 +1489,18 @@ async function handleSubmit(event) {
     } catch (error) {
       showToast(`Não foi possível salvar as alterações: ${error.message}`, 'error');
     }
+  }
+}
+
+async function completeCareTask(id) {
+  const task = (state.careTasks || []).find(item => item.id === id);
+  if (!task) return;
+  try {
+    await apiRequest(`/api/church/care-tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status: 'done' } });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast('Cuidado marcado como concluído.');
+  } catch (error) {
+    showToast(`Não foi possível atualizar o cuidado: ${error.message}`, 'error');
   }
 }
 
@@ -1655,6 +1742,11 @@ function handleAction(actionEl) {
     case 'growth-goals': openModal('growth-goals'); break;
     case 'growth-strategy': openModal('growth-strategy'); break;
     case 'member-detail': openModal('member-detail', { id: actionEl.dataset.id }); break;
+    case 'new-care-task': openModal('care-task', { memberId: actionEl.dataset.memberId || '', visitorId: actionEl.dataset.visitorId || '' }); break;
+    case 'care-task-detail': openModal('care-task-detail', { id: actionEl.dataset.id }); break;
+    case 'complete-care-task': completeCareTask(actionEl.dataset.id); break;
+    case 'register-attendance': openModal('attendance', { memberId: actionEl.dataset.memberId || '' }); break;
+    case 'attendance-report': openModal('attendance-report'); break;
     case 'delete-leader': deleteLeader(actionEl.dataset.id); break;
     case 'visitor-detail': openModal('visitor-detail', { id: actionEl.dataset.id }); break;
     case 'announce-visitors': announceNewVisitors(); break;
