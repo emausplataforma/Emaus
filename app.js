@@ -118,7 +118,7 @@ function mapApiVisitor(visitor) {
     phone: visitor.phone || '',
     date: String(visitor.visit_date || TODAY).slice(0, 10),
     service: visitor.service || 'Culto de Celebração',
-    neighborhood: '',
+    neighborhood: visitor.neighborhood || '',
     invitedBy: visitor.invited_by || '',
     status: visitor.status || 'Novo',
     responsible: visitor.responsible || 'Recepção',
@@ -154,6 +154,40 @@ function mapApiCareTask(task) {
 function mapApiMinistry(ministry) {
   return { id: ministry.id, name: ministry.name, churchId: ministry.church_id, status: ministry.status || 'active' };
 }
+function activityTime(value) {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime())) return '';
+  const diffMinutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+  if (diffMinutes < 1) return 'Agora';
+  if (diffMinutes < 60) return `Há ${diffMinutes} min`;
+  if (diffMinutes < 1440) return `Há ${Math.round(diffMinutes / 60)} h`;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+function mapApiAnnouncement(announcement) {
+  const status = announcement.status === 'scheduled' ? 'Agendado — não enviado' : announcement.status === 'draft' ? 'Rascunho' : announcement.status === 'cancelled' ? 'Cancelado' : 'Registrado — envio não configurado';
+  return {
+    id: announcement.id,
+    title: announcement.title,
+    body: announcement.body,
+    audience: announcement.audience || 'Toda a igreja',
+    channels: Array.isArray(announcement.channels) ? announcement.channels : [],
+    personalizeGreeting: Boolean(announcement.personalize_greeting),
+    date: activityTime(announcement.created_at) || 'Agora',
+    status,
+    reach: announcement.status === 'scheduled' ? 'Aguardando configuração' : 'Sem envio real nesta fase',
+    tone: 'gold'
+  };
+}
+function mapApiActivity(item) {
+  return {
+    type: item.activity_type || 'general',
+    name: item.name || 'Emaús',
+    text: item.text || 'teve uma alteração registrada.',
+    time: activityTime(item.created_at),
+    initials: item.initials || initials(item.name || 'Emaús'),
+    tone: item.tone || 'dark'
+  };
+}
 function mapApiLeader(leader) {
   return { id: leader.id, name: leader.name, preferredName: leader.preferred_name || leader.preferredName || '', gender: leader.gender || 'unspecified', role: leader.role || 'Líder', phone: leader.phone || '', group: leader.group_name || leader.group || '', initials: initials(leader.name), tone: 'dark', status: leader.status || 'active' };
 }
@@ -162,7 +196,7 @@ function mapApiReceptionUser(user) {
 }
 
 async function loadRemoteChurchState(user) {
-  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users', '/api/church/ministries', '/api/church/attendance', '/api/church/attendance/summary', '/api/church/care-tasks'];
+  const endpoints = ['/api/church/settings', '/api/church/visitors', '/api/church/events', '/api/church/members', '/api/church/leaders', '/api/church/reception-users', '/api/church/ministries', '/api/church/attendance', '/api/church/attendance/summary', '/api/church/care-tasks', '/api/church/announcements', '/api/church/activity'];
   const results = await Promise.all(endpoints.map(endpoint => apiRequest(endpoint).then(payload => ({ ok: true, payload })).catch(error => ({ ok: false, error }))));
   const settingsPayload = results[0].payload || {};
   const visitorsPayload = results[1].payload || {};
@@ -174,6 +208,8 @@ async function loadRemoteChurchState(user) {
   const attendancePayload = results[7].payload || {};
   const attendanceSummaryPayload = results[8].payload || {};
   const careTasksPayload = results[9].payload || {};
+  const announcementsPayload = results[10].payload || {};
+  const activityPayload = results[11].payload || {};
   const church = settingsPayload.church;
   const localChurch = (state.churches || []).find(item => item.id === church?.id || item.slug === church?.slug || item.name === church?.name);
   const serverPublicSettings = church?.public_settings && typeof church.public_settings === 'object' ? church.public_settings : {};
@@ -207,9 +243,9 @@ async function loadRemoteChurchState(user) {
   if (results[7].ok) state.attendance = (attendancePayload.attendance || []).map(mapApiAttendance);
   if (results[8].ok) state.attendanceSummary = { ...(state.attendanceSummary || {}), ...(attendanceSummaryPayload || {}) };
   if (results[9].ok) state.careTasks = (careTasksPayload.tasks || []).map(mapApiCareTask);
-  state.activity = [];
-  state.announcements = [];
-  state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: 0 };
+  if (results[10].ok) state.announcements = (announcementsPayload.announcements || []).map(mapApiAnnouncement);
+  if (results[11].ok) state.activity = (activityPayload.activity || []).map(mapApiActivity);
+  state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: state.announcements.length };
   state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || '' };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -582,6 +618,23 @@ function queueAppearanceSave() {
     }
   }, 650);
 }
+async function saveCommunicationChannels() {
+  const church = getActiveChurch();
+  if (!church || !churchAuthReady || !sessionStorage.getItem(CHURCH_TOKEN_KEY)) return;
+  const communicationChannels = {
+    push: Boolean(document.querySelector('[data-toggle="push"]')?.classList.contains('on')),
+    whatsapp: Boolean(document.querySelector('[data-toggle="whatsapp"]')?.classList.contains('on')),
+    email: Boolean(document.querySelector('[data-toggle="email"]')?.classList.contains('on'))
+  };
+  church.publicSettings = { ...(church.publicSettings || {}), communicationChannels };
+  try {
+    await apiRequest('/api/church/settings', { method: 'PUT', body: { name: church.name, city: church.city, phone: church.phone || '', pastors: church.pastors || '', description: church.description || '', logoUrl: church.logoImage || '', publicSettings: church.publicSettings } });
+    saveState('Canais de comunicação salvos');
+    showToast('Preferências de canais salvas no banco. Nenhum envio foi ativado.');
+  } catch (error) {
+    showToast(`Não foi possível salvar os canais: ${error.message}`, 'error');
+  }
+}
 function applyPalette(key) {
   const palette = PALETTES[key];
   if (!palette) return;
@@ -923,8 +976,8 @@ function renderPulpit() {
 function renderCommunication() {
   return `
     <section class="page-head"><div><span class="eyebrow">CONEXÃO</span><h1>Comunicação</h1><p>Leve a palavra certa para as pessoas certas, no momento certo.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="channel-settings">${ICON('settings')} Canais</button><button class="btn btn-gold" data-action="new-announcement">${ICON('plus')} Novo aviso</button></div></section>
-    <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Avisos enviados</span><span class="stat-icon gold">${ICON('megaphone')}</span></div><div class="stat-number">${state.metrics.announcements}</div><div class="stat-bottom"><span class="stat-trend">${state.metrics.announcements ? `${ICON('arrow-up-right')} 14,2%` : '—'}</span><span>este mês</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Taxa de leitura</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${state.metrics.announcements ? '86%' : '0%'}</div><div class="stat-bottom"><span>média dos canais</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Pessoas alcançadas</span><span class="stat-icon copper">${ICON('send')}</span></div><div class="stat-number">${state.metrics.reach}</div><div class="stat-bottom"><span>membros e visitantes</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Canais ativos</span><span class="stat-icon dark">${ICON('smartphone')}</span></div><div class="stat-number">${state.metrics.announcements ? '3' : '0'}</div><div class="stat-bottom"><span>Push · WhatsApp · E-mail</span></div></article></section>
-    <div class="section-grid"><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Últimos avisos</h2><p>Histórico de comunicações da igreja</p></div><button class="panel-link" data-action="new-announcement">Criar aviso ${ICON('plus')}</button></div><div class="announcement-list" style="padding: 0 22px 22px;">${state.announcements.map(renderAnnouncement).join('')}</div></section><section class="panel info-card"><div class="card-topline"><div><h3>Alcance por canal</h3><p>Veja como a mensagem chega à comunidade.</p></div><div class="icon-tile gold">${ICON('send')}</div></div><div class="split-stat"><div><small>Notificação push</small><strong>${state.metrics.announcements ? '92%' : '0%'}</strong></div><div><small>WhatsApp</small><strong>${state.metrics.announcements ? '78%' : '0%'}</strong></div><div><small>E-mail</small><strong>${state.metrics.announcements ? '54%' : '0%'}</strong></div></div><div class="mini-progress"><span style="width: ${state.metrics.announcements ? 86 : 0}%"></span></div><p class="field-note" style="margin-top: 12px;">A combinação de canais aumenta a chance de cada aviso ser visto.</p><button class="btn btn-secondary btn-full" style="margin-top: 19px;" data-action="channel-settings">${ICON('settings')} Configurar canais</button></section></div>
+    <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Avisos registrados</span><span class="stat-icon gold">${ICON('megaphone')}</span></div><div class="stat-number">${state.metrics.announcements}</div><div class="stat-bottom"><span class="stat-trend">${state.metrics.announcements ? `${ICON('arrow-up-right')} 14,2%` : '—'}</span><span>este mês</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Leitura (sem envio)</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">0%</div><div class="stat-bottom"><span>envio ainda não configurado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Pessoas na base</span><span class="stat-icon copper">${ICON('send')}</span></div><div class="stat-number">${state.metrics.reach}</div><div class="stat-bottom"><span>membros e visitantes</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Canais configurados</span><span class="stat-icon dark">${ICON('smartphone')}</span></div><div class="stat-number">0</div><div class="stat-bottom"><span>integração futura</span></div></article></section>
+    <div class="section-grid"><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Últimos avisos</h2><p>Histórico de comunicações da igreja</p></div><button class="panel-link" data-action="new-announcement">Criar aviso ${ICON('plus')}</button></div><div class="announcement-list" style="padding: 0 22px 22px;">${state.announcements.map(renderAnnouncement).join('')}</div></section><section class="panel info-card"><div class="card-topline"><div><h3>Configuração por canal</h3><p>Os canais ficam registrados para uma futura integração de envio.</p></div><div class="icon-tile gold">${ICON('send')}</div></div><div class="split-stat"><div><small>Notificação push</small><strong>Não</strong></div><div><small>WhatsApp</small><strong>Não</strong></div><div><small>E-mail</small><strong>Não</strong></div></div><div class="mini-progress"><span style="width: 0%"></span></div><p class="field-note" style="margin-top: 12px;">A configuração fica salva, mas o envio real ainda não está habilitado.</p><button class="btn btn-secondary btn-full" style="margin-top: 19px;" data-action="channel-settings">${ICON('settings')} Configurar canais</button></section></div>
   `;
 }
 
@@ -1049,7 +1102,7 @@ function openModal(type, data = {}) {
     const announcementPreview = hasVisitorAnnouncement ? `<div class="announcement-preview-card"><div class="announcement-preview-head">${ICON('users')} Prévia por grupo</div>${renderVisitorAnnouncementGroups(announcementVisitors)}</div>` : '';
     modalTitle = hasVisitorAnnouncement ? 'Anunciar visitantes' : 'Novo aviso';
     modalEyebrow = hasVisitorAnnouncement ? 'ACOLHIMENTO' : 'COMUNICAÇÃO';
-    content = `<form data-form="announcement"><div class="form-grid"><div class="form-field full"><label for="announcementTitle">Título do aviso *</label><input class="input" id="announcementTitle" name="title" value="${esc(announcementDefaults.title)}" required placeholder="Ex.: Culto de domingo"></div>${announcementPreview}<div class="form-field full"><label for="announcementBody">Mensagem *</label><textarea class="textarea" id="announcementBody" name="body" required placeholder="Escreva uma mensagem clara e acolhedora..." rows="4">${esc(announcementDefaults.body)}</textarea></div><div class="form-field"><label for="announcementAudience">Enviar para</label><select class="select" id="announcementAudience" name="audience"><option>Toda a igreja</option><option>Obreiros</option><option>Lideranças</option><option>Ministério de Mulheres</option><option>Jovens</option><option>Visitantes</option><option>Recepção</option></select></div><div class="form-field"><label for="announcementMode">Quando enviar</label><select class="select" id="announcementMode" name="mode"><option value="now">Enviar agora</option><option value="scheduled">Agendar envio</option></select></div><div class="form-field full"><label>Canais de envio</label><div class="radio-grid"><div class="radio-card"><input type="checkbox" id="channelPush" name="channels" value="Push" checked><label for="channelPush">${ICON('smartphone')} Push</label></div><div class="radio-card"><input type="checkbox" id="channelWhatsapp" name="channels" value="WhatsApp" checked><label for="channelWhatsapp">${ICON('whatsapp')} WhatsApp</label></div><div class="radio-card"><input type="checkbox" id="channelEmail" name="channels" value="E-mail"><label for="channelEmail">${ICON('mail')} E-mail</label></div></div></div></div><label class="checkbox-line" style="margin-top:16px;"><input type="checkbox" name="personalizeGreeting" checked><span><strong>Personalizar saudação</strong><small>Quando o canal estiver conectado, o nome e a forma de tratamento de cada destinatário serão usados sem tentar adivinhar pelo nome.</small></span></label><div class="checkbox-line" style="margin-top:12px;"><span style="color:var(--copper);">${ICON('shield')}</span><span>No produto final, os envios serão registrados e respeitarão as permissões de cada organização.</span></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('send')} Publicar aviso</button></div></form>`;
+    content = `<form data-form="announcement"><div class="form-grid"><div class="form-field full"><label for="announcementTitle">Título do aviso *</label><input class="input" id="announcementTitle" name="title" value="${esc(announcementDefaults.title)}" required placeholder="Ex.: Culto de domingo"></div>${announcementPreview}<div class="form-field full"><label for="announcementBody">Mensagem *</label><textarea class="textarea" id="announcementBody" name="body" required placeholder="Escreva uma mensagem clara e acolhedora..." rows="4">${esc(announcementDefaults.body)}</textarea></div><div class="form-field"><label for="announcementAudience">Destinatários</label><select class="select" id="announcementAudience" name="audience"><option>Toda a igreja</option><option>Obreiros</option><option>Lideranças</option><option>Ministério de Mulheres</option><option>Jovens</option><option>Visitantes</option><option>Recepção</option></select></div><div class="form-field"><label for="announcementMode">Quando registrar</label><select class="select" id="announcementMode" name="mode"><option value="now">Registrar agora</option><option value="scheduled">Agendar registro</option></select></div><div class="form-field full"><label>Canais de envio</label><div class="radio-grid"><div class="radio-card"><input type="checkbox" id="channelPush" name="channels" value="Push" checked><label for="channelPush">${ICON('smartphone')} Push</label></div><div class="radio-card"><input type="checkbox" id="channelWhatsapp" name="channels" value="WhatsApp" checked><label for="channelWhatsapp">${ICON('whatsapp')} WhatsApp</label></div><div class="radio-card"><input type="checkbox" id="channelEmail" name="channels" value="E-mail"><label for="channelEmail">${ICON('mail')} E-mail</label></div></div></div></div><label class="checkbox-line" style="margin-top:16px;"><input type="checkbox" name="personalizeGreeting" checked><span><strong>Personalizar saudação</strong><small>Quando o canal estiver conectado, o nome e a forma de tratamento de cada destinatário serão usados sem tentar adivinhar pelo nome.</small></span></label><div class="checkbox-line" style="margin-top:12px;"><span style="color:var(--copper);">${ICON('shield')}</span><span>Nesta fase, o aviso é salvo no banco e respeita as permissões da igreja; nenhum canal externo é acionado.</span></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar aviso</button></div></form>`;
   } else if (type === 'event-edit') {
     const eventRecord = (state.events || []).find(item => item.id === data.id);
     if (!eventRecord) return;
@@ -1098,17 +1151,19 @@ function openModal(type, data = {}) {
     const familyMembers = getFamilyMembers(visitor);
     content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(initials(visitor.name))}</div><div><strong style="font-size:14px;">${esc(visitor.name)}</strong><span style="font-size:10px;margin-top:5px;">Visitou em ${esc(formatDateLong(visitor.date))}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.phone || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></div></div><div class="form-field"><label>Como veio</label><div>${arrivalPill(visitor.arrivalType || 'Sozinho')}</div></div><div class="form-field"><label>Culto ou evento</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.service)}</div></div><div class="form-field"><label>Responsável</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.responsible)}</div></div><div class="form-field full"><label>${esc(visitor.familyName || 'Pessoas que vieram juntas')}</label><div class="family-detail-list">${familyMembers.map((member, index) => `<div class="family-detail-item"><span>${index + 1}</span>${esc(member)}</div>`).join('')}</div><p class="field-note" style="margin-top:7px;">Todos os nomes ficam disponíveis para o anúncio dos pastores à igreja.</p></div><div class="form-field full"><label>Observações</label><div style="padding:11px;border-radius:9px;background:var(--paper);color:var(--muted);font-size:10px;line-height:1.5;">${esc(visitor.notes || 'Sem observações registradas.')}</div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-secondary" data-action="new-care-task" data-visitor-id="${esc(visitor.id)}">${ICON('heart')} Criar cuidado</button><button type="button" class="btn btn-primary" data-action="announce-visitor" data-id="${esc(visitor.id)}">${ICON('megaphone')} Preparar anúncio</button>${visitor.status === 'Novo' ? `<button type="button" class="btn btn-gold" data-action="mark-contacted" data-id="${esc(visitor.id)}">${ICON('check')} Marcar como contatado</button>` : `<button type="button" class="btn btn-primary" data-action="visitor-message" data-id="${esc(visitor.id)}">${ICON('send')} Registrar contato</button>`}</div>`;
   } else if (type === 'notifications') {
-    modalTitle = 'Notificações';
-    modalEyebrow = 'CENTRAL DE ALERTAS';
-    content = `<div style="display:flex;flex-direction:column;gap:10px;"><div class="announcement-card" style="padding:13px;"><div class="announcement-icon copper">${ICON('users')}</div><div class="announcement-body"><h3>Novo visitante cadastrado</h3><p>Ana Clara Nogueira foi cadastrada pela recepção.</p><div class="announcement-meta"><span class="announcement-date">Hoje, 10:42</span></div></div></div><div class="announcement-card" style="padding:13px;"><div class="announcement-icon">${ICON('megaphone')}</div><div class="announcement-body"><h3>Aviso publicado</h3><p>O comunicado “Culto de Celebração” alcançou toda a igreja.</p><div class="announcement-meta"><span class="announcement-date">Hoje, 09:15</span></div></div></div><div class="announcement-card" style="padding:13px;"><div class="announcement-icon" style="background:var(--success-soft);color:var(--success);">${ICON('check-circle')}</div><div class="announcement-body"><h3>Backup concluído</h3><p>Os dados da organização foram protegidos com sucesso.</p><div class="announcement-meta"><span class="announcement-date">Ontem, 23:00</span></div></div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Marcar tudo como lido</button><button type="button" class="btn btn-gold" data-action="close-modal">Fechar</button></div>`;
+    const notifications = (state.activity || []).slice(0, 6);
+    modalTitle = 'Atividade registrada';
+    modalEyebrow = 'HISTÓRICO DA IGREJA';
+    content = `<div style="display:flex;flex-direction:column;gap:10px;">${notifications.length ? notifications.map(item => `<div class="announcement-card" style="padding:13px;"><div class="announcement-icon ${item.tone === 'copper' ? 'copper' : ''}">${ICON(item.type === 'visitor' ? 'users' : item.type === 'announcement' ? 'megaphone' : 'check-circle')}</div><div class="announcement-body"><h3>${esc(item.name)}</h3><p>${esc(item.text)}</p><div class="announcement-meta"><span class="announcement-date">${esc(item.time || '')}</span></div></div></div>`).join('') : '<div class="empty-state"><h3>Nenhuma atividade registrada</h3><p>As próximas alterações persistentes aparecerão aqui.</p></div>'}</div><div class="scope-note" style="margin-top:16px;"><span>${ICON('shield')}</span><p>Este histórico é carregado do banco da igreja e respeita o isolamento por igreja.</p></div><div class="modal-actions"><button type="button" class="btn btn-gold" data-action="close-modal">Fechar</button></div>`;
   } else if (type === 'search') {
     modalTitle = `Buscar na ${getActiveChurch()?.name || 'igreja'}`;
     modalEyebrow = 'BUSCA RÁPIDA';
     content = `<div class="input-wrap" style="width:100%;">${ICON('search')}<input class="input" id="globalSearch" style="width:100%;padding-left:36px;" autofocus placeholder="Visitante, aviso, evento ou líder"></div><div id="globalSearchResults" style="margin-top:15px;"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button></div>`;
   } else if (type === 'channels') {
+    const channelSettings = { push: false, whatsapp: false, email: false, ...(getActiveChurch()?.publicSettings?.communicationChannels || {}) };
     modalTitle = 'Canais de envio';
     modalEyebrow = 'COMUNICAÇÃO';
-    content = `<div class="toggle-row"><div class="toggle-copy"><strong>Notificações push</strong><span>Entrega rápida no celular de quem instalou a PWA.</span></div><button class="toggle on" data-toggle="push" aria-label="Alternar notificações push"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>WhatsApp oficial</strong><span>Envio para listas autorizadas da organização.</span></div><button class="toggle on" data-toggle="whatsapp" aria-label="Alternar WhatsApp"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>E-mail</strong><span>Uma alternativa para comunicados e documentos.</span></div><button class="toggle on" data-toggle="email" aria-label="Alternar e-mail"></button></div><div class="modal-actions"><button type="button" class="btn btn-gold" data-action="close-modal">Concluir</button></div>`;
+    content = `<div class="toggle-row"><div class="toggle-copy"><strong>Notificações push</strong><span>Preferência registrada para uma futura integração. Não envia nesta fase.</span></div><button class="toggle ${channelSettings.push ? 'on' : ''}" data-toggle="push" aria-label="Alternar notificações push"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>WhatsApp oficial</strong><span>Preferência registrada para uma futura integração. Não envia nesta fase.</span></div><button class="toggle ${channelSettings.whatsapp ? 'on' : ''}" data-toggle="whatsapp" aria-label="Alternar WhatsApp"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>E-mail</strong><span>Preferência registrada para uma futura integração. Não envia nesta fase.</span></div><button class="toggle ${channelSettings.email ? 'on' : ''}" data-toggle="email" aria-label="Alternar e-mail"></button></div><div class="scope-note" style="margin-top:16px;"><span>${ICON('shield')}</span><p>Ativar uma preferência aqui não cria cobrança nem dispara mensagem. O envio só será habilitado depois de uma configuração explícita.</p></div><div class="modal-actions"><button type="button" class="btn btn-gold" data-action="close-modal">Concluir</button></div>`;
   } else if (type === 'leader') {
     modalTitle = 'Adicionar liderança';
     modalEyebrow = 'EQUIPE';
@@ -1276,6 +1331,7 @@ async function handleSubmit(event) {
         familyMembers,
         arrivalType: String(data.get('arrivalType') || 'Sozinho'),
         phone: String(data.get('phone') || '').trim(),
+        neighborhood: String(data.get('neighborhood') || '').trim(),
         visitDate: String(data.get('date') || TODAY),
         service: String(data.get('service') || 'Culto de Celebração'),
         invitedBy: String(data.get('invitedBy') || '').trim(),
@@ -1292,13 +1348,17 @@ async function handleSubmit(event) {
     const title = String(data.get('title') || '').trim();
     const body = String(data.get('body') || '').trim();
     const channels = data.getAll('channels');
+    const mode = String(data.get('mode') || 'now');
     if (!title || !body) return showToast('Preencha o título e a mensagem do aviso.', 'error');
-    if (!channels.length) return showToast('Escolha pelo menos um canal de envio.', 'error');
-    const announcement = { id: `a-${Date.now()}`, title, body, audience: String(data.get('audience') || 'Toda a igreja'), channels, personalizeGreeting: data.get('personalizeGreeting') === 'on', date: '04 set 2026', status: data.get('mode') === 'scheduled' ? 'Agendado' : 'Enviado', reach: data.get('mode') === 'scheduled' ? 'Programado' : `${state.metrics.reach} pessoas`, tone: 'gold' };
-    state.announcements.unshift(announcement);
-    state.metrics.announcements += 1;
-    state.activity.unshift({ type: 'announcement', name: title, text: data.get('mode') === 'scheduled' ? 'foi agendado.' : 'foi enviado para o público selecionado.', time: 'Agora', initials: initials(title), tone: 'gold' });
-    saveState(); closeModal(); render(); showToast(data.get('mode') === 'scheduled' ? 'Aviso agendado com sucesso.' : 'Aviso publicado e enviado com sucesso.');
+    if (!channels.length) return showToast('Escolha pelo menos um canal para registrar o aviso.', 'error');
+    try {
+      await apiRequest('/api/church/announcements', { method: 'POST', body: { title, body, audience: String(data.get('audience') || 'Toda a igreja'), channels, personalizeGreeting: data.get('personalizeGreeting') === 'on', mode: mode === 'scheduled' ? 'scheduled' : 'now' } });
+      await loadRemoteChurchState(state.currentUser);
+      closeModal(); render();
+      showToast(mode === 'scheduled' ? 'Aviso agendado e salvo no banco. Nenhum envio real foi feito.' : 'Aviso salvo no banco. O envio real ainda não está configurado.');
+    } catch (error) {
+      showToast(`Não foi possível salvar o aviso: ${error.message}`, 'error');
+    }
   } else if (formType === 'event-edit') {
     const eventRecord = (state.events || []).find(item => item.id === form.dataset.id);
     const title = String(data.get('title') || '').trim();
@@ -1504,13 +1564,16 @@ async function completeCareTask(id) {
   }
 }
 
-function markContacted(id) {
+async function markContacted(id) {
   const visitor = state.visitors.find(item => item.id === id);
   if (!visitor) return;
-  visitor.status = 'Contatado';
-  visitor.responsible = 'Pr. Evandro';
-  state.activity.unshift({ type: 'return', name: visitor.name, text: 'foi marcado para acompanhamento.', time: 'Agora', initials: initials(visitor.name), tone: 'olive' });
-  saveState(); closeModal(); render(); showToast(`${visitor.name} agora está em acompanhamento.`);
+  try {
+    await apiRequest(`/api/church/visitors/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status: 'Contatado', responsible: 'Pr. Evandro' } });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render(); showToast(`${visitor.name} agora está em acompanhamento e foi salvo no banco.`);
+  } catch (error) {
+    showToast(`Não foi possível salvar o acompanhamento: ${error.message}`, 'error');
+  }
 }
 
 function prepareVisitorAnnouncement(id) {
@@ -1526,13 +1589,17 @@ function announceNewVisitors() {
   openModal('announcement', { visitors });
 }
 
-function markPulpitAnnounced() {
+async function markPulpitAnnounced() {
   const pending = pendingPulpitVisitors();
   if (!pending.length) return showToast('Não há visitantes pendentes para marcar.', 'error');
-  pending.forEach(visitor => { visitor.announced = true; });
-  saveState();
-  render();
-  showToast(`${pending.length === 1 ? 'Visitante marcado' : 'Visitantes marcados'} como apresentado${pending.length === 1 ? '' : 's'} à igreja.`);
+  try {
+    await Promise.all(pending.map(visitor => apiRequest(`/api/church/visitors/${encodeURIComponent(visitor.id)}`, { method: 'PATCH', body: { announced: true } })));
+    await loadRemoteChurchState(state.currentUser);
+    render();
+    showToast(`${pending.length === 1 ? 'Visitante marcado' : 'Visitantes marcados'} como apresentados e salvo${pending.length === 1 ? '' : 's'} no banco.`);
+  } catch (error) {
+    showToast(`Não foi possível salvar a apresentação: ${error.message}`, 'error');
+  }
 }
 
 function togglePulpitFullscreen() {
@@ -1825,7 +1892,7 @@ function init() {
     const settingsSection = event.target.closest('[data-settings-section]');
     if (settingsSection) { applySettingsSection(settingsSection.dataset.settingsSection); showToast(`Seção “${settingsSection.textContent.trim()}” aberta.`); return; }
     const toggle = event.target.closest('[data-toggle]');
-    if (toggle) { toggle.classList.toggle('on'); return; }
+    if (toggle) { toggle.classList.toggle('on'); saveCommunicationChannels(); return; }
     if (event.target === $('#modalBackdrop')) closeModal();
   });
   document.addEventListener('submit', handleSubmit);

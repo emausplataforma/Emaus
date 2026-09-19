@@ -107,8 +107,57 @@ async function query(text, params = []) {
   return pool.query(text, params);
 }
 
+function activityInitials(name = '') {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'EA';
+}
+
+async function recordActivity(churchId, activity = {}, actor = null) {
+  if (!churchId || !activity.name || !activity.text) return;
+  try {
+    await query(`INSERT INTO church_activity (church_id, activity_type, name, text, initials, tone, metadata, actor_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [
+      churchId,
+      activity.type || 'general',
+      String(activity.name).slice(0, 180),
+      String(activity.text).slice(0, 300),
+      activity.initials || activityInitials(activity.name),
+      activity.tone || 'dark',
+      JSON.stringify(activity.metadata || {}),
+      actor?.id || null
+    ]);
+  } catch (error) {
+    console.error('Não foi possível registrar a atividade da igreja:', error.message);
+  }
+}
+
 async function audit(actor, action, payload = {}, churchId = actor?.church_id || null) {
   await query('INSERT INTO audit_events (actor_id, church_id, action, payload) VALUES ($1, $2, $3, $4)', [actor?.id || null, churchId, action, JSON.stringify(payload)]);
+  const templates = {
+    public_visitor_created: { type: 'visitor', name: payload.name || 'Novo visitante', text: 'foi cadastrado como novo visitante.', tone: 'copper' },
+    visitor_created: { type: 'visitor', name: payload.name || 'Novo visitante', text: 'foi cadastrado como novo visitante.', tone: 'copper' },
+    visitor_status_updated: { type: 'return', name: payload.name || 'Visitante', text: payload.activityText || 'teve o acompanhamento atualizado.', tone: 'olive' },
+    announcement_created: { type: 'announcement', name: payload.title || 'Novo aviso', text: payload.status === 'scheduled' ? 'foi agendado para registro.' : 'foi registrado para comunicação.', tone: 'gold' },
+    church_settings_updated: { type: 'settings', name: 'Configurações da igreja', text: 'foram atualizadas.', tone: 'dark' },
+    ministry_created: { type: 'ministry', name: payload.name || 'Ministério', text: 'foi adicionado à igreja.', tone: 'olive' },
+    reception_user_created: { type: 'access', name: payload.name || 'Novo acesso', text: 'foi criado para a recepção.', tone: 'copper' },
+    reception_user_updated: { type: 'access', name: payload.name || 'Acesso da recepção', text: 'foi atualizado.', tone: 'copper' },
+    reception_user_deleted: { type: 'access', name: payload.name || 'Acesso da recepção', text: 'foi removido.', tone: 'copper' },
+    member_created: { type: 'member', name: payload.name || 'Novo membro', text: 'foi cadastrado como membro.', tone: 'olive' },
+    member_updated: { type: 'member', name: payload.name || 'Membro', text: 'teve o cadastro atualizado.', tone: 'olive' },
+    member_deleted: { type: 'member', name: payload.name || 'Membro', text: 'foi removido do cadastro.', tone: 'olive' },
+    member_attendance_created: { type: 'attendance', name: payload.name || 'Presença', text: 'foi registrada.', tone: 'dark' },
+    care_task_created: { type: 'care', name: payload.title || 'Cuidado pastoral', text: 'foi registrado para acompanhamento.', tone: 'copper' },
+    care_task_updated: { type: 'care', name: payload.title || 'Cuidado pastoral', text: 'teve o status atualizado.', tone: 'copper' },
+    events_created: { type: 'event', name: payload.title || 'Agenda', text: 'teve novo evento registrado.', tone: 'dark' },
+    event_updated: { type: 'event', name: payload.title || 'Evento', text: 'foi atualizado na agenda.', tone: 'dark' },
+    event_deleted: { type: 'event', name: payload.title || 'Evento', text: 'foi removido da agenda.', tone: 'dark' },
+    leader_created: { type: 'leader', name: payload.name || 'Nova liderança', text: 'foi adicionada à equipe.', tone: 'olive' },
+    leader_updated: { type: 'leader', name: payload.name || 'Liderança', text: 'teve o cadastro atualizado.', tone: 'olive' },
+    leader_deleted: { type: 'leader', name: payload.name || 'Liderança', text: 'foi removida da equipe.', tone: 'olive' }
+  };
+  const template = templates[action];
+  if (template) await recordActivity(churchId, { ...template, metadata: { action, ...payload } }, actor);
 }
 
 function auth(requiredRoles = []) {
@@ -273,7 +322,7 @@ app.post('/api/public/church/:slug/visitors', async (req, res) => {
   if (!consent) return res.status(400).json({ error: 'É necessário autorizar o contato da igreja.' });
   const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, visit_date, service, invited_by, notes, status, responsible)
     VALUES ($1, $2, '', $3, 'Sozinho', $4, CURRENT_DATE, 'Cadastro pela página pública', '', $5, 'Novo', 'Recepção') RETURNING id, name, visit_date`, [church.id, name, JSON.stringify([name]), phone, String(req.body.notes || '').trim()]);
-  await audit(null, 'public_visitor_created', { visitorId: result.rows[0].id, churchId: church.id }, church.id);
+  await audit(null, 'public_visitor_created', { visitorId: result.rows[0].id, churchId: church.id, name: result.rows[0].name }, church.id);
   res.status(201).json({ ok: true, church: church.name, visitor: result.rows[0] });
 });
 
@@ -288,6 +337,33 @@ app.put('/api/church/settings', auth(['church_admin']), requireChurch, async (re
   const result = await query(`UPDATE churches SET name = COALESCE(NULLIF($1, ''), name), city = COALESCE(NULLIF($2, ''), city), phone = $3, pastors = $4, description = $5, logo_url = $6, public_settings = $7, updated_at = NOW() WHERE id = $8 RETURNING *`, [req.body.name || '', req.body.city || '', req.body.phone || '', req.body.pastors || '', req.body.description || '', req.body.logoUrl || '', JSON.stringify(publicSettings), req.churchId]);
   await audit(req.user, 'church_settings_updated', { fields: ['name', 'city', 'phone', 'pastors', 'description', 'logoUrl', 'publicSettings'] }, req.churchId);
   res.json({ church: result.rows[0] });
+});
+
+app.get('/api/church/announcements', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const result = await query('SELECT * FROM church_announcements WHERE church_id = $1 ORDER BY created_at DESC LIMIT 200', [req.churchId]);
+  res.json({ announcements: result.rows });
+});
+
+app.post('/api/church/announcements', auth(['church_admin']), requireChurch, async (req, res) => {
+  const title = String(req.body.title || '').trim();
+  const body = String(req.body.body || '').trim();
+  const audience = String(req.body.audience || 'Toda a igreja').trim();
+  const channels = Array.isArray(req.body.channels) ? [...new Set(req.body.channels.map(channel => String(channel).trim()).filter(Boolean))].slice(0, 10) : [];
+  const mode = req.body.mode === 'scheduled' ? 'scheduled' : 'published';
+  if (!title || !body) return res.status(400).json({ error: 'Título e mensagem são obrigatórios.' });
+  if (!channels.length) return res.status(400).json({ error: 'Escolha pelo menos um canal para registrar o aviso.' });
+  const scheduledFor = req.body.scheduledFor ? new Date(req.body.scheduledFor) : null;
+  const validScheduledFor = scheduledFor && !Number.isNaN(scheduledFor.getTime()) ? scheduledFor : null;
+  const result = await query(`INSERT INTO church_announcements (church_id, title, body, audience, channels, personalize_greeting, status, scheduled_for, created_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, [req.churchId, title, body, audience, JSON.stringify(channels), Boolean(req.body.personalizeGreeting), mode, mode === 'scheduled' ? validScheduledFor : null, req.user.id]);
+  await audit(req.user, 'announcement_created', { announcementId: result.rows[0].id, title, status: mode }, req.churchId);
+  res.status(201).json({ announcement: result.rows[0], delivery: 'not_configured' });
+});
+
+app.get('/api/church/activity', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const result = await query(`SELECT id, activity_type, name, text, initials, tone, metadata, created_at
+    FROM church_activity WHERE church_id = $1 ORDER BY created_at DESC LIMIT 100`, [req.churchId]);
+  res.json({ activity: result.rows });
 });
 
 app.get('/api/church/ministries', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -321,7 +397,7 @@ app.post('/api/church/reception-users', auth(['church_admin']), requireChurch, a
   const hash = await bcrypt.hash(password, 12);
   const result = await query(`INSERT INTO users (church_id, name, email, phone, password_hash, role, job_role, status, permissions)
     VALUES ($1, $2, $3, $4, $5, 'reception', $6, 'active', $7) RETURNING id, church_id, name, email, phone, job_role, status, permissions`, [req.churchId, name, email, req.body.phone || '', hash, req.body.role || 'Recepção', JSON.stringify(['acolhimento'])]);
-  await audit(req.user, 'reception_user_created', { userId: result.rows[0].id }, req.churchId);
+  await audit(req.user, 'reception_user_created', { userId: result.rows[0].id, name: result.rows[0].name }, req.churchId);
   res.status(201).json({ user: { ...result.rows[0], login: result.rows[0].email, passwordStatus: 'Ativa', role: 'reception' } });
 });
 
@@ -343,14 +419,14 @@ app.patch('/api/church/reception-users/:userId', auth(['church_admin']), require
       WHERE id = $6 AND church_id = $7 AND role = 'reception' RETURNING id, church_id, name, email, phone, job_role, status, permissions`, [name, email, req.body.phone || '', jobRole, status, req.params.userId, req.churchId]);
   }
   if (!result.rows[0]) return res.status(404).json({ error: 'Acesso da recepção não encontrado.' });
-  await audit(req.user, 'reception_user_updated', { userId: req.params.userId }, req.churchId);
+  await audit(req.user, 'reception_user_updated', { userId: req.params.userId, name: result.rows[0].name }, req.churchId);
   res.json({ user: { ...result.rows[0], login: result.rows[0].email, passwordStatus: 'Ativa', role: 'reception' } });
 });
 
 app.delete('/api/church/reception-users/:userId', auth(['church_admin']), requireChurch, async (req, res) => {
   const result = await query("DELETE FROM users WHERE id = $1 AND church_id = $2 AND role = 'reception' RETURNING id", [req.params.userId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Acesso da recepção não encontrado.' });
-  await audit(req.user, 'reception_user_deleted', { userId: req.params.userId }, req.churchId);
+  await audit(req.user, 'reception_user_deleted', { userId: req.params.userId, name: 'Acesso da recepção' }, req.churchId);
   res.json({ ok: true });
 });
 
@@ -362,10 +438,31 @@ app.get('/api/church/visitors', auth(['church_admin', 'reception']), requireChur
 app.post('/api/church/visitors', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nome do visitante é obrigatório.' });
-  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, visit_date, service, invited_by, notes, responsible, created_by)
-    VALUES ($1, $2, $3, $4, $5, COALESCE($6, ''), COALESCE($7, CURRENT_DATE), COALESCE($8, 'Culto de Celebração'), COALESCE($9, ''), COALESCE($10, ''), $11, $12) RETURNING *`, [req.churchId, name, req.body.familyName || '', JSON.stringify(req.body.familyMembers || [name]), req.body.arrivalType || 'Sozinho', req.body.phone || '', req.body.visitDate || null, req.body.service || 'Culto de Celebração', req.body.invitedBy || '', req.body.notes || '', req.user.name, req.user.id]);
-  await audit(req.user, 'visitor_created', { visitorId: result.rows[0].id }, req.churchId);
+  const result = await query(`INSERT INTO visitors (church_id, name, family_name, family_members, arrival_type, phone, neighborhood, visit_date, service, invited_by, notes, responsible, created_by)
+    VALUES ($1, $2, $3, $4, $5, COALESCE($6, ''), COALESCE($7, ''), COALESCE($8, CURRENT_DATE), COALESCE($9, 'Culto de Celebração'), COALESCE($10, ''), COALESCE($11, ''), $12, $13) RETURNING *`, [req.churchId, name, req.body.familyName || '', JSON.stringify(req.body.familyMembers || [name]), req.body.arrivalType || 'Sozinho', req.body.phone || '', req.body.neighborhood || '', req.body.visitDate || null, req.body.service || 'Culto de Celebração', req.body.invitedBy || '', req.body.notes || '', req.user.name, req.user.id]);
+  await audit(req.user, 'visitor_created', { visitorId: result.rows[0].id, name: result.rows[0].name }, req.churchId);
   res.status(201).json({ visitor: result.rows[0] });
+});
+
+app.patch('/api/church/visitors/:visitorId', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
+  const hasStatus = Object.prototype.hasOwnProperty.call(req.body, 'status');
+  const hasResponsible = Object.prototype.hasOwnProperty.call(req.body, 'responsible');
+  const hasNotes = Object.prototype.hasOwnProperty.call(req.body, 'notes');
+  const hasNeighborhood = Object.prototype.hasOwnProperty.call(req.body, 'neighborhood');
+  const hasAnnounced = Object.prototype.hasOwnProperty.call(req.body, 'announced');
+  const status = hasStatus ? String(req.body.status || '').trim() : null;
+  const responsible = hasResponsible ? String(req.body.responsible || '').trim() : null;
+  const notes = hasNotes ? String(req.body.notes || '').trim() : null;
+  const neighborhood = hasNeighborhood ? String(req.body.neighborhood || '').trim() : null;
+  const announced = hasAnnounced ? Boolean(req.body.announced) : null;
+  if (!hasStatus && !hasResponsible && !hasNotes && !hasNeighborhood && !hasAnnounced) return res.status(400).json({ error: 'Nenhuma alteração foi informada.' });
+  const result = await query(`UPDATE visitors SET status = COALESCE($1, status), responsible = COALESCE($2, responsible), notes = COALESCE($3, notes), neighborhood = COALESCE($4, neighborhood), announced = COALESCE($5, announced), updated_at = NOW()
+    WHERE id = $6 AND church_id = $7 RETURNING *`, [status || null, responsible, notes, neighborhood, announced, req.params.visitorId, req.churchId]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Visitante não encontrado.' });
+  const visitor = result.rows[0];
+  const activityText = hasStatus && status === 'Contatado' ? 'foi marcado para acompanhamento.' : hasAnnounced && announced ? 'foi marcado para anúncio.' : 'teve o acompanhamento atualizado.';
+  await audit(req.user, 'visitor_status_updated', { visitorId: visitor.id, name: visitor.name, status: visitor.status, announced: visitor.announced, activityText }, req.churchId);
+  res.json({ visitor });
 });
 
 app.get('/api/church/members', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
@@ -389,7 +486,7 @@ app.post('/api/church/members', auth(['church_admin']), requireChurch, async (re
   const result = await query(`INSERT INTO members (church_id, name, preferred_name, gender, email, phone, ministry, ministry_id, status, joined_at, communication_consent, location_consent, consent_version, consent_updated_at)
     VALUES ($1, $2, COALESCE($3, ''), $4, COALESCE($5, ''), COALESCE($6, ''), COALESCE($7, ''), $8, $9, $10, $11, $12, $13, CASE WHEN $11 OR $12 THEN NOW() ELSE NULL END) RETURNING *`, [req.churchId, name, req.body.preferredName || '', gender, email, phone, req.body.ministry || '', req.body.ministryId || null, req.body.status === 'inactive' ? 'inactive' : 'active', req.body.joinedAt || null, communicationConsent, locationConsent, consentVersion]);
   await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1 AND status = \'active\'), updated_at = NOW() WHERE id = $1', [req.churchId]);
-  await audit(req.user, 'member_created', { memberId: result.rows[0].id, communicationConsent, locationConsent }, req.churchId);
+  await audit(req.user, 'member_created', { memberId: result.rows[0].id, name: result.rows[0].name, communicationConsent, locationConsent }, req.churchId);
   res.status(201).json({ member: result.rows[0] });
 });
 
@@ -406,7 +503,7 @@ app.patch('/api/church/members/:memberId', auth(['church_admin']), requireChurch
   const result = await query(`UPDATE members SET name = COALESCE(NULLIF($1, ''), name), preferred_name = COALESCE($2, preferred_name), gender = COALESCE($3, gender), email = COALESCE($4, email), phone = COALESCE($5, phone), ministry = COALESCE($6, ministry), ministry_id = COALESCE($7, ministry_id), status = COALESCE($8, status), joined_at = COALESCE($9, joined_at), communication_consent = COALESCE($10, communication_consent), location_consent = COALESCE($11, location_consent), consent_version = CASE WHEN $10 IS NOT NULL OR $11 IS NOT NULL THEN COALESCE(NULLIF($12, ''), consent_version) ELSE consent_version END, consent_updated_at = CASE WHEN $10 IS NOT NULL OR $11 IS NOT NULL THEN NOW() ELSE consent_updated_at END, updated_at = NOW()
     WHERE id = $13 AND church_id = $14 RETURNING *`, [req.body.name || '', req.body.preferredName, gender, email, phone, req.body.ministry, req.body.ministryId, req.body.status, req.body.joinedAt || null, communicationConsent, locationConsent, String(req.body.consentVersion || ''), req.params.memberId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Membro não encontrado.' });
-  await audit(req.user, 'member_updated', { memberId: req.params.memberId, consentChanged: hasCommunicationConsent || hasLocationConsent }, req.churchId);
+  await audit(req.user, 'member_updated', { memberId: req.params.memberId, name: result.rows[0].name, consentChanged: hasCommunicationConsent || hasLocationConsent }, req.churchId);
   res.json({ member: result.rows[0] });
 });
 
@@ -414,7 +511,7 @@ app.delete('/api/church/members/:memberId', auth(['church_admin']), requireChurc
   const result = await query('DELETE FROM members WHERE id = $1 AND church_id = $2 RETURNING id', [req.params.memberId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Membro não encontrado.' });
   await query('UPDATE churches SET member_count = (SELECT COUNT(*) FROM members WHERE church_id = $1 AND status = \'active\'), updated_at = NOW() WHERE id = $1', [req.churchId]);
-  await audit(req.user, 'member_deleted', { memberId: req.params.memberId }, req.churchId);
+  await audit(req.user, 'member_deleted', { memberId: req.params.memberId, name: 'Membro' }, req.churchId);
   res.json({ ok: true });
 });
 
@@ -441,7 +538,7 @@ app.post('/api/church/attendance', auth(['church_admin', 'reception']), requireC
   const result = await query(`INSERT INTO member_attendance (church_id, member_id, event_id, source, geo_verified, distance_m, accuracy_m, notes, created_by)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, [req.churchId, memberId, req.body.eventId || null, source, geoVerified, distanceM, accuracyM, String(req.body.notes || '').trim(), req.user.id]);
   await query('UPDATE members SET last_attended_at = NOW(), updated_at = NOW() WHERE id = $1 AND church_id = $2', [memberId, req.churchId]);
-  await audit(req.user, 'member_attendance_created', { memberId, attendanceId: result.rows[0].id, source, geoVerified }, req.churchId);
+  await audit(req.user, 'member_attendance_created', { memberId, name: member.preferred_name || member.name, attendanceId: result.rows[0].id, source, geoVerified }, req.churchId);
   res.status(201).json({ attendance: result.rows[0], duplicate: false });
 });
 
@@ -490,7 +587,7 @@ app.post('/api/church/care-tasks', auth(['church_admin', 'reception']), requireC
   const priority = ['low', 'normal', 'high'].includes(req.body.priority) ? req.body.priority : 'normal';
   const result = await query(`INSERT INTO care_tasks (church_id, member_id, visitor_id, title, description, task_type, priority, due_date, assigned_to, created_by)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`, [req.churchId, memberId, visitorId, title, String(req.body.description || '').trim(), taskType, priority, req.body.dueDate || null, req.body.assignedTo || null, req.user.id]);
-  await audit(req.user, 'care_task_created', { taskId: result.rows[0].id, memberId, visitorId, taskType }, req.churchId);
+  await audit(req.user, 'care_task_created', { taskId: result.rows[0].id, title: result.rows[0].title, memberId, visitorId, taskType }, req.churchId);
   res.status(201).json({ task: result.rows[0] });
 });
 
@@ -499,7 +596,7 @@ app.patch('/api/church/care-tasks/:taskId', auth(['church_admin', 'reception']),
   const result = await query(`UPDATE care_tasks SET title = COALESCE(NULLIF($1, ''), title), description = COALESCE($2, description), priority = COALESCE($3, priority), due_date = COALESCE($4, due_date), status = COALESCE($5, status), completed_at = CASE WHEN $5 = 'done' THEN NOW() WHEN $5 IS NOT NULL THEN NULL ELSE completed_at END, updated_at = NOW()
     WHERE id = $6 AND church_id = $7 RETURNING *`, [String(req.body.title || '').trim(), req.body.description, ['low', 'normal', 'high'].includes(req.body.priority) ? req.body.priority : null, req.body.dueDate || null, status, req.params.taskId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Tarefa de cuidado não encontrada.' });
-  await audit(req.user, 'care_task_updated', { taskId: req.params.taskId, status }, req.churchId);
+  await audit(req.user, 'care_task_updated', { taskId: req.params.taskId, title: result.rows[0].title, status }, req.churchId);
   res.json({ task: result.rows[0] });
 });
 
@@ -586,7 +683,7 @@ app.post('/api/church/leaders', auth(['church_admin']), requireChurch, async (re
   if (!name) return res.status(400).json({ error: 'Nome da liderança é obrigatório.' });
   const gender = ['female', 'male', 'unspecified'].includes(req.body.gender) ? req.body.gender : 'unspecified';
   const result = await query(`INSERT INTO leaders (church_id, name, preferred_name, gender, role, phone, group_name) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [req.churchId, name, req.body.preferredName || '', gender, req.body.role || 'Líder', req.body.phone || '', req.body.group || '']);
-  await audit(req.user, 'leader_created', { leaderId: result.rows[0].id }, req.churchId);
+  await audit(req.user, 'leader_created', { leaderId: result.rows[0].id, name: result.rows[0].name }, req.churchId);
   res.status(201).json({ leader: result.rows[0] });
 });
 
@@ -595,14 +692,14 @@ app.patch('/api/church/leaders/:leaderId', auth(['church_admin']), requireChurch
   const result = await query(`UPDATE leaders SET name = COALESCE(NULLIF($1, ''), name), preferred_name = COALESCE($2, preferred_name), gender = COALESCE($3, gender), role = COALESCE(NULLIF($4, ''), role), phone = COALESCE($5, phone), group_name = COALESCE($6, group_name), updated_at = NOW()
     WHERE id = $7 AND church_id = $8 RETURNING *`, [req.body.name || '', req.body.preferredName, gender, req.body.role || '', req.body.phone, req.body.group, req.params.leaderId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Liderança não encontrada.' });
-  await audit(req.user, 'leader_updated', { leaderId: req.params.leaderId }, req.churchId);
+  await audit(req.user, 'leader_updated', { leaderId: req.params.leaderId, name: result.rows[0].name }, req.churchId);
   res.json({ leader: result.rows[0] });
 });
 
 app.delete('/api/church/leaders/:leaderId', auth(['church_admin']), requireChurch, async (req, res) => {
   const result = await query('UPDATE leaders SET status = \'inactive\', updated_at = NOW() WHERE id = $1 AND church_id = $2 RETURNING id', [req.params.leaderId, req.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Liderança não encontrada.' });
-  await audit(req.user, 'leader_deleted', { leaderId: req.params.leaderId }, req.churchId);
+  await audit(req.user, 'leader_deleted', { leaderId: req.params.leaderId, name: 'Liderança' }, req.churchId);
   res.json({ ok: true });
 });
 
@@ -612,6 +709,34 @@ app.get('/api/audit', auth(['platform_admin']), async (req, res) => {
 });
 
 async function ensureColumnCompatibility() {
+  await query(`CREATE TABLE IF NOT EXISTS church_announcements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    audience TEXT NOT NULL DEFAULT 'Toda a igreja',
+    channels JSONB NOT NULL DEFAULT '[]'::jsonb,
+    personalize_greeting BOOLEAN NOT NULL DEFAULT FALSE,
+    status TEXT NOT NULL DEFAULT 'published',
+    scheduled_for TIMESTAMPTZ,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS church_activity (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+    activity_type TEXT NOT NULL DEFAULT 'general',
+    name TEXT NOT NULL,
+    text TEXT NOT NULL,
+    initials TEXT NOT NULL DEFAULT '',
+    tone TEXT NOT NULL DEFAULT 'dark',
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query("CREATE INDEX IF NOT EXISTS idx_announcements_church_created ON church_announcements(church_id, created_at DESC)");
+  await query("CREATE INDEX IF NOT EXISTS idx_activity_church_created ON church_activity(church_id, created_at DESC)");
   await query("ALTER TABLE churches ADD COLUMN IF NOT EXISTS founder_price_freeze BOOLEAN NOT NULL DEFAULT FALSE");
   await query("ALTER TABLE churches ADD COLUMN IF NOT EXISTS public_settings JSONB NOT NULL DEFAULT '{}'::jsonb");
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_role TEXT NOT NULL DEFAULT 'Recepção'");
@@ -619,6 +744,7 @@ async function ensureColumnCompatibility() {
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'unspecified'");
   await query("ALTER TABLE church_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
+  await query("ALTER TABLE visitors ADD COLUMN IF NOT EXISTS neighborhood TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS preferred_name TEXT NOT NULL DEFAULT ''");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'unspecified'");
   await query("ALTER TABLE members ADD COLUMN IF NOT EXISTS ministry_id UUID REFERENCES ministries(id) ON DELETE SET NULL");

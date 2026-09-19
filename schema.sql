@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS visitors (
   family_members JSONB NOT NULL DEFAULT '[]'::jsonb,
   arrival_type TEXT NOT NULL DEFAULT 'Sozinho',
   phone TEXT NOT NULL DEFAULT '',
+  neighborhood TEXT NOT NULL DEFAULT '',
   visit_date DATE NOT NULL DEFAULT CURRENT_DATE,
   service TEXT NOT NULL DEFAULT 'Culto de Celebração',
   invited_by TEXT NOT NULL DEFAULT '',
@@ -83,6 +84,21 @@ CREATE TABLE IF NOT EXISTS visitors (
   status TEXT NOT NULL DEFAULT 'Novo',
   responsible TEXT NOT NULL DEFAULT 'Recepção',
   announced BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS church_announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  audience TEXT NOT NULL DEFAULT 'Toda a igreja',
+  channels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  personalize_greeting BOOLEAN NOT NULL DEFAULT FALSE,
+  status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'published', 'scheduled', 'cancelled')),
+  scheduled_for TIMESTAMPTZ,
   created_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -158,6 +174,19 @@ CREATE TABLE IF NOT EXISTS audit_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS church_activity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  activity_type TEXT NOT NULL DEFAULT 'general',
+  name TEXT NOT NULL,
+  text TEXT NOT NULL,
+  initials TEXT NOT NULL DEFAULT '',
+  tone TEXT NOT NULL DEFAULT 'dark',
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS member_attendance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
@@ -206,6 +235,8 @@ CREATE TABLE IF NOT EXISTS care_tasks (
   CHECK (member_id IS NOT NULL OR visitor_id IS NOT NULL)
 );
 
+CREATE INDEX IF NOT EXISTS idx_announcements_church_created ON church_announcements(church_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_church_created ON church_activity(church_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_users_church ON users(church_id);
 CREATE INDEX IF NOT EXISTS idx_visitors_church_date ON visitors(church_id, visit_date DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at DESC);

@@ -4,12 +4,12 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 
 ## Produção atual
 
-- Frontend: GitHub Pages;
+- Frontend: `https://emausplataforma.github.io/Emaus/`;
 - API: Railway;
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v53`;
+- Service worker: `emaus-shell-v54`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -31,6 +31,12 @@ As senhas não são documentadas neste arquivo.
 - primeiras 40 igrejas com preço congelado por 12 meses;
 - nenhuma cobrança adicional;
 - nenhum sistema de créditos.
+
+## Persistência e limites atuais
+
+Os dados de negócio são gravados no PostgreSQL do serviço Emaús e carregados novamente depois do login: membros, visitantes, configurações públicas, aparência, agenda, lideranças, ministérios, acessos da recepção, presença, consentimentos, tarefas de cuidado, avisos registrados e atividade. O `localStorage` continua sendo apenas um cache e uma cópia de recuperação do navegador; ele não substitui o banco.
+
+Os avisos podem ser registrados ou agendados, mas nenhum Push, WhatsApp ou e-mail é enviado nesta fase. O backup automático do PostgreSQL deve ser configurado no Railway; o backup local do navegador não é suficiente para produção.
 
 ## Desenvolvimento
 
@@ -72,5 +78,11 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - `GET/POST /api/church/attendance` e `GET /api/church/attendance/summary` para presenças internas vinculadas à igreja;
 - `POST /api/church/members/:memberId/consents` para autorizações de comunicação, privacidade e recurso futuro de localização;
 - `GET/POST/PATCH /api/church/care-tasks` para tarefas de cuidado pastoral vinculadas a membro ou visitante;
+- `GET/POST /api/church/announcements` para registrar avisos e agendamentos sem disparo real;
+- `GET /api/church/activity` para histórico persistente da igreja;
+- `PATCH /api/church/visitors/:visitorId` para acompanhamento e apresentação persistentes;
 - login com limite de tentativas, cabeçalhos básicos de segurança e auditoria de falhas;
-- duplicidade de membros bloqueada por e-mail ou telefone dentro da mesma igreja.
+- duplicidade de membros bloqueada por e-mail ou telefone dentro da mesma igreja;
+- acompanhamento de visitantes (contatado, responsável e apresentado) persistido no PostgreSQL;
+- avisos e agendamentos registrados no PostgreSQL, sem envio real enquanto os canais externos não forem configurados;
+- feed de atividade da igreja persistido e carregado por todos os acessos autorizados.
