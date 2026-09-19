@@ -71,6 +71,13 @@ function renderPage(payload) {
   setText('heroDescription', description, 'Uma comunidade pronta para receber você.');
   setText('aboutTitle', 'Uma comunidade que caminha com você.');
   setText('aboutText', description, 'Nossa igreja é um lugar para encontrar pessoas, crescer na fé e servir com alegria.');
+  const history = String(settings.history || '').trim();
+  const pastorsBio = String(settings.pastorsBio || '').trim();
+  setText('historyText', history);
+  setText('pastorsTitle', church.pastors ? `Pastores ${church.pastors}` : 'Sobre os pastores');
+  setText('pastorsText', pastorsBio);
+  document.getElementById('historySection')?.classList.toggle('is-hidden', !history);
+  document.getElementById('pastorsSection')?.classList.toggle('is-hidden', !pastorsBio);
   setText('heroAddress', address);
   setText('heroHours', hours);
   setText('contactAddress', address);

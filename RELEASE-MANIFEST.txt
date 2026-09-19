@@ -1,6 +1,7 @@
-Emaús — correção final da atualização ampliada v1.1
-Frontend: shell v56 / app.js?v=56
-Correções: onboarding aparece para church_admin; card Próximo culto ignora eventos passados
+Emaús — atualização ampliada v1.2
+Frontend: shell v57 / app.js?v=57 / publica.js?v=57
+Novos campos públicos: História da igreja e Sobre os pastores
+Os campos são salvos em publicSettings no PostgreSQL e aparecem na página pública após o pastor salvar.
 API: mesma versão já publicada com persistência de anúncios, atividade e status de segurança
 Escopo: serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços
 Ativações guiadas depois do pacote: backup/restauração e 2FA
