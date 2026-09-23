@@ -33,9 +33,7 @@
     window.setTimeout(() => splash.remove(), 650);
   };
 
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  window.setTimeout(dismiss, reducedMotion ? 850 : 2300);
-  window.addEventListener('load', () => {
-    window.setTimeout(dismiss, reducedMotion ? 250 : 1750);
-  }, { once: true });
+  // Mantém a identidade Emaús/Bethesda visível por cinco segundos completos antes de sair.
+  const splashDurationMs = 5000;
+  window.setTimeout(dismiss, splashDurationMs);
 })();

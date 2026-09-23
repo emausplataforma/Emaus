@@ -1,0 +1,9 @@
+Emaús — ajuste do carregamento v1
+
+Arquivos para substituir na raiz do GitHub Pages:
+- splash.js
+- service-worker.js
+
+O splash da Emaús/Bethesda permanece visível por 5 segundos completos. A identidade Emaús foi mantida.
+
+O service worker foi atualizado para emaus-shell-v60-splash-5s, garantindo que o navegador baixe o novo splash em vez de usar o cache anterior.
