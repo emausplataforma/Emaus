@@ -1,0 +1,17 @@
+EMAUS — ARQUIVOS NECESSARIOS DA ATUALIZACAO DO ADMINISTRADOR v1.5
+
+1. GITHUB PAGES
+   Extraia este ZIP na raiz do repositorio do GitHub Pages e substitua os arquivos existentes.
+   Arquivos principais: admin.html, admin.js, admin.css, service-worker.js e api-config.js.
+   O service-worker foi atualizado para emaus-shell-v59-admin-v15 e evita manter o administrador antigo em cache.
+
+2. RAILWAY EMAUS
+   Se o servico Railway usa a raiz do repositorio, publique server.js, schema.sql e package.json da raiz.
+   Se o servico usa a pasta emaus-api, publique os arquivos de dentro de emaus-api/.
+   Preserve as variaveis privadas existentes. Nao envie senhas, tokens, DATABASE_URL ou chaves privadas.
+
+3. VERIFICACAO
+   Apos os dois deploys, /health deve continuar respondendo OK.
+   Sem login, /api/admin/leads e /api/admin/churches/00000000-0000-0000-0000-000000000000/summary devem retornar 401 Autenticacao necessaria, nao 404.
+
+Nao altere glow-platform. O Zapster continua sem envio externo ate ativacao explicita.
