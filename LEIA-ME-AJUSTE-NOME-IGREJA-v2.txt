@@ -1,0 +1,17 @@
+Emaús — correção complementar da identidade pública
+
+A página “Quero conhecer a igreja” (visita.html) ainda tinha o rótulo fixo “EMAÚS · ACOLHIMENTO” e o marcador “E”. Isso foi corrigido.
+
+Agora ela mostra:
+- logo da Bethesda;
+- “BETHESDA · ACOLHIMENTO”;
+- nome da igreja retornado pela API;
+- fallback Bethesda quando a API não responder.
+
+Emaús continua somente no splash de carregamento e no administrador.
+
+Substitua na raiz do GitHub Pages:
+- visita.html
+- service-worker.js
+
+O service worker foi atualizado para emaus-shell-v62-church-name-public.
