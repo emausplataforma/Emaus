@@ -42,6 +42,57 @@ CREATE TABLE IF NOT EXISTS churches (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS billing_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+  plan_id TEXT REFERENCES plans(id),
+  provider TEXT NOT NULL DEFAULT 'mercadopago',
+  provider_subscription_id TEXT NOT NULL UNIQUE,
+  payer_email TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'paused', 'cancelled', 'rejected', 'unknown')),
+  external_reference TEXT NOT NULL DEFAULT '',
+  checkout_url TEXT,
+  amount_cents INTEGER NOT NULL DEFAULT 0 CHECK (amount_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'BRL',
+  provider_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  started_at TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscription_id UUID REFERENCES billing_subscriptions(id) ON DELETE SET NULL,
+  church_id UUID REFERENCES churches(id) ON DELETE SET NULL,
+  provider TEXT NOT NULL DEFAULT 'mercadopago',
+  provider_payment_id TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'unknown',
+  amount_cents INTEGER NOT NULL DEFAULT 0 CHECK (amount_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'BRL',
+  paid_at TIMESTAMPTZ,
+  provider_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_webhook_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider TEXT NOT NULL DEFAULT 'mercadopago',
+  event_key TEXT NOT NULL UNIQUE,
+  event_type TEXT NOT NULL DEFAULT '',
+  provider_resource_id TEXT NOT NULL DEFAULT '',
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  processed BOOLEAN NOT NULL DEFAULT FALSE,
+  processing_error TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_church_status ON billing_subscriptions(church_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_billing_payments_church_created ON billing_payments(church_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_resource ON billing_webhook_events(provider, provider_resource_id);
+
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   church_id UUID REFERENCES churches(id) ON DELETE CASCADE,

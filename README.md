@@ -9,7 +9,7 @@ A Emaús é uma plataforma multi-igreja para acolhimento, visitantes, comunicaç
 - Banco: PostgreSQL no projeto Railway `honest-gentleness`;
 - API pública: `https://emaus-production-2de0.up.railway.app`;
 - Verificação: `GET /health`;
-- Service worker: `emaus-shell-v58`;
+- Service worker: `emaus-shell-v66-commercial-foundation`;
 - Página pública: `publica.html?igreja=bethesda` (sem login);
 
 As senhas e chaves ficam somente nas variáveis privadas do Railway. Nunca coloque credenciais em arquivos do GitHub.
@@ -93,6 +93,14 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - feed de atividade da igreja persistido e carregado por todos os acessos autorizados.
 
 - Bot WhatsApp preparado para futura instância Zapster: `docs/BOT-ZAPSTER.md`.
+
+## Comercialização — fundação v1
+
+A comercialização foi organizada com Mercado Pago e piloto controlado. A fundação técnica inclui tabelas persistentes para assinaturas, pagamentos e webhooks, criação de checkout pendente pelo administrador, validação idempotente de webhook, retorno de pagamento em `pagamento.html` e bloqueio de acesso para igrejas pausadas ou com teste expirado.
+
+A ativação ainda exige credenciais privadas no Railway, teste de sandbox/produção, configuração do webhook `POST /api/integrations/mercadopago/webhook`, backup restaurado, revisão jurídica e canal oficial de suporte. Nenhum token deve ser colocado no GitHub.
+
+O WhatsApp permanece somente em registro/fila até existir uma instância contratada e uma ativação guiada. O plano completo está em `docs/PLANO-COMERCIALIZACAO-EMAUS-v1.md`. Os Termos, a Política de Privacidade e o Contrato de Piloto disponíveis em `docs/*-RASCUNHO.md` são modelos para revisão profissional, não documentos jurídicos finais.
 
 ## Administrador central Emaús — atualização v1.5
 

@@ -422,7 +422,7 @@ function renderChurchDetail() {
   const users = metrics.users;
   const botPending = metrics.bot?.pending;
   const activity = detail?.activity || [];
-  return `<section class="page-head"><div><button class="back-link" data-admin-view="churches">← Voltar para igrejas</button><span class="eyebrow">DETALHES DA ORGANIZAÇÃO</span><h1>${esc(church.name)}</h1><p>${esc(church.city)} · identificador isolado <code>${esc(church.id)}</code></p></div><div class="page-actions"><button class="btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar cadastro</button><button class="btn btn-gold" data-admin-action="refresh-detail" data-id="${esc(church.id)}">Atualizar dados</button></div></section>
+  return `<section class="page-head"><div><button class="back-link" data-admin-view="churches">← Voltar para igrejas</button><span class="eyebrow">DETALHES DA ORGANIZAÇÃO</span><h1>${esc(church.name)}</h1><p>${esc(church.city)} · identificador isolado <code>${esc(church.id)}</code></p></div><div class="page-actions"><button class="btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar cadastro</button><button class="btn" data-admin-action="create-billing-checkout" data-id="${esc(church.id)}">Criar cobrança</button><button class="btn btn-gold" data-admin-action="refresh-detail" data-id="${esc(church.id)}">Atualizar dados</button></div></section>
   <div class="detail-hero"><div class="church-cell"><div class="church-avatar large">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)} · ${esc(church.slug || 'slug não informado')}</small><div class="detail-badges">${statusBadge(church)}<span class="soft-badge">Plano: ${esc(churchPlanLabel(church))}</span></div></div></div><div class="detail-hero-side"><span>Mensalidade cadastrada</span><strong>${moneyOrUnavailable(church.monthlyValue)}</strong><small>Limite: ${countOrUnavailable(church.memberLimit)} pessoas</small></div></div>
   ${detail ? '' : '<div class="inline-notice">Os dados detalhados ainda estão sendo carregados ou a rota de detalhes não está publicada na API. Os dados básicos acima vieram da listagem.</div>'}
   <div class="detail-metrics"><article class="metric-card"><small>Membros ativos</small><strong>${countOrUnavailable(members)}</strong><span>cadastro da igreja</span></article><article class="metric-card"><small>Visitantes registrados</small><strong>${countOrUnavailable(visitors)}</strong><span>histórico da organização</span></article><article class="metric-card"><small>Próximos eventos</small><strong>${countOrUnavailable(events)}</strong><span>agenda futura</span></article><article class="metric-card"><small>Acessos ativos</small><strong>${countOrUnavailable(users)}</strong><span>equipe da igreja</span></article><article class="metric-card"><small>Fila do bot pendente</small><strong>${countOrUnavailable(botPending)}</strong><span>sem enviar mensagens automaticamente</span></article></div>
@@ -484,6 +484,28 @@ async function openChurchDetail(id) {
     if (currentView === 'detail' && selectedChurchId === id) render();
   } catch (error) {
     toast(`Detalhes adicionais indisponíveis: ${error.message}`);
+  }
+}
+
+async function createBillingCheckout(id) {
+  const church = state.churches.find(item => item.id === id);
+  if (!church) return;
+  const payerEmail = window.prompt(`E-mail do responsável pelo pagamento de ${church.name}:`, '');
+  if (payerEmail === null) return;
+  const email = payerEmail.trim().toLowerCase();
+  if (!/^\\S+@\\S+\\.\\S+$/.test(email)) return toast('Informe um e-mail válido para criar a cobrança.');
+  const popup = window.open('about:blank', '_blank', 'noopener');
+  try {
+    const payload = await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}/billing/checkout`, { method: 'POST', body: { planId: church.plan, payerEmail: email } });
+    if (!payload.checkoutUrl) throw new Error('O Mercado Pago não retornou um link de checkout.');
+    if (popup) popup.location = payload.checkoutUrl;
+    else window.location.href = payload.checkoutUrl;
+    toast('Link de pagamento criado.');
+    const detail = await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}/billing`);
+    detailCache.set(`${id}:billing`, detail);
+  } catch (error) {
+    if (popup) popup.close();
+    toast(`Não foi possível criar a cobrança: ${error.message}`);
   }
 }
 
@@ -658,6 +680,7 @@ function handleClick(event) {
   if (type === 'edit-church') { editChurchId = action.dataset.id; currentView = 'churches'; render(); return; }
   if (type === 'set-church-status') { setChurchStatus(action.dataset.id, action.dataset.status); return; }
   if (type === 'refresh-detail') { openChurchDetail(action.dataset.id); return; }
+  if (type === 'create-billing-checkout') { createBillingCheckout(action.dataset.id); return; }
   if (type === 'save-plans-top') { document.querySelector('[data-admin-form="plans"]')?.requestSubmit(); return; }
   if (type === 'focus-expense') { document.querySelector('#expenseDescription')?.focus(); return; }
   if (type === 'support-status') { updateSupportStatus(action.dataset.id, action.dataset.status); }

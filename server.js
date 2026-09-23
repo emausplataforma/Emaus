@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const { registerMercadoPagoRoutes } = require('./billing-mercadopago');
 const fs = require('fs');
 const path = require('path');
 
@@ -429,6 +430,13 @@ function auth(requiredRoles = []) {
       const user = result.rows[0];
       if (!user) return res.status(401).json({ error: 'Usuário não encontrado ou bloqueado.' });
       if (requiredRoles.length && !requiredRoles.includes(user.role)) return res.status(403).json({ error: 'Permissão insuficiente.' });
+      if (user.role !== 'platform_admin' && user.church_id) {
+        const church = (await query('SELECT status, trial_ends_at FROM churches WHERE id = $1', [user.church_id])).rows[0];
+        if (!church) return res.status(403).json({ error: 'Igreja não encontrada.' });
+        if (church.status === 'blocked') return res.status(403).json({ error: 'O acesso desta igreja está bloqueado. Procure o suporte.' });
+        if (church.status === 'paused') return res.status(403).json({ error: 'O acesso desta igreja está pausado. Procure o suporte.' });
+        if (church.status === 'trial' && church.trial_ends_at && new Date(church.trial_ends_at).getTime() < Date.now()) return res.status(402).json({ error: 'O período de teste desta igreja terminou. Consulte os planos para continuar.' });
+      }
       req.user = user;
       next();
     } catch (error) {
@@ -448,6 +456,8 @@ function requireChurch(req, res, next) {
   req.churchId = churchScope(req, churchId);
   next();
 }
+
+registerMercadoPagoRoutes({ app, auth, query, audit, publicAppUrl: PUBLIC_APP_URL });
 
 app.get('/health', async (req, res) => {
   try {

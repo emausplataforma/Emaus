@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171716">
+  <title>Pagamento · Emaús</title>
+  <style>
+    :root{color-scheme:dark;--bg:#171716;--card:#242320;--line:#403a31;--ink:#f5f1e9;--muted:#b8b0a4;--gold:#d7a84b;--green:#7eb793;--red:#d4877b}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 80% 0,rgba(215,168,75,.18),transparent 35%),var(--bg);color:var(--ink);font:15px/1.5 Arial,sans-serif}.card{width:min(100%,560px);padding:34px;border:1px solid var(--line);border-radius:22px;background:rgba(36,35,32,.98);box-shadow:0 22px 80px #0006}.brand{display:flex;align-items:center;gap:11px;margin-bottom:28px}.mark{width:43px;height:43px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#e8c477,#b86f45);color:#211a10;font:700 24px Georgia}.brand small{display:block;color:var(--gold);font-size:9px;font-weight:800;letter-spacing:.15em}.brand strong{display:block;margin-top:3px;font:500 22px Georgia}.eyebrow{color:var(--gold);font-size:10px;font-weight:800;letter-spacing:.15em}.card h1{margin:9px 0;color:var(--ink);font:500 32px Georgia}.card p{color:var(--muted);font-size:13px;line-height:1.6}.status{margin:22px 0;padding:15px;border:1px solid var(--line);border-radius:12px;color:var(--muted);background:#1c1b19}.status.ok{border-color:#41684e;background:#203326;color:#d1e6d7}.status.wait{border-color:#68552e;background:#302817;color:#f2dfae}.status.error{border-color:#70443e;background:#382422;color:#f0c6bf}.button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 15px;border-radius:10px;color:#211a0c;background:linear-gradient(135deg,#e8c477,#d7a84b);font-size:12px;font-weight:800;text-decoration:none}.small{margin-top:18px;color:#8d867d!important;font-size:10px!important}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand"><span class="mark">E</span><div><small>EMAÚS · COMERCIAL</small><strong>Assinatura da igreja</strong></div></div>
+    <span class="eyebrow">RETORNO DO MERCADO PAGO</span>
+    <h1 id="title">Estamos conferindo seu pagamento.</h1>
+    <div id="status" class="status wait">A confirmação definitiva será recebida pela API por webhook seguro. Você pode fechar esta página.</div>
+    <a class="button" id="back" href="./">Voltar para a área da igreja</a>
+    <p class="small">Se o status não for atualizado, entre em contato pelo canal oficial de suporte da Emaús. Não envie senha, token ou dados completos do cartão.</p>
+  </main>
+  <script>
+    const params=new URLSearchParams(location.search);const status=String(params.get('status')||'').toLowerCase();const church=params.get('igreja')||'bethesda';const title=document.querySelector('#title');const box=document.querySelector('#status');document.querySelector('#back').href=`./index.html?igreja=${encodeURIComponent(church)}`;if(['success','approved','active'].includes(status)){title.textContent='Pagamento recebido.';box.className='status ok';box.textContent='A assinatura será confirmada pela API. O acesso será atualizado depois da validação do Mercado Pago.'}else if(['failure','rejected','cancelled'].includes(status)){title.textContent='O pagamento não foi concluído.';box.className='status error';box.textContent='Nenhuma ativação automática será feita enquanto o pagamento não estiver confirmado.'}
+  </script>
+</body>
+</html>

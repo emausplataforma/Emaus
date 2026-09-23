@@ -1,0 +1,11 @@
+Emaús — fundação para comercialização
+
+Frontend: área da igreja, página pública, Recepção, administrador e pagamento.html.
+Backend: server.js e emaus-api/server.js sincronizados, com tabelas de billing_subscriptions, billing_payments e billing_webhook_events.
+Mercado Pago: rotas administrativas de checkout, consulta de assinaturas e webhook assinado/idempotente.
+Acesso: igrejas pausadas, bloqueadas ou com período de teste expirado não autenticam usuários da igreja.
+WhatsApp: fila e consentimentos permanecem preparados, sem envio externo nesta fase.
+Documentação: plano comercial, rascunhos de Termos, Privacidade e Contrato de Piloto.
+Cache frontend: emaus-shell-v66-commercial-foundation.
+Segurança: nenhum token, senha, DATABASE_URL ou segredo foi incluído.
+Validação executada: node --check em server.js, billing-mercadopago.js, admin.js e cópias da API; HTML principal validado pelo parser.
