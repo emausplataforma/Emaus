@@ -1,0 +1,24 @@
+Emaús — ajuste da identificação da igreja
+
+O nome Emaús permanece somente na tela de carregamento de 5 segundos e no administrador da plataforma.
+
+Depois do carregamento, as áreas da igreja mostram o nome da igreja:
+- área da igreja e login: Bethesda;
+- Acolhimento: identidade da igreja ativa;
+- Recepção: Recepção · Bethesda e Recepção da Bethesda;
+- página pública e página Quero conhecer: nome da igreja.
+
+Arquivos para substituir na raiz do GitHub Pages:
+- index.html
+- app.js
+- recepcao.html
+- recepcao/index.html
+- reception.js
+- recepcao/reception.js
+- publica.html
+- publica.js
+- visita.html
+- splash.js
+- service-worker.js
+
+O service worker foi atualizado para emaus-shell-v61-church-name para eliminar o cache anterior. O Railway não precisa ser alterado.

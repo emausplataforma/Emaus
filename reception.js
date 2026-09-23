@@ -17,7 +17,7 @@ let state = loadState();
 let currentUser = null;
 
 async function apiRequest(path, options = {}) {
-  if (!API_BASE) throw new Error('A URL da API da Emaús não foi configurada.');
+  if (!API_BASE) throw new Error('A URL da API da plataforma não foi configurada.');
   const token = sessionStorage.getItem(RECEPTION_TOKEN_KEY);
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -135,6 +135,8 @@ function renderChurchIdentity() {
   const church = getChurch();
   const logo = document.querySelector('#churchLogo');
   document.querySelector('#churchName').textContent = church.name || 'Bethesda';
+  const receptionBrandLabel = document.querySelector('#receptionBrandLabel');
+  if (receptionBrandLabel) receptionBrandLabel.textContent = `Recepção · ${church.name || 'Bethesda'}`;
   document.querySelector('#footerChurchName').textContent = church.name || 'Bethesda';
   document.querySelector('#churchCity').textContent = `${church.city || 'Sua cidade'} · área de acolhimento`;
   document.title = `Recepção · ${church.name || 'Bethesda'}`;
@@ -189,7 +191,7 @@ async function handleLogin(event) {
     showLoggedInView(payload.user);
   } catch (loginError) {
     sessionStorage.removeItem(RECEPTION_TOKEN_KEY);
-    message.textContent = loginError.message || 'Não foi possível conectar à API da Emaús.';
+    message.textContent = loginError.message || 'Não foi possível conectar à API da plataforma.';
     message.classList.remove('hidden');
   } finally {
     button.disabled = false;

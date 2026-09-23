@@ -1,5 +1,5 @@
 const ICON = (name, className = 'icon') => `<svg class="${className}"><use href="#icon-${name}"></use></svg>`;
-const PLATFORM_NAME = 'Emaús';
+const PLATFORM_NAME = 'Área da igreja';
 const VISUAL_STORAGE_KEY = 'emaus-visual-preferences-v1';
 const TODAY = new Date().toISOString().slice(0, 10);
 const DEFAULT_APPEARANCE = { theme: 'light', font: 'editorial', primary: '#d7a84b', accent: '#b86f45' };
@@ -64,7 +64,7 @@ let churchAuthReady = false;
 const viewHistory = [];
 
 async function apiRequest(path, options = {}) {
-  if (!API_BASE) throw new Error('A URL da API da Emaús não foi configurada.');
+  if (!API_BASE) throw new Error('A URL da API da plataforma não foi configurada.');
   const token = sessionStorage.getItem(CHURCH_TOKEN_KEY);
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -153,10 +153,10 @@ function mapApiAnnouncement(announcement) {
 function mapApiActivity(item) {
   return {
     type: item.activity_type || 'general',
-    name: item.name || 'Emaús',
+    name: item.name || 'Igreja',
     text: item.text || 'teve uma alteração registrada.',
     time: activityTime(item.created_at),
-    initials: item.initials || initials(item.name || 'Emaús'),
+    initials: item.initials || initials(item.name || 'Igreja'),
     tone: item.tone || 'dark'
   };
 }
@@ -205,6 +205,7 @@ async function loadRemoteChurchState(user) {
       status: church.status === 'blocked' ? 'Bloqueada' : 'Ativa',
       plan: church.plan_id || 'cuidado'
     }];
+    updateChurchEntryIdentity(state.churches[0]);
   }
   if (serverPublicSettings.growthGoals) state.growthGoals = { ...(state.growthGoals || {}), ...serverPublicSettings.growthGoals };
   if (results[1].ok) state.visitors = (visitorsPayload.visitors || []).map(mapApiVisitor);
@@ -236,6 +237,7 @@ function setSyncStatus(kind = 'idle') {
 function showChurchLogin() {
   $('#churchLoginView')?.classList.remove('is-hidden');
   $('#appShell')?.classList.add('is-hidden');
+  updateChurchEntryIdentity();
 }
 
 function showChurchApp() {
@@ -266,7 +268,7 @@ async function handleChurchLogin(event) {
   } catch (loginError) {
     sessionStorage.removeItem(CHURCH_TOKEN_KEY);
     sessionStorage.removeItem(CHURCH_USER_KEY);
-    error.textContent = loginError.message || 'Não foi possível conectar à API da Emaús.';
+    error.textContent = loginError.message || 'Não foi possível conectar à API da plataforma.';
     error.classList.remove('is-hidden');
   } finally {
     button.disabled = false;
@@ -441,6 +443,18 @@ function eventStatusClass(status) {
 }
 function getActiveChurch() {
   return state.churches.find(church => church.id === state.activeChurchId) || state.churches[0];
+}
+function updateChurchEntryIdentity(church = getActiveChurch()) {
+  const name = church?.name || 'Bethesda';
+  const logo = church?.logoImage || 'bethesda-logo.png';
+  const loginName = $('#churchLoginName');
+  const loginLogo = $('#churchLoginLogo');
+  if (loginName) loginName.textContent = name;
+  if (loginLogo) {
+    loginLogo.src = /^(data:|https?:|\/)/i.test(logo) ? logo : logo.replace(/^\.\//, '');
+    loginLogo.alt = `Logo da ${name}`;
+  }
+  document.title = `${name} · Área da igreja`;
 }
 function isPlatformAdmin() {
   return state.currentUser?.roleKey === 'platform_admin';
@@ -752,7 +766,7 @@ function renderOnboardingPanel() {
   const completed = steps.filter(step => step.done).length;
   if (completed === steps.length) return '';
   const rows = steps.map(step => `<div class="onboarding-step ${step.done ? 'is-done' : ''}"><span class="onboarding-check">${step.done ? ICON('check') : ''}</span><div><strong>${esc(step.label)}</strong><small>${esc(step.help)}</small></div>${step.done ? '<span class="onboarding-done">Concluído</span>' : step.view ? `<button class="btn btn-secondary btn-small" data-view="${esc(step.view)}">Abrir</button>` : `<button class="btn btn-secondary btn-small" data-action="${esc(step.action)}">Abrir</button>`}</div>`).join('');
-  return `<section class="panel onboarding-panel"><div class="panel-header"><div class="panel-heading"><span class="scope-label">PRIMEIROS PASSOS</span><h2>Prepare a ${esc(getActiveChurch()?.name || 'igreja')}</h2><p>${completed} de ${steps.length} etapas concluídas. Os dados ficam no banco da igreja.</p></div><span class="onboarding-progress">${completed}/${steps.length}</span></div><div class="onboarding-list">${rows}</div><p class="field-note" style="margin-top:15px;">Faça uma etapa por vez. A Emaús não envia mensagens externas nesta fase.</p></section>`;
+  return `<section class="panel onboarding-panel"><div class="panel-header"><div class="panel-heading"><span class="scope-label">PRIMEIROS PASSOS</span><h2>Prepare a ${esc(getActiveChurch()?.name || 'igreja')}</h2><p>${completed} de ${steps.length} etapas concluídas. Os dados ficam no banco da igreja.</p></div><span class="onboarding-progress">${completed}/${steps.length}</span></div><div class="onboarding-list">${rows}</div><p class="field-note" style="margin-top:15px;">Faça uma etapa por vez. A plataforma não envia mensagens externas nesta fase.</p></section>`;
 }
 
 function renderCareSummaryPanel() {
@@ -985,10 +999,10 @@ function renderSettings() {
   const publicSettings = { visible: true, headline: church.description || '', history: '', pastorsBio: '', address: church.city || '', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar', ...(church.publicSettings || {}) };
   const bot = { ...DEFAULT_BOT_SETTINGS, ...(publicSettings.bot || {}) };
   const organizationManagement = isPlatformAdmin() ? `<section class="settings-card saas-card" data-settings-panel="saas"><div class="saas-content"><div class="settings-card-header" style="border:0;padding-bottom:0;margin-bottom:0;"><div><h2>Pronto para outras igrejas</h2><p>A administração da plataforma gerencia organizações, planos e responsáveis.</p></div><div class="icon-tile gold">${ICON('crown')}</div></div><div class="plan-line"><span class="plan-badge">Administrador da plataforma</span><span>${state.churches.length} organização${state.churches.length === 1 ? '' : 'ões'} cadastrada${state.churches.length === 1 ? '' : 's'}</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;"><div><strong style="font-size:12px;">Área de organizações</strong><p class="field-note" style="margin-top:5px;">Cadastre novas igrejas, planos e responsáveis em um único painel.</p></div><button class="btn btn-primary" data-action="new-church">${ICON('plus')} Adicionar igreja</button></div></div></section><section class="settings-card" data-settings-panel="saas"><div class="settings-card-header"><div><h2>Igrejas cadastradas</h2><p>Organizações disponíveis nesta conta administradora.</p></div><span class="status-pill status-integrated">${state.churches.length} ativa${state.churches.length === 1 ? '' : 's'}</span></div><div class="tenant-list">${state.churches.map(ch => `<div class="tenant-row"><div class="tenant-logo">${esc(ch.initials || initials(ch.name))}</div><div class="tenant-copy"><strong>${esc(ch.name)}</strong><span>${esc(ch.city)} · ${esc(ch.members || 0)} pessoas alcançadas</span></div><span class="tenant-status">${esc(ch.status || 'Ativa')}</span><button class="table-action" data-action="switch-church" data-id="${esc(ch.id)}" aria-label="Abrir ${esc(ch.name)}">${ICON('chevron-right')}</button></div>`).join('')}</div></section>` : `<section class="settings-card pastor-scope-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Acesso da sua igreja</h2><p>Você está conectado como pastor e administra somente os dados desta organização.</p></div><div class="icon-tile copper">${ICON('shield')}</div></div><div class="pastor-scope-grid"><div><span class="scope-label">IGREJA ATIVA</span><strong>${esc(church.name)}</strong><p>${esc(church.city)} · identidade, visitantes e avisos desta igreja.</p></div><span class="access-scope-badge">PASTOR DA IGREJA</span></div><div class="scope-note"><span>${ICON('check-circle')}</span><p><strong>Você pode editar o nome e o logo</strong> desta igreja em “Identidade da igreja”. As outras igrejas e seus dados ficam protegidos e são administrados pelo administrador da plataforma.</p></div></section>`;
-  const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Backup do banco de dados</h2><p>A proteção dos dados da igreja deve acontecer no PostgreSQL do Railway.</p></div><span class="backup-status"><span></span> GUIADO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Nenhuma cópia de dados é mantida neste navegador</strong><p>O pacote inclui o procedimento de backup e restauração do PostgreSQL.</p></div><span class="backup-version-count">Railway</span></div><p class="field-note backup-note">Ative o backup automático e faça um teste de restauração seguindo <strong>docs/BACKUP-RESTAURACAO-POSTGRES.md</strong>. A Emaús não pede credenciais por este painel.</p></section>`;
+  const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Backup do banco de dados</h2><p>A proteção dos dados da igreja deve acontecer no PostgreSQL do Railway.</p></div><span class="backup-status"><span></span> GUIADO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Nenhuma cópia de dados é mantida neste navegador</strong><p>O pacote inclui o procedimento de backup e restauração do PostgreSQL.</p></div><span class="backup-version-count">Railway</span></div><p class="field-note backup-note">Ative o backup automático e faça um teste de restauração seguindo <strong>docs/BACKUP-RESTAURACAO-POSTGRES.md</strong>. A plataforma não pede credenciais por este painel.</p></section>`;
   const securityCard = `<section class="settings-card security-settings-card" data-settings-panel="team"><div class="settings-card-header"><div><h2>Segurança adicional</h2><p>Preparação para autenticação em dois fatores, sem ativação automática.</p></div><div class="icon-tile green">${ICON('shield')}</div></div><div class="security-status-row"><span class="security-status-dot ${state.currentUser?.twoFactorEnabled ? 'is-on' : ''}"></span><div><strong>${state.currentUser?.twoFactorEnabled ? '2FA ativa para este acesso' : '2FA preparada para ativação guiada'}</strong><p>${state.currentUser?.twoFactorEnabled ? 'O acesso exige uma segunda etapa configurada.' : 'A coluna e a rota de status já estão preparadas, mas nada foi ativado sem orientação.'}</p></div><span class="status-pill ${state.currentUser?.twoFactorEnabled ? 'status-integrated' : 'status-contacted'}">${state.currentUser?.twoFactorEnabled ? 'Ativa' : 'Não ativada'}</span></div><p class="field-note">Para ativar, siga <strong>docs/SEGURANCA-2FA.md</strong> e faça primeiro um teste com uma conta autorizada. Nunca envie senhas, tokens ou códigos por mensagem.</p></section>`;
   const profile = state.currentUser || {};
-  const profileCard = `<section class="settings-card treatment-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Forma de tratamento do pastor</h2><p>Escolha como a plataforma deve se dirigir a você no painel e nas futuras mensagens personalizadas.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><form data-form="profile"><div class="form-grid"><div class="form-field"><label for="profilePreferredName">Nome de preferência</label><input class="input" id="profilePreferredName" name="preferredName" value="${esc(profile.preferredName || '')}" placeholder="Como prefere ser chamado(a)"></div><div class="form-field"><label for="profileGender">Forma de tratamento</label><select class="select" id="profileGender" name="gender"><option value="unspecified" ${normalizedGender(profile) === 'unspecified' ? 'selected' : ''}>Não informar</option><option value="female" ${normalizedGender(profile) === 'female' ? 'selected' : ''}>Feminino — pastora, bem-vinda</option><option value="male" ${normalizedGender(profile) === 'male' ? 'selected' : ''}>Masculino — pastor, bem-vindo</option><option value="plural" ${normalizedGender(profile) === 'plural' ? 'selected' : ''}>Plural — pastores, bem-vindos</option></select></div></div><p class="field-note">A Emaús não tenta adivinhar o tratamento pelo nome. A escolha fica sob controle da própria pessoa.</p><div class="modal-actions"><button type="submit" class="btn btn-gold">${ICON('check')} Salvar tratamento</button></div></form></section>`;
+  const profileCard = `<section class="settings-card treatment-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Forma de tratamento do pastor</h2><p>Escolha como a plataforma deve se dirigir a você no painel e nas futuras mensagens personalizadas.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><form data-form="profile"><div class="form-grid"><div class="form-field"><label for="profilePreferredName">Nome de preferência</label><input class="input" id="profilePreferredName" name="preferredName" value="${esc(profile.preferredName || '')}" placeholder="Como prefere ser chamado(a)"></div><div class="form-field"><label for="profileGender">Forma de tratamento</label><select class="select" id="profileGender" name="gender"><option value="unspecified" ${normalizedGender(profile) === 'unspecified' ? 'selected' : ''}>Não informar</option><option value="female" ${normalizedGender(profile) === 'female' ? 'selected' : ''}>Feminino — pastora, bem-vinda</option><option value="male" ${normalizedGender(profile) === 'male' ? 'selected' : ''}>Masculino — pastor, bem-vindo</option><option value="plural" ${normalizedGender(profile) === 'plural' ? 'selected' : ''}>Plural — pastores, bem-vindos</option></select></div></div><p class="field-note">A plataforma não tenta adivinhar o tratamento pelo nome. A escolha fica sob controle da própria pessoa.</p><div class="modal-actions"><button type="submit" class="btn btn-gold">${ICON('check')} Salvar tratamento</button></div></form></section>`;
   return `
     <section class="page-head"><div><span class="eyebrow">ÁREA ADMINISTRATIVA</span><h1>Configurações</h1><p>Personalize a experiência da ${esc(church.name)} e prepare sua igreja para crescer.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="open-public-page">${ICON('external')} Ver página pública</button><button class="btn btn-gold" data-action="save-settings">${ICON('check')} Salvar alterações</button></div></section>
     <div class="settings-layout"><aside class="settings-nav"><button class="active" data-settings-section="organization">${ICON('building')} Igreja</button><button data-settings-section="public">${ICON('external')} Página pública</button><button data-settings-section="notifications">${ICON('bell')} Notificações</button><button data-settings-section="team">${ICON('users')} Equipe e acesso</button>${isPlatformAdmin() ? `<button data-settings-section="saas">${ICON('crown')} Plataforma SaaS</button>` : ''}</aside><div class="settings-panels">
@@ -1121,7 +1135,7 @@ function openModal(type, data = {}) {
   } else if (type === 'member') {
     modalTitle = 'Novo membro';
     modalEyebrow = 'COMUNIDADE';
-    content = `<form data-form="member"><div class="form-grid"><div class="form-field full"><label for="memberName">Nome completo *</label><input class="input" id="memberName" name="name" required placeholder="Ex.: Ana Oliveira"></div><div class="form-field"><label for="memberPreferredName">Como prefere ser chamada?</label><input class="input" id="memberPreferredName" name="preferredName" placeholder="Nome de preferência"></div><div class="form-field"><label for="memberGender">Forma de tratamento</label><select class="select" id="memberGender" name="gender"><option value="unspecified">Não informar</option><option value="female">Feminino</option><option value="male">Masculino</option></select></div><div class="form-field"><label for="memberPhone">Telefone</label><input class="input" id="memberPhone" name="phone" placeholder="(21) 99999-9999"></div><div class="form-field"><label for="memberEmail">E-mail</label><input class="input" id="memberEmail" name="email" type="email" placeholder="nome@email.com"></div><div class="form-field"><label for="memberMinistry">Ministério</label><input class="input" id="memberMinistry" name="ministry" list="memberMinistryOptions" autocomplete="off" placeholder="Ex.: Louvor"><datalist id="memberMinistryOptions">${(state.ministries || []).map(ministry => `<option value="${esc(ministry.name || ministry)}"></option>`).join('')}</datalist><p class="field-note">Escolha um ministério já cadastrado ou digite um novo. Antes de salvar, pediremos confirmação para cadastrar o novo ministério.</p></div><div class="form-field"><label for="memberJoinedAt">Data de integração</label><input class="input" id="memberJoinedAt" name="joinedAt" type="date" value="${TODAY}"></div><div class="form-field full"><label class="check-row"><input type="checkbox" name="communicationConsent"><span><strong>Autoriza comunicações da igreja</strong><small>Use somente para avisos e contatos pastorais autorizados.</small></span></label><label class="check-row" style="margin-top:10px;"><input type="checkbox" name="locationConsent"><span><strong>Autoriza recurso futuro de presença por localização</strong><small>Esta autorização não ativa rastreamento automático enquanto a Emaús não tiver o recurso móvel correspondente.</small></span></label></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('users')} Salvar membro</button></div></form>`;
+    content = `<form data-form="member"><div class="form-grid"><div class="form-field full"><label for="memberName">Nome completo *</label><input class="input" id="memberName" name="name" required placeholder="Ex.: Ana Oliveira"></div><div class="form-field"><label for="memberPreferredName">Como prefere ser chamada?</label><input class="input" id="memberPreferredName" name="preferredName" placeholder="Nome de preferência"></div><div class="form-field"><label for="memberGender">Forma de tratamento</label><select class="select" id="memberGender" name="gender"><option value="unspecified">Não informar</option><option value="female">Feminino</option><option value="male">Masculino</option></select></div><div class="form-field"><label for="memberPhone">Telefone</label><input class="input" id="memberPhone" name="phone" placeholder="(21) 99999-9999"></div><div class="form-field"><label for="memberEmail">E-mail</label><input class="input" id="memberEmail" name="email" type="email" placeholder="nome@email.com"></div><div class="form-field"><label for="memberMinistry">Ministério</label><input class="input" id="memberMinistry" name="ministry" list="memberMinistryOptions" autocomplete="off" placeholder="Ex.: Louvor"><datalist id="memberMinistryOptions">${(state.ministries || []).map(ministry => `<option value="${esc(ministry.name || ministry)}"></option>`).join('')}</datalist><p class="field-note">Escolha um ministério já cadastrado ou digite um novo. Antes de salvar, pediremos confirmação para cadastrar o novo ministério.</p></div><div class="form-field"><label for="memberJoinedAt">Data de integração</label><input class="input" id="memberJoinedAt" name="joinedAt" type="date" value="${TODAY}"></div><div class="form-field full"><label class="check-row"><input type="checkbox" name="communicationConsent"><span><strong>Autoriza comunicações da igreja</strong><small>Use somente para avisos e contatos pastorais autorizados.</small></span></label><label class="check-row" style="margin-top:10px;"><input type="checkbox" name="locationConsent"><span><strong>Autoriza recurso futuro de presença por localização</strong><small>Esta autorização não ativa rastreamento automático enquanto a plataforma não tiver o recurso móvel correspondente.</small></span></label></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('users')} Salvar membro</button></div></form>`;
   } else if (type === 'member-detail') {
     const member = (state.members || []).find(item => item.id === data.id);
     if (!member) return;

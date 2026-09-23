@@ -85,7 +85,7 @@ function renderPage(payload) {
   setText('contactHours', hours);
   setText('contactDescription', description);
   setText('footerName', church.name, 'Igreja');
-  document.title = `${church.name || 'Igreja'} · Emaús`;
+  document.title = `${church.name || 'Igreja'} · Página da igreja`;
   const visitorPath = `visita.html?igreja=${encodeURIComponent(church.slug || slug)}`;
   ['headerCta', 'heroCta', 'contactCta'].forEach(id => { const el = document.getElementById(id); if (el) { el.firstChild.nodeValue = `${cta} `; el.href = visitorPath; } });
   setLogo('brandSymbol', 'brandImage', church, settings.logoSymbol || '');
@@ -95,7 +95,7 @@ function renderPage(payload) {
   setText('footerYear', String(new Date().getFullYear()));
 }
 async function init() {
-  if (!API_BASE) return showError('Página pública', 'A URL da API da Emaús ainda não foi configurada.');
+  if (!API_BASE) return showError('Página pública', 'A URL da API da plataforma ainda não foi configurada.');
   try {
     const response = await fetch(`${API_BASE}/api/public/church?slug=${encodeURIComponent(slug)}`);
     const payload = await response.json();
