@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS churches (
   description TEXT NOT NULL DEFAULT '',
   logo_url TEXT NOT NULL DEFAULT '',
   plan_id TEXT REFERENCES plans(id),
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked', 'trial')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked', 'trial', 'paused')),
   member_count INTEGER NOT NULL DEFAULT 0,
   monthly_price_cents INTEGER NOT NULL DEFAULT 0,
   founder_price_freeze BOOLEAN NOT NULL DEFAULT FALSE,
@@ -179,6 +179,36 @@ CREATE TABLE IF NOT EXISTS audit_events (
   action TEXT NOT NULL,
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS platform_support_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID REFERENCES churches(id) ON DELETE SET NULL,
+  requester_name TEXT NOT NULL DEFAULT '',
+  requester_email TEXT NOT NULL DEFAULT '',
+  subject TEXT NOT NULL,
+  message TEXT NOT NULL DEFAULT '',
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS platform_leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  church_id UUID REFERENCES churches(id) ON DELETE SET NULL,
+  church_name TEXT NOT NULL,
+  city TEXT NOT NULL DEFAULT '',
+  contact_name TEXT NOT NULL DEFAULT '',
+  contact_email TEXT NOT NULL DEFAULT '',
+  contact_phone TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL DEFAULT 'indicação',
+  status TEXT NOT NULL DEFAULT 'interested' CHECK (status IN ('interested', 'onboarding', 'trial', 'converted', 'lost')),
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS church_activity (

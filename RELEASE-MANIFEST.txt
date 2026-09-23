@@ -1,12 +1,8 @@
-Emaús — automação preparada para Zapster v1.4
-Frontend: shell v58 / app.js?v=58 / publica.js?v=58
-Backend: fila PostgreSQL idempotente no serviço Emaus; nenhuma mensagem externa é enviada nesta etapa.
-Instância: modo platform_shared — uma instância/número da plataforma atende várias igrejas; a mensagem usa o nome da igreja e o church_id mantém o isolamento.
-Fluxo visitante: página pública às 22:30 no dia da visita; vídeo do YouTube + pergunta SIM/NÃO às 17:00 do dia seguinte.
-Fluxo culto: lembrete às 17:00 do dia anterior para membros ativos com telefone e autorização de comunicação.
-Sequência do visitante: uma única vez por contato/telefone; pergunta de continuidade uma vez; NÃO cancela novos envios.
-Pastor: registro de divulgação para toda a igreja, membros, visitantes autorizados ou ministério específico.
-Vídeo vazio: segunda mensagem bloqueada até o pastor cadastrar link válido do YouTube.
-Canal futuro: WhatsApp via Zapster. Instância, webhook e credenciais ficam para ativação guiada.
-Identidade: o número central permanecerá visível; o texto usa o nome da igreja conforme escolha do responsável.
-Escopo: publicar somente no serviço Emaus; não modificar glow-platform, Postgres ou volumes de outros serviços.
+Emaús — expansão do Administrador central v1.5
+Frontend: admin.html / admin.js / admin.css com visão geral em cartões, detalhes, edição, status, pipeline, planos, financeiro, suporte, configurações, 2FA e auditoria.
+Backend: server.js/schema.sql com rotas administrativas de detalhes, edição/status, leads, suporte e tabelas persistentes platform_leads/platform_support_requests.
+Financeiro: sem DEFAULT_FINANCE e sem números de demonstração no administrador; receita/gastos/resultado vêm do PostgreSQL ou aparecem como Indisponível.
+Isolamento: consultas administrativas de detalhes e atividades são vinculadas ao church_id; nenhuma alteração foi feita em glow-platform.
+Bot: permanece preparado, sem envio externo Zapster até ativação explícita; senderMode platform_shared e senderLabelMode church_only permanecem no backend.
+Publicação: atualize o frontend no GitHub Pages e publique emaus-api/ no serviço Railway Emaús para habilitar as rotas novas.
+Segurança: não há senhas, tokens, DATABASE_URL, chaves privadas ou segredos neste pacote.

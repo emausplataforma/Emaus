@@ -522,12 +522,110 @@ app.post('/api/admin/churches', auth(['platform_admin']), async (req, res) => {
   res.status(201).json({ church });
 });
 
+app.patch('/api/admin/churches/:churchId', auth(['platform_admin']), async (req, res) => {
+  const name = req.body.name === undefined ? null : String(req.body.name || '').trim();
+  const city = req.body.city === undefined ? null : String(req.body.city || '').trim();
+  const phone = req.body.phone === undefined ? null : String(req.body.phone || '').trim();
+  const pastors = req.body.pastors === undefined ? null : String(req.body.pastors || '').trim();
+  const planId = req.body.planId === undefined ? null : String(req.body.planId || '').trim();
+  if (name !== null && !name) return res.status(400).json({ error: 'Nome da igreja é obrigatório.' });
+  if (planId !== null) {
+    const plan = (await query('SELECT id FROM plans WHERE id = $1 AND active = TRUE', [planId])).rows[0];
+    if (!plan) return res.status(400).json({ error: 'Plano não encontrado.' });
+  }
+  const result = await query(`UPDATE churches SET
+    name = COALESCE($1, name), city = COALESCE($2, city), phone = COALESCE($3, phone), pastors = COALESCE($4, pastors),
+    plan_id = COALESCE($5, plan_id),
+    monthly_price_cents = CASE WHEN $5 IS NULL THEN monthly_price_cents ELSE COALESCE((SELECT price_cents FROM plans WHERE id = $5), monthly_price_cents) END,
+    updated_at = NOW() WHERE id = $6 RETURNING *`, [name, city, phone, pastors, planId, req.params.churchId]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  await audit(req.user, 'church_updated', { churchId: req.params.churchId, fields: Object.keys(req.body).slice(0, 10) }, req.params.churchId);
+  res.json({ church: result.rows[0] });
+});
+
+app.get('/api/admin/churches/:churchId/summary', auth(['platform_admin']), async (req, res) => {
+  const church = (await query(`SELECT c.*, p.name AS plan_name, p.member_limit, p.user_limit
+    FROM churches c LEFT JOIN plans p ON p.id = c.plan_id WHERE c.id = $1`, [req.params.churchId])).rows[0];
+  if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  const [members, visitors, events, users, bot, activity] = await Promise.all([
+    query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active FROM members WHERE church_id = $1", [church.id]),
+    query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE visit_date >= CURRENT_DATE - INTERVAL '30 days')::int AS recent FROM visitors WHERE church_id = $1", [church.id]),
+    query("SELECT COUNT(*)::int AS total FROM church_events WHERE church_id = $1 AND status = 'active' AND event_date >= CURRENT_DATE", [church.id]),
+    query("SELECT COUNT(*)::int AS total FROM users WHERE church_id = $1 AND status = 'active'", [church.id]),
+    query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status IN ('planned', 'blocked_missing_video'))::int AS pending FROM bot_delivery_queue WHERE church_id = $1", [church.id]),
+    query("SELECT id, action, payload, created_at FROM audit_events WHERE church_id = $1 ORDER BY created_at DESC LIMIT 8", [church.id])
+  ]);
+  res.json({ church, summary: { members: members.rows[0], visitors: visitors.rows[0], upcomingEvents: events.rows[0].total, users: users.rows[0].total, bot: bot.rows[0] }, activity: activity.rows });
+});
+
 app.patch('/api/admin/churches/:churchId/status', auth(['platform_admin']), async (req, res) => {
-  const status = req.body.status === 'blocked' ? 'blocked' : 'active';
+  const requestedStatus = String(req.body.status || '').trim();
+  const allowedStatuses = ['active', 'blocked', 'trial', 'paused'];
+  const status = allowedStatuses.includes(requestedStatus) ? requestedStatus : null;
+  if (!status) return res.status(400).json({ error: 'Status administrativo inválido.' });
   const result = await query('UPDATE churches SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [status, req.params.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
-  await audit(req.user, status === 'blocked' ? 'church_blocked' : 'church_released', { churchId: req.params.churchId }, req.params.churchId);
+  await audit(req.user, status === 'blocked' ? 'church_blocked' : 'church_status_updated', { churchId: req.params.churchId, status }, req.params.churchId);
   res.json({ church: result.rows[0] });
+});
+
+app.get('/api/admin/support', auth(['platform_admin']), async (req, res) => {
+  const result = await query(`SELECT s.*, c.name AS church_name
+    FROM platform_support_requests s LEFT JOIN churches c ON c.id = s.church_id
+    ORDER BY s.created_at DESC LIMIT 100`);
+  res.json({ requests: result.rows });
+});
+
+app.post('/api/admin/support', auth(['platform_admin']), async (req, res) => {
+  const subject = String(req.body.subject || '').trim();
+  const message = String(req.body.message || '').trim();
+  if (!subject || !message) return res.status(400).json({ error: 'Assunto e descrição são obrigatórios.' });
+  const priority = ['low', 'normal', 'high', 'urgent'].includes(req.body.priority) ? req.body.priority : 'normal';
+  const churchId = req.body.churchId ? String(req.body.churchId) : null;
+  if (churchId) {
+    const church = (await query('SELECT id FROM churches WHERE id = $1', [churchId])).rows[0];
+    if (!church) return res.status(400).json({ error: 'Igreja não encontrada.' });
+  }
+  const result = await query(`INSERT INTO platform_support_requests (church_id, requester_name, requester_email, subject, message, priority)
+    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`, [churchId, String(req.body.requesterName || '').trim(), String(req.body.requesterEmail || '').trim().toLowerCase(), subject, message, priority]);
+  await audit(req.user, 'support_request_created', { requestId: result.rows[0].id, churchId });
+  res.status(201).json({ request: result.rows[0] });
+});
+
+app.patch('/api/admin/support/:requestId', auth(['platform_admin']), async (req, res) => {
+  const status = ['open', 'in_progress', 'resolved'].includes(req.body.status) ? req.body.status : null;
+  if (!status) return res.status(400).json({ error: 'Status de suporte inválido.' });
+  const result = await query(`UPDATE platform_support_requests SET status = $1, resolved_at = CASE WHEN $1 = 'resolved' THEN NOW() ELSE NULL END, updated_at = NOW()
+    WHERE id = $2 RETURNING *`, [status, req.params.requestId]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Solicitação não encontrada.' });
+  await audit(req.user, 'support_request_updated', { requestId: req.params.requestId, status });
+  res.json({ request: result.rows[0] });
+});
+
+app.get('/api/admin/leads', auth(['platform_admin']), async (req, res) => {
+  const result = await query(`SELECT l.*, c.name AS linked_church_name
+    FROM platform_leads l LEFT JOIN churches c ON c.id = l.church_id
+    ORDER BY l.created_at DESC LIMIT 200`);
+  res.json({ leads: result.rows });
+});
+
+app.post('/api/admin/leads', auth(['platform_admin']), async (req, res) => {
+  const churchName = String(req.body.churchName || '').trim();
+  if (!churchName) return res.status(400).json({ error: 'Nome da igreja interessada é obrigatório.' });
+  const status = ['interested', 'onboarding', 'trial', 'converted', 'lost'].includes(req.body.status) ? req.body.status : 'interested';
+  const result = await query(`INSERT INTO platform_leads (church_name, city, contact_name, contact_email, contact_phone, source, status, notes)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`, [churchName, String(req.body.city || '').trim(), String(req.body.contactName || '').trim(), String(req.body.contactEmail || '').trim().toLowerCase(), String(req.body.contactPhone || '').trim(), String(req.body.source || 'indicação').trim(), status, String(req.body.notes || '').trim()]);
+  await audit(req.user, 'lead_created', { leadId: result.rows[0].id, status });
+  res.status(201).json({ lead: result.rows[0] });
+});
+
+app.patch('/api/admin/leads/:leadId', auth(['platform_admin']), async (req, res) => {
+  const status = ['interested', 'onboarding', 'trial', 'converted', 'lost'].includes(req.body.status) ? req.body.status : null;
+  if (!status) return res.status(400).json({ error: 'Status de lead inválido.' });
+  const result = await query('UPDATE platform_leads SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [status, req.params.leadId]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Igreja interessada não encontrada.' });
+  await audit(req.user, 'lead_status_updated', { leadId: req.params.leadId, status });
+  res.json({ lead: result.rows[0] });
 });
 
 app.get('/api/admin/plans', auth(['platform_admin']), async (req, res) => {
@@ -1071,6 +1169,23 @@ app.get('/api/audit', auth(['platform_admin']), async (req, res) => {
 });
 
 async function ensureColumnCompatibility() {
+  await query(`CREATE TABLE IF NOT EXISTS platform_support_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    church_id UUID REFERENCES churches(id) ON DELETE SET NULL,
+    requester_name TEXT NOT NULL DEFAULT '', requester_email TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL,
+    message TEXT NOT NULL DEFAULT '', priority TEXT NOT NULL DEFAULT 'normal', status TEXT NOT NULL DEFAULT 'open',
+    assigned_to UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), resolved_at TIMESTAMPTZ
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS platform_leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), church_id UUID REFERENCES churches(id) ON DELETE SET NULL,
+    church_name TEXT NOT NULL, city TEXT NOT NULL DEFAULT '', contact_name TEXT NOT NULL DEFAULT '',
+    contact_email TEXT NOT NULL DEFAULT '', contact_phone TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'indicação',
+    status TEXT NOT NULL DEFAULT 'interested', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await query("ALTER TABLE churches DROP CONSTRAINT IF EXISTS churches_status_check");
+  await query("ALTER TABLE churches ADD CONSTRAINT churches_status_check CHECK (status IN ('active', 'blocked', 'trial', 'paused'))");
   await query(`CREATE TABLE IF NOT EXISTS church_announcements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     church_id UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,

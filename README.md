@@ -93,3 +93,18 @@ O frontend usa `api-config.js` apenas para o endereço público da API. Não inc
 - feed de atividade da igreja persistido e carregado por todos os acessos autorizados.
 
 - Bot WhatsApp preparado para futura instância Zapster: `docs/BOT-ZAPSTER.md`.
+
+## Administrador central Emaús — atualização v1.5
+
+Esta atualização amplia `/admin.html` sem tocar em qualquer serviço `glow-platform`:
+
+- visão geral em cartões por igreja, com status ativa, em teste, vencida, pausada e bloqueada;
+- cadastro, edição, ativação, pausa, bloqueio, busca, filtros e tela de detalhes por igreja;
+- pipeline persistente para igrejas interessadas, em implantação, em teste, convertidas e encerradas;
+- planos, preços, limites e recursos carregados do PostgreSQL;
+- financeiro com receita cadastrada, gastos do mês e resultado; não há série financeira ou números de demonstração no frontend;
+- solicitações de suporte e histórico persistente;
+- configurações, estado de 2FA, auditoria e avisos explícitos quando backup não foi verificado;
+- detalhes agregados por `church_id`, mantendo o isolamento entre igrejas.
+
+As rotas administrativas novas ficam no serviço Railway Emaús: detalhes de igreja, edição/status, pipeline, suporte e histórico. Depois de atualizar o frontend no GitHub Pages, publique também o conteúdo de `emaus-api/` no serviço Railway Emaus para habilitar todos os botões novos. Não coloque senhas, tokens ou chaves privadas no GitHub.
