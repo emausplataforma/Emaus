@@ -1,0 +1,10 @@
+Ajuste visual da área da igreja
+
+O layout original da área da igreja foi mantido. A única alteração visual feita é o fundo da barra lateral esquerda, que agora usa um degradê marrom/cobre.
+
+Não foram alterados o menu, os botões, a disposição dos elementos ou o conteúdo da tela.
+
+Arquivo principal alterado:
+- styles.css
+
+O service worker foi atualizado para emaus-shell-v64-church-sidebar-copper.
