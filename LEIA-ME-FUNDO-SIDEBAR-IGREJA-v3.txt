@@ -1,0 +1,10 @@
+Ajuste visual da área da igreja
+
+O layout original da área da igreja foi mantido. O fundo da barra lateral esquerda agora usa um grafite suave com leve tom quente, integrando-se melhor ao painel escuro principal.
+
+Não foram alterados o menu, os botões, a disposição dos elementos ou o conteúdo da tela.
+
+Arquivo principal alterado:
+- styles.css
+
+O service worker foi atualizado para emaus-shell-v65-church-sidebar-graphite.
