@@ -28,7 +28,7 @@ async function apiRequest(path, options = {}) {
   const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const request = { ...options, headers };
+  const request = { ...options, cache: 'no-store', headers };
   if (options.body && typeof options.body !== 'string') request.body = JSON.stringify(options.body);
   const response = await fetch(`${API_BASE}${path}`, request);
   let payload = {};

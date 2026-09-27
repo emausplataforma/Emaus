@@ -97,7 +97,7 @@ function renderPage(payload) {
 async function init() {
   if (!API_BASE) return showError('Página pública', 'A URL da API da plataforma ainda não foi configurada.');
   try {
-    const response = await fetch(`${API_BASE}/api/public/church?slug=${encodeURIComponent(slug)}`);
+    const response = await fetch(`${API_BASE}/api/public/church?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Igreja não encontrada.');
     renderPage(payload);

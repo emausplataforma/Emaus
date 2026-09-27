@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emaus-shell-v66-commercial-foundation';
+const CACHE_NAME = 'emaus-shell-v67-api-not-cached';
 const APP_SHELL = ['./', './index.html', './styles.css', './splash.css', './splash.js', './app.js', './api-config.js', './manifest.json', './bethesda-logo.png', './recepcao.html', './reception.js', './admin.html', './admin.css', './admin.js', './emaus-admin-logo.png', './publica.html', './publica.css', './publica.js', './visita.html', './pagamento.html', './privacidade.html'];
 
 self.addEventListener('install', event => {
@@ -14,8 +14,20 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
   const request = event.request;
+  if (request.method !== 'GET') return;
+
+  // A API nunca passa por aqui: dados da igreja (visitantes, agenda, presence)
+  // precisam ser sempre a resposta mais recente do servidor. Guardar GET da API
+  // no cache fazia um cadastro novo da recepcao nao aparecer na area do pastor.
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch (error) {
+    return;
+  }
+  if (url.origin !== self.location.origin) return;
+
   const isNavigation = request.mode === 'navigate';
   event.respondWith(
     (isNavigation ? fetch(request) : caches.match(request).then(cached => cached || fetch(request)))

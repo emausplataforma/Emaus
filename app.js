@@ -68,7 +68,7 @@ async function apiRequest(path, options = {}) {
   const token = sessionStorage.getItem(CHURCH_TOKEN_KEY);
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body });
+  const response = await fetch(`${API_BASE}${path}`, { ...options, cache: 'no-store', headers, body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body });
   let payload = {};
   try { payload = await response.json(); } catch (error) {}
   if (!response.ok) {

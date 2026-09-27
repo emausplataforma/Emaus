@@ -1,0 +1,75 @@
+CORRECAO URGENTE - VISITANTE CADASTRADO NAO APARECIA NA AREA DO PASTOR
+Data: 27/09/2026
+Cache do app: emaus-shell-v66-commercial-foundation -> emaus-shell-v67-api-not-cached
+
+=====================================================================
+O QUE ESTAVA ACONTECENDO
+=====================================================================
+O service-worker.js interceptava TODAS as requisicoes GET, inclusive
+as chamadas da API no Railway, e as servia a partir do cache local do
+aparelho (estrategia "cache first").
+
+Como a rota GET /api/church/visitors e sempre a mesma URL, o navegador
+devolvia a lista ANTIGA para sempre. Resultado: a recepcao cadastrava
+o visitante com sucesso (o cadastro entrava no banco), mas a area do
+pastor continuava mostrando a lista velha, mesmo apos atualizar a pagina.
+
+Nao era falha de uso e nao era problema no banco de dados.
+
+=====================================================================
+O QUE FOI CORRIGIDO
+=====================================================================
+1) service-worker.js
+   - Passa a ignorar qualquer requisicao de outro dominio (a API).
+     So o frontend (GitHub Pages) usa o cache.
+   - Nome do cache atualizado para emaus-shell-v67-api-not-cached,
+     o que faz todo aparelho descartar o cache antigo e "envenenado".
+
+2) app.js, reception.js, admin.js, publica.js
+   - As chamadas a API passaram a usar cache: 'no-store', garantindo
+     leitura fresca mesmo em outros navegadores ou proxies.
+   - Isso NAO adiciona header customizado, portanto nao gera preflight
+     CORS e nao exige nenhuma mudanca no Railway.
+
+Nenhum arquivo do backend foi alterado. Nenhuma credencial foi incluida.
+Nenhuma mudanca visual ou de identidade foi feita.
+
+=====================================================================
+COMO APLICAR AGORA (frontend so - nao mexe na API)
+=====================================================================
+1) GitHub -> repositorio emausplataforma/Emaus
+2) Add file -> Upload files
+3) Envie os arquivos deste pacote (eles vao na RAIZ do repositorio)
+4) Commit -> aguarde cerca de 1 minuto
+5) No celular/computador do pastor, UMA unica vez, faca o passo de
+   limpeza abaixo (o cache antigo so sai depois que o novo service
+   worker for instalado).
+
+=====================================================================
+DESTRAVAR O APARELHO QUE JA ESTA COM O CACHE ANTIGO
+=====================================================================
+Android / Chrome:
+  Menu (3 pontos) -> Configuracoes -> Aplicativos -> Chrome ->
+  Armazenamento -> Limpar dados do site (ou limpe so o GitHub Pages)
+  Jeito mais rapido: abra o site, toque no cadeado/icone no inicio da
+  barra de endereco -> "Envio de dados" -> "Limpar dados".
+
+iPhone / Safari:
+  Ajustes -> Safari -> Avancado -> Dados de sites do Site ->
+  Deslize para esquerda em github.io -> Apagar.
+  Alternativa: Ajustes -> Geral -> Armazenamento do iPhone ->
+  Aplicativos -> Safari -> Apagar dados do site.
+
+Depois feche o navegador e abra de novo.
+
+EMERGENCIA DURANTE A DEMONSTRACAO (sem limpar nada):
+  Aba anonima / privada nao tem service worker nem cache.
+  Faca o login do pastor em uma aba privada e o visitante aparece na hora.
+
+=====================================================================
+COMO CONFERIR SE FICOU CERTO
+=====================================================================
+1) Recepcao: cadastre "TESTE Cache".
+2) Area do pastor, aba Acolhimento: atualize a pagina (F5 ou puxar para baixo).
+3) "TESTE Cache" deve aparecer em ate 1 segundo.
+=====================================================================
