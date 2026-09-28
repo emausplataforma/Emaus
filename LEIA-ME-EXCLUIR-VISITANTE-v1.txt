@@ -1,0 +1,101 @@
+EXCLUSÃO DE VISITANTE — NOVA AÇÃO NA ÁREA DO PASTOR
+Data: 27/09/2026 (madrugada de 28/09)
+Cache do app: emaus-shell-v68-visitor-delete
+Depende de: emaus-correcao-cache-visitante-v1.zip (já publicado, commit 9a8cea52)
+
+=====================================================================
+O QUE MUDOU
+=====================================================================
+No detalhe do visitante (Acolhimento ou lista de Visitantes) apareceu o
+botão "Excluir visitante", na cor de alerta.
+
+Regras de segurança escolhidas:
+
+1) Só o ADMINISTRADOR DA IGREJA (pastor) exclui. A equipe da recepção
+   continua apenas cadastrando — se tentar, a API responde
+   "Permissão insuficiente." (HTTP 403). O botão simplesmente não
+   aparece para a recepção.
+
+2) Antes de excluir, a tela pede confirmação e avisa quando o registro
+   reúne uma família.
+
+3) O acompanhamento pastoral nunca é perdido em silêncio:
+   - Se o visitante tem um cuidado EM ABERTO (pending/in_progress) só
+     para ele, a exclusão é BLOQUEADA com HTTP 409 e a mensagem
+     "Conclua ou cancele o acompanhamento antes de excluir o cadastro."
+   - Se o cuidado também aponta para um membro, ele é MANTIDO na lista
+     e só perde o vínculo com o visitante.
+   - Cuidados já encerrados (done/cancelled) saem junto, e a resposta
+     informa quantos foram removidos.
+
+4) Envios do bot ainda planejados para essa pessoa são cancelados com o
+   motivo "Visitante removido pela equipe da igreja." Nenhum envio
+   externo é ativado nesta fase.
+
+5) Toda exclusão é auditada com o retrato do que foi apagado (nome,
+   telefone, data da visita, observações, responsável), o que permite
+   recuperação manual se a igreja precisar.
+
+=====================================================================
+ARQUIVOS ALTERADOS
+=====================================================================
+Backend (precisa de deploy no Railway):
+  server.js ......... nova rota DELETE /api/church/visitors/:visitorId
+                      (transação, checagem de cuidado, auditoria)
+  emaus-api/server.js ... mesma cópia sincronizada
+
+Frontend (GitHub Pages):
+  app.js ............ botão no modal, permissão por papel, confirmação
+                      e mensagens de sucesso/erro
+  service-worker.js . cache v68-visitor-delete
+
+Nada de visual/identidade foi alterado. Nenhuma credencial foi incluida.
+
+=====================================================================
+COMO PUBLICAR (sao DOIS destinos)
+=====================================================================
+PASSO 1 - Frontend (funciona na hora)
+  GitHub -> emausplataforma/Emaus -> Add file -> Upload files
+  -> envie os arquivos deste pacote na RAIZ -> Commit
+
+PASSO 2 - Backend (obrigatorio para o botao funcionar)
+  Os mesmos arquivos vao para o mesmo repositorio, e o servico Emaus no
+  Railway precisa ser republicado. ATENCAO: enquanto o redeploy do
+  Railway nao for feito (pendencia da conexao com o repositorio
+  renomeado), o botao vai responder erro, porque a API em producao ainda
+  roda o build antigo de 22/09 e nao conhece a rota nova.
+  Publicar o backend no Railway tambem resolve a cobranca que esta
+  pendente - e o mesmo deploy.
+
+=====================================================================
+COMO TESTAR DEPOIS (2 minutos)
+=====================================================================
+1) Recepcao: cadastre "TESTE Excluir".
+2) Area do pastor (aba anonima, para furos de cache): Acolhimento ->
+   abra o "TESTE Excluir" -> clique em "Excluir visitante" -> confirmar.
+   Esperado: mensagem "Cadastro de TESTE Excluir excluído."
+3) Abra a lista de Visitantes: o nome nao deve mais aparecer.
+4) Cadastre um visitante, crie um "Cuidado" para ele (botao Criar
+   cuidado) e tente excluir o visitante.
+   Esperado: aviso de que ha 1 acompanhamento em aberto e o cadastro
+   CONTINUA na lista. Cancele o cuidado e repita: agora exclui.
+=====================================================================
+O QUE FICOU PENDENTE (inventario honesto)
+=====================================================================
+- Nao ha "desfazer" nem lixeira: a exclusao e definitiva. Se a igreja
+  quiser uma lixeira de 30 dias, e um incremento planejado, nao um bug.
+- A pagina da recepcao (recepcao.html) nao ganhou exclusao, de proposito:
+  quem apaga dado e o pastor.
+- A API nao tem rede global contra erro inesperado de banco: uma query
+  que estoure dentro de qualquer rota derruba o processo Node inteiro
+  (comportamento padrao do Node 20 para promise rejeitada sem catch).
+  Foi assim que a primeira versao desta rota se comportou. Agora a rota
+  de exclusao usa transacao com try/catch, entao ela mesma nao derruba
+  mais a API.
+
+  MEDIDO NESTE PACOTE: das 63 rotas da API, 60 nao tem try/catch. Ou
+  seja, uma unica query que estoure (banco oscilando, replica reiniciando)
+  derruba o servico para TODAS as igrejas ao mesmo tempo. Isso vale ser
+  tratado antes de qualquer cobranca entrar no ar, porque a cobranca
+  depende do webhook responder sempre.
+=====================================================================

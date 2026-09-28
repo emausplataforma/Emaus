@@ -923,6 +923,45 @@ app.patch('/api/church/visitors/:visitorId', auth(['church_admin', 'reception'])
   }
   res.json({ visitor, delivery: 'not_configured' });
 });
+// Exclusao do cadastro de visitante (somente administrador da igreja).
+// O acompanhamento pastoral nunca e perdido em silencio: a FK de care_tasks faz
+// CASCADE, entao as tarefas que tambem apontam para um membro tem o vinculo com o
+// visitante desfeito, e as tarefas exclusivas de visitante em aberto bloqueiam a
+// exclusao ate a equipe decidir. Tudo dentro de uma transacao.
+app.delete('/api/church/visitors/:visitorId', auth(['church_admin']), requireChurch, async (req, res) => {
+  const visitorId = req.params.visitorId;
+  const visitor = (await query('SELECT id, name, phone, visit_date, notes, responsible, status FROM visitors WHERE id = $1 AND church_id = $2', [visitorId, req.churchId])).rows[0];
+  if (!visitor) return res.status(404).json({ error: 'Visitante não encontrado.' });
+  const linked = (await query(`SELECT COUNT(*) FILTER (WHERE member_id IS NULL AND status IN ('pending', 'in_progress'))::int AS open_exclusive, COUNT(*) FILTER (WHERE member_id IS NULL AND status IN ('done', 'cancelled'))::int AS closed_exclusive FROM care_tasks WHERE church_id = $1 AND visitor_id = $2`, [req.churchId, visitorId])).rows[0] || { open_exclusive: 0, closed_exclusive: 0 };
+  if (linked.open_exclusive) return res.status(409).json({ error: `Este visitante tem ${linked.open_exclusive} acompanhamento(s) de cuidado em aberto. Conclua ou cancele o acompanhamento antes de excluir o cadastro.` });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const detached = await client.query(`UPDATE care_tasks SET visitor_id = NULL, updated_at = NOW() WHERE church_id = $1 AND visitor_id = $2 AND member_id IS NOT NULL RETURNING id`, [req.churchId, visitorId]);
+    await client.query(`UPDATE bot_delivery_queue SET status = 'cancelled', updated_at = NOW(), last_error = 'Visitante removido pela equipe da igreja.' WHERE church_id = $1 AND recipient_type = 'visitor' AND recipient_id = $2 AND status IN ('planned', 'blocked_missing_phone', 'blocked_missing_video', 'skipped_window', 'skipped_dependency')`, [req.churchId, visitorId]);
+    const removed = await client.query('DELETE FROM visitors WHERE id = $1 AND church_id = $2 RETURNING id', [visitorId, req.churchId]);
+    if (!removed.rows[0]) throw new Error('visitor_not_found');
+    await client.query('COMMIT');
+    await audit(req.user, 'visitor_deleted', {
+      visitorId,
+      name: visitor.name,
+      phone: visitor.phone || '',
+      visitDate: visitor.visit_date,
+      status: visitor.status,
+      responsible: visitor.responsible || '',
+      notes: visitor.notes || '',
+      careTasksDetached: detached.rowCount || 0,
+      careTasksClosedRemoved: linked.closed_exclusive || 0
+    }, req.churchId);
+    res.json({ ok: true, careTasksDetached: detached.rowCount || 0, careTasksClosedRemoved: linked.closed_exclusive || 0, delivery: 'not_configured' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.message === 'visitor_not_found') return res.status(404).json({ error: 'Visitante não encontrado.' });
+    res.status(500).json({ error: 'Não foi possível excluir o visitante. Tente novamente.' });
+  } finally {
+    client.release();
+  }
+});
 
 app.get('/api/church/members', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {
   const result = await query(`SELECT m.*, MAX(a.checked_in_at) AS latest_attendance

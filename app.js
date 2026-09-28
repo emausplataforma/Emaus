@@ -611,6 +611,11 @@ function arrivalPill(type = 'Sozinho') {
 function visitorCountByArrival(type) {
   return state.visitors.filter(visitor => (visitor.arrivalType || 'Sozinho') === type).length;
 }
+function canDeleteVisitor() {
+  // So o administrador da igreja exclui cadastro; a equipe da recepcao apenas registra.
+  return state.currentUser?.roleKey === 'church_admin';
+}
+
 function familyNamesForVisitors(visitors) {
   return [...new Set(visitors.flatMap(getFamilyMembers))];
 }
@@ -1107,7 +1112,7 @@ function openModal(type, data = {}) {
     modalTitle = visitor.name;
     modalEyebrow = 'DETALHES DO VISITANTE';
     const familyMembers = getFamilyMembers(visitor);
-    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(initials(visitor.name))}</div><div><strong style="font-size:14px;">${esc(visitor.name)}</strong><span style="font-size:10px;margin-top:5px;">Visitou em ${esc(formatDateLong(visitor.date))}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.phone || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></div></div><div class="form-field"><label>Como veio</label><div>${arrivalPill(visitor.arrivalType || 'Sozinho')}</div></div><div class="form-field"><label>Culto ou evento</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.service)}</div></div><div class="form-field"><label>Responsável</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.responsible)}</div></div><div class="form-field full"><label>${esc(visitor.familyName || 'Pessoas que vieram juntas')}</label><div class="family-detail-list">${familyMembers.map((member, index) => `<div class="family-detail-item"><span>${index + 1}</span>${esc(member)}</div>`).join('')}</div><p class="field-note" style="margin-top:7px;">Todos os nomes ficam disponíveis para o anúncio dos pastores à igreja.</p></div><div class="form-field full"><label>Observações</label><div style="padding:11px;border-radius:9px;background:var(--paper);color:var(--muted);font-size:10px;line-height:1.5;">${esc(visitor.notes || 'Sem observações registradas.')}</div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-secondary" data-action="new-care-task" data-visitor-id="${esc(visitor.id)}">${ICON('heart')} Criar cuidado</button><button type="button" class="btn btn-primary" data-action="announce-visitor" data-id="${esc(visitor.id)}">${ICON('megaphone')} Preparar anúncio</button>${visitor.status === 'Novo' ? `<button type="button" class="btn btn-gold" data-action="mark-contacted" data-id="${esc(visitor.id)}">${ICON('check')} Marcar como contatado</button>` : `<button type="button" class="btn btn-primary" data-action="visitor-message" data-id="${esc(visitor.id)}">${ICON('send')} Registrar contato</button>`}</div>`;
+    content = `<div class="person-cell" style="padding-bottom:18px;border-bottom:1px solid #f0ede7;"><div class="avatar avatar-copper" style="width:46px;height:46px;">${esc(initials(visitor.name))}</div><div><strong style="font-size:14px;">${esc(visitor.name)}</strong><span style="font-size:10px;margin-top:5px;">Visitou em ${esc(formatDateLong(visitor.date))}</span></div></div><div class="form-grid" style="margin-top:20px;"><div class="form-field"><label>Telefone</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.phone || 'Não informado')}</div></div><div class="form-field"><label>Status</label><div><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></div></div><div class="form-field"><label>Como veio</label><div>${arrivalPill(visitor.arrivalType || 'Sozinho')}</div></div><div class="form-field"><label>Culto ou evento</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.service)}</div></div><div class="form-field"><label>Responsável</label><div style="font-size:11px;color:var(--ink);">${esc(visitor.responsible)}</div></div><div class="form-field full"><label>${esc(visitor.familyName || 'Pessoas que vieram juntas')}</label><div class="family-detail-list">${familyMembers.map((member, index) => `<div class="family-detail-item"><span>${index + 1}</span>${esc(member)}</div>`).join('')}</div><p class="field-note" style="margin-top:7px;">Todos os nomes ficam disponíveis para o anúncio dos pastores à igreja.</p></div><div class="form-field full"><label>Observações</label><div style="padding:11px;border-radius:9px;background:var(--paper);color:var(--muted);font-size:10px;line-height:1.5;">${esc(visitor.notes || 'Sem observações registradas.')}</div></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Fechar</button><button type="button" class="btn btn-secondary" data-action="new-care-task" data-visitor-id="${esc(visitor.id)}">${ICON('heart')} Criar cuidado</button><button type="button" class="btn btn-primary" data-action="announce-visitor" data-id="${esc(visitor.id)}">${ICON('megaphone')} Preparar anúncio</button>${visitor.status === 'Novo' ? `<button type="button" class="btn btn-gold" data-action="mark-contacted" data-id="${esc(visitor.id)}">${ICON('check')} Marcar como contatado</button>` : `<button type="button" class="btn btn-primary" data-action="visitor-message" data-id="${esc(visitor.id)}">${ICON('send')} Registrar contato</button>`}${canDeleteVisitor() ? `<button type="button" class="btn btn-danger" data-action="delete-visitor" data-id="${esc(visitor.id)}">${ICON('x')} Excluir visitante</button>` : ''}</div>`;
   } else if (type === 'notifications') {
     const notifications = (state.activity || []).slice(0, 6);
     modalTitle = 'Atividade registrada';
@@ -1646,6 +1651,28 @@ async function deleteEvent(id) {
   }
 }
 
+async function deleteVisitor(id) {
+  const visitor = (state.visitors || []).find(item => item.id === id);
+  if (!visitor) return showToast('Visitante não encontrado. Atualize a página e tente de novo.', 'error');
+  const group = getFamilyMembers(visitor).filter(Boolean);
+  const groupText = group.length > 1 ? ` Este registro reúne ${group.length} pessoas: ${group.join(', ')}.` : '';
+  const ok = window.confirm(`Excluir o cadastro de ${visitor.name}?${groupText}
+
+Nome, telefone, culto e observações saem do banco da igreja. Acompanhamentos de cuidado em aberto impedem a exclusão, e um acompanhamento ligado também a um membro continuará na lista. Esta ação não pode ser desfeita.`);
+  if (!ok) return;
+  try {
+    const payload = await apiRequest(`/api/church/visitors/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await loadRemoteChurchState(state.currentUser);
+    closeModal(); render();
+    const detached = Number(payload?.careTasksDetached || 0);
+    const closed = Number(payload?.careTasksClosedRemoved || 0);
+    const extra = detached || closed ? ` ${detached ? `${detached} acompanhamento(s) mantido(s) na lista.` : ''}${closed ? ` ${closed} acompanhamento(s) já encerrado(s) foram removidos junto.` : ''}`.trim() : '';
+    showToast(`Cadastro de ${visitor.name} excluído.${extra ? ` ${extra}` : ''}`);
+  } catch (error) {
+    showToast(`Não foi possível excluir o visitante: ${error.message}`, 'error');
+  }
+}
+
 async function deleteLeader(id) {
   const leader = (state.leaders || []).find(item => item.id === id);
   if (!leader || !window.confirm(`Excluir a liderança de ${leader.name}?`)) return;
@@ -1778,6 +1805,7 @@ function handleAction(actionEl) {
     case 'attendance-report': openModal('attendance-report'); break;
     case 'delete-leader': deleteLeader(actionEl.dataset.id); break;
     case 'visitor-detail': openModal('visitor-detail', { id: actionEl.dataset.id }); break;
+    case 'delete-visitor': deleteVisitor(actionEl.dataset.id); break;
     case 'announce-visitors': announceNewVisitors(); break;
     case 'announce-visitor': prepareVisitorAnnouncement(actionEl.dataset.id); break;
     case 'mark-pulpit-announced': markPulpitAnnounced(); break;
