@@ -1,0 +1,122 @@
+LEIA-ME v2 - LOGO DA IGREJA NOS LINKS + PROTECAO CONTRA LINK QUEBRADO
+Data: 02/10/2026
+
+=====================================================================
+1. O QUE O USUARIO VAI VER
+=====================================================================
+- Todo link que a igreja copia ou envia (painel, tela de configuracoes, mensagem do
+  bot para o visitante) aponta para uma pagina que mostra o LOGO e o NOME da propria
+  igreja no cartao do WhatsApp. Nenhuma igreja herda a marca de outra.
+- A pagina /s/<slug> e gerada no servidor: titulo, descricao, og:image e
+  twitter:image apontam para /api/public/church/<slug>/logo.png.
+- Igreja sem logo enviado: aparece um SVG com a inicial da igreja (aviso: WhatsApp e
+  Facebook podem nao mostrar SVG como imagem do cartao).
+- Slug inexistente ou igreja pausada/bloqueada: 404 com pagina "Link invalido".
+
+=====================================================================
+2. O QUE MUDOU NA v2 (correcao importante)
+=====================================================================
+O frontend (GitHub Pages) foi publicado antes do backend (Railway). Enquanto o Railway
+nao receber o codigo novo, a rota /s/<slug> nao existe la - e o "Link publico" que a
+igreja copia apontaria para uma pagina 404.
+
+A v2 resolve isso sem depender de ninguem lembrar de nada:
+
+a) Ao abrir o painel, o app faz UMA checagem:  GET <API>/s/verificacao-de-link
+   - API com o codigo novo -> devolve a pagina "Link invalido" (rota existe)
+   - API com o codigo antigo (19/09) -> devolve "Cannot GET" (rota nao existe)
+   O resultado vira apiRoutes.mode = 'modern' | 'legacy' | 'unknown'.
+
+b) publicShareUrl():
+   - 'modern'  -> usa o link curto  https://<API>/s/<slug>  (com cartao e logo)
+   - 'legacy'/'unknown' -> usa o link do Pages  https://<Pages>/publica.html?igreja=<slug>
+     que SEMPRE funciona, so nao tem o cartao bonito. NINGUEM recebe link quebrado.
+
+c) Botao "Excluir visitante": some enquanto a API for 'legacy' (para ninguem clicar em
+   algo sem efeito). Se mesmo assim um DELETE devolver 404, o app marca a API como
+   antiga e avisa: "O cadastro continua salvo. A exclusao ainda nao esta ativa porque a
+   API em producao precisa ser republicada no Railway."
+
+d) Na tela de Configuracoes, a frase sob o link acompanha o estado: "E este link que
+   abre com o logo da igreja na previa do WhatsApp" (API nova) ou "O cartao com o logo
+   aparece assim que a API for republicada no Railway" (API antiga).
+
+Nada de configurar: quando o Railway rodar o codigo novo, o link curto e o cartao ligam
+sozinhos na proxima vez que o painel for aberto.
+
+=====================================================================
+3. ARQUIVOS DESTE PACOTE
+=====================================================================
+FRONTEND (GitHub Pages) - o que mudou nesta v2:
+  app.js              deteccao de recursos + escolha segura do link + botao de excluir
+  service-worker.js   cache 'emaus-shell-v71-deteccao-de-api' (forca todos a baixar)
+  admin.html, admin.css, index.html, publica.*, recepcao.html, reception.js,
+  visita.html, pagamento.html, splash.*, styles.css, manifest.json, api-config.js,
+  .nojekyll, bethesda-logo.png, emaus-admin-logo.png   (inalterados desde a v1)
+
+BACKEND (Railway, servico Emaus) - identico ao pacote v1:
+  server.js           /s/:slug, /api/public/church/:slug/logo.png, exclusao de
+                      visitante, ISO do dia do bot, 503 amigavel, trava de 15s,
+                      pool com connectionTimeout, pool.on('error'), unhandledRejection
+  schema.sql, package.json, billing-mercadopago.js, .env.example, .railwayignore
+  Se o server.js do seu repo ja e o do pacote v1, NAO precisa subir nada agora.
+
+LEIA-ME / tutoriais: os deste pacote e os anteriores
+  (LEIA-ME-LOGO-NOS-LINKS-v1.txt, COMO-REPUBLICAR-RAILWAY.txt,
+   LEIA-ME-EXCLUIR-VISITANTE-v1.txt, LEIA-ME-VISITANTE-NAO-APARECE-v1.txt)
+
+=====================================================================
+4. PASSO QUE FALTA (so voce pode fazer)
+=====================================================================
+O codigo esta no GitHub (commit 1a187fa, 02/10/2026 13:04) e no Pages. O Railway parou
+no build de 19/09/2026 14:56 - o webhook do app nao esta instalado.
+
+1. Instalar o app: https://github.com/apps/railway-app/installations/new
+   conta emausplataforma -> repositorio Emaus -> Install.
+2. No servico Emaus: Deploy -> "Deploy latest commit".
+3. Variaveis do servico Emaus: PUBLIC_API_URL=https://emaus-production-2de0.up.railway.app
+   (ja existe? NAO verifiquei - variaveis do Railway sao privadas.)
+4. Teste em celular (abrir o link no Android e no iPhone e ver o cartao com o logo) -
+   ainda nao foi feito por mim, aqui nao ha navegador.
+
+Sem o passo 1, cada alterancia continua precisando de "Deploy latest commit" manual.
+
+=====================================================================
+5. MEDICOES FEITAS NESTA v2 (banco real, ambiente de teste)
+=====================================================================
+- Sonda contra a PRODUCAO hoje: GET /s/verificacao-de-link -> 404 com corpo
+  "Cannot GET /s/ve..."  => modo 'legacy'  (link longo, seguro, nada quebra)
+- Sonda contra o codigo NOVO rodando: 404 com "Link invalido", sem "Cannot GET"
+  => modo 'modern'  (link curto com cartao e logo)
+- /s/bethesda 200 com og:title "Bethesda" e og:image do proprio logo
+- /s/vida-nova 200 com og:title "Vida Nova" e ZERO mencoes a Bethesda
+- logo.png das duas igrejas: 200, image/png, conteudos diferentes entre si
+- /s/nao-existe 404, /s/portal-fechado 404, logo.png de igreja pausada 404
+- DELETE /api/church/visitors/<id> sem login: 401 (nao faz nada)
+- POST publico de visitante: 201 e mensagem do bot gravada com
+  ".../s/bethesda" e remetente "Bethesda"
+- 200 acessos simultaneos ao /s/<slug>: 200x HTTP 200 em 0,760 s
+- Queda do banco: API responde 503, processo continua vivo, e volta a responder 200
+  quando o banco religa, sem reiniciar
+
+=====================================================================
+6. "NAO ESTA EXCLUINDO OS VISITANTES" (relato de 02/10/2026)
+=====================================================================
+Causa medida: a rota DELETE /api/church/visitors/<id> nao existe no build do Railway
+(19/09/2026 14:56). Producao responde 404. Nada no navegador resolve isso.
+
+Onde clicar: Acolhimento -> "..." na linha do visitante -> rodape do modal ->
+"Excluir visitante" (o botao nao fica na linha da tabela).
+
+Quem pode: somente a conta de pastor da igreja (church_admin). Recepcao e administrador
+da plataforma nao veem o botao (regra de todas as escritas da igreja).
+
+Bloqueio por design: visitante com cuidado em aberto da 409 e a mensagem
+"Este visitante tem N acompanhamento(s) de cuidado em aberto. Conclua ou cancele o
+acompanhamento antes de excluir o cadastro." -> resolva o cuidado e exclui.
+
+Testado no codigo novo com Postgres real: 200 e linha removida + auditoria + fila do bot
+cancelada; 409 no caso de cuidado aberto; 200 depois de concluir o cuidado; 404 ao tentar
+excluir visitante de outra igreja (isolamento funcionando).
+
+Veja COMO-REPUBLICAR-RAILWAY.txt (passo a passo do deploy + Plano B pelo CLI do Railway).

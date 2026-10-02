@@ -1,3 +1,5 @@
+AVISO: este documento foi substituido por LEIA-ME-LOGO-NOS-LINKS-v2.txt (o link curto agora so e usado quando a API suporta).
+
 LOGO DA IGREJA EM TODOS OS LINKS E MENSAGENS ENVIADOS
 Data: 02/10/2026
 Cache do app: emaus-shell-v70-logo-por-igreja

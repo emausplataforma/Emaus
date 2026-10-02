@@ -27,7 +27,7 @@ PLANO A - reconectar o GitHub (2 minutos, recomendado)
    - Root Directory: VAZIO (nao preencher)
    - Auto deploy: ligado
 3) Deployments -> tres pontinhos do deploy ACTIVE -> Redeploy
-   (ou Deploy -> "Deploy latest commit" para forcar o 9a8cea52 / mais novo)
+   (ou Deploy -> "Deploy latest commit" para forcar o commit mais novo (hoje: 1a187fa, de 02/10/2026))
 4) Aguardar 1 a 3 minutos ate ACTIVE.
 
 SUCESSO = estas duas respostas mudam:
@@ -67,3 +67,40 @@ DEPOIS DE PUBLICAR - teste da exclusao (o botao ja esta na tela)
 Enquanto o deploy nao acontecer, o botao mostra a mensagem explicativa
 ("A exclusao ainda nao esta ativa porque a API em producao precisa ser
 republicada no Railway.") e o cadastro fica preservado.
+
+=====================================================================
+DIAGNOSTICO DE 02/10/2026 - "NAO ESTA EXCLUINDO OS VISITANTES"
+=====================================================================
+Medido hoje:
+  - producao (Railway):  DELETE /api/church/visitors/<id>  -> 404 com corpo
+    "<!DOCTYPE html>...Error..." (rota nao existe no build de 19/09)
+  - producao:            GET /s/bethesda                   -> 404 (mesma causa)
+  - Pages publicado:     app.js tem a rota e a mensagem certa, mas o backend nao
+    responde - por isso o clique nao exclui ninguem
+  - codigo novo em teste local (Postgres real):
+      DELETE comum                          -> 200, linha sumiu, auditoria
+                                               visitor_deleted, fila do bot cancelada
+      DELETE com cuidado em aberto          -> 409 "Este visitante tem 1
+                                               acompanhamento(s) de cuidado em aberto..."
+      PATCH cuidado status=done -> DELETE    -> 200, cuidado removido em cascata
+      DELETE de visitante de OUTRA igreja    -> 404 "Visitante não encontrado"
+  => o codigo funciona; falta publicar o backend.
+
+ONDE FICA O BOTAO (para nao procurar errado):
+  Acolhimento -> linha do visitante -> botao "..." (Ver detalhes) -> no rodape do
+  modal, botao vermelho "Excluir visitante". Nao ha botao de excluir na propria linha
+  da tabela.
+
+QUEM PODE EXCLUIR:
+  - pastor/administrador da igreja (role church_admin): pode
+  - recepcao: nao aparece o botao (e a API responderia 403) - por decisao de produto
+  - administrador da plataforma (Emaus): tambem nao ve o botao - as rotas de escrita de
+    igreja sao todas church_admin (mesma regra de membros, eventos e liderancas)
+
+SE APARECER "Visitante não encontrado. Atualize a página e tente de novo.":
+  a lista estaba velha (outro usuario excluiu). Recarregue (Ctrl+Shift+R) e tente de novo.
+
+DEPOIS DO DEPLOY, PARAR AQUI:
+  1) abrir a area do pastor com Ctrl+Shift+R
+  2) Acolhimento -> "TESTE Sistema (pode apagar)" -> Excluir visitante
+  3) esperado: "Cadastro de TESTE Sistema (pode apagar) excluído."
