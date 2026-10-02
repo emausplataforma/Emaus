@@ -19,6 +19,7 @@ const PASTOR_PASSWORD = process.env.PASTOR_PASSWORD || '';
 const RECEPTION_EMAIL = (process.env.RECEPTION_EMAIL || 'mariana@bethesda.com.br').trim().toLowerCase();
 const RECEPTION_PASSWORD = process.env.RECEPTION_PASSWORD || '';
 const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || 'https://emausplataforma.github.io/Emaus').replace(/\/$/, '');
+const PUBLIC_API_SHARE_URL = String(process.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');
 const ZAPSTER_WEBHOOK_SECRET = String(process.env.ZAPSTER_WEBHOOK_SECRET || '').trim();
 const BOT_DEFAULTS = Object.freeze({
   enabled: true,
@@ -49,11 +50,37 @@ const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: process.env.PGSSL === 'disable' ? false : { rejectUnauthorized: false },
   max: 10,
-  idleTimeoutMillis: 30000
+  idleTimeoutMillis: 30000,
+  // Sem este limite, uma oscilacao do banco faz a requisicao esperar para sempre.
+  connectionTimeoutMillis: 10000
+});
+
+// Um cliente ocioso que cai emite 'error' no pool. Sem ouvinte, o Node encerra o
+// processo inteiro e todas as igrejas ficam sem servico ate o proximo boot.
+pool.on('error', error => {
+  console.error('Cliente ocioso do PostgreSQL falhou (mantendo o servico de pe):', error.message);
+});
+
+// Idem para rejeicoes fora de try/catch nas rotas. O pedido pode falhar, mas o
+// servico continua atendendo as outras igrejas.
+process.on('unhandledRejection', reason => {
+  console.error('Promessa rejeitada sem tratamento:', reason && reason.message ? reason.message : reason);
 });
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Rede de seguranca: se uma rota nao responder (por exemplo uma rota sem try/catch
+// com o banco indisponivel), a conexao nao fica pendurada indefinidamente. O cliente
+// recebe uma falha e o servidor segue atendendo as outras igrejas.
+app.use('/api', (req, res, next) => {
+  const timer = setTimeout(() => {
+    if (res.headersSent || res.writableEnded) return;
+    res.status(503).json({ error: 'O serviço não respondeu a tempo. Tente novamente em alguns segundos.' });
+  }, 15000);
+  res.on('finish', () => clearTimeout(timer));
+  next();
+});
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -133,18 +160,41 @@ function botSettingsFromChurch(church = {}) {
 }
 
 function botPublicUrl(church = {}) {
-  return `${PUBLIC_APP_URL}/publica.html?igreja=${encodeURIComponent(church.slug || 'igreja')}`;
+  const slug = encodeURIComponent(church.slug || 'igreja');
+  // Com PUBLIC_API_URL configurada, a mensagem leva o link curto que renderiza o
+  // cartao com o logo da igreja no WhatsApp. Sem ela, mantem o endereco estatico.
+  return PUBLIC_API_SHARE_URL ? `${PUBLIC_API_SHARE_URL}/s/${slug}` : `${PUBLIC_APP_URL}/publica.html?igreja=${slug}`;
 }
 
 function addDaysIso(dateValue, amount) {
-  const date = new Date(`${String(dateValue).slice(0, 10)}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) return String(dateValue).slice(0, 10);
+  const base = isoDay(dateValue);
+  const date = new Date(`${base}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return base;
   date.setUTCDate(date.getUTCDate() + Number(amount || 0));
   return date.toISOString().slice(0, 10);
 }
 
+// Normaliza datas vindas do PostgreSQL (objeto Date) ou de texto para YYYY-MM-DD.
+// Sem isto, um Date virava "Mon Sep 28" e a agenda do bot nunca era gravada.
+function isoDay(value) {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${value.getFullYear()}-${month}-${day}`;
+  }
+  const text = String(value || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  if (!text) return '';
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${parsed.getFullYear()}-${month}-${day}`;
+}
+
 function zonedDateTimeToUtc(dateValue, timeValue, timeZone = BOT_DEFAULTS.timezone) {
-  const [year, month, day] = String(dateValue || '').slice(0, 10).split('-').map(Number);
+  const [year, month, day] = isoDay(dateValue).split('-').map(Number);
   const [hour, minute] = String(timeValue || '00:00').split(':').map(Number);
   if (![year, month, day, hour, minute].every(Number.isFinite)) return null;
   const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
@@ -678,6 +728,110 @@ app.get('/api/public/church', async (req, res) => {
   const events = await query(`SELECT id, title, event_date, event_time, location, event_type, audience, recurrence_rule, recurrence_id
     FROM church_events WHERE church_id = $1 AND event_date >= CURRENT_DATE ORDER BY event_date ASC, event_time ASC LIMIT 120`, [church.id]);
   res.json({ church: { ...church, publicSettings }, events: events.rows });
+});
+
+// ---- Link com a marca da igreja (logo no cartao de prévia do WhatsApp) ----
+// O frontend e estatico (GitHub Pages) e os robos que geram a previsualizacao de
+// link nao executam JavaScript, entao o cartao com nome + logo so pode nascer
+// aqui, em HTML renderizado por igreja.
+const SHARE_IMAGE_MIME = { 'image/png': 'image/png', 'image/jpeg': 'image/jpeg', 'image/jpg': 'image/jpeg', 'image/webp': 'image/webp', 'image/gif': 'image/gif', 'image/svg+xml': 'image/svg+xml' };
+
+function publicChurchLogoSource(logoUrl, slug) {
+  const source = String(logoUrl || '').trim();
+  if (!source) return '';
+  if (/^data:image\//i.test(source)) return source;
+  if (/^https?:\/\//i.test(source)) return source;
+  const file = source.replace(/^\.?\//, '');
+  return `${PUBLIC_APP_URL}/${file}`;
+}
+
+function initialsOf(name) {
+  return String(name || 'I').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'I';
+}
+
+function fallbackLogoSvg(name) {
+  const initials = initialsOf(name).slice(0, 3);
+  const label = String(name || 'Igreja').replace(/[<>&"]/g, '');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f2c26"/><stop offset="1" stop-color="#171615"/></linearGradient></defs><rect width="1200" height="630" fill="url(#g)"/><circle cx="600" cy="250" r="96" fill="#d7a84b"/><text x="600" y="284" font-family="Georgia,serif" font-size="86" font-weight="700" text-anchor="middle" fill="#211a10">${initials}</text><text x="600" y="452" font-family="Georgia,serif" font-size="62" text-anchor="middle" fill="#f5f1e9">${label}</text></svg>`;
+}
+
+app.get('/api/public/church/:slug/logo.png', async (req, res) => {
+  const slug = String(req.params.slug || '').trim().toLowerCase();
+  let church;
+  try {
+    church = (await query("SELECT name, logo_url FROM churches WHERE slug = $1 AND status IN ('active', 'trial')", [slug])).rows[0];
+  } catch (error) {
+    return res.status(503).set('Cache-Control', 'no-store').type('image/svg+xml').send(fallbackLogoSvg('Igreja'));
+  }
+  if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  const source = publicChurchLogoSource(church.logo_url, slug);
+  res.set('Cache-Control', 'public, max-age=3600');
+  if (/^data:image\//i.test(source)) {
+    const [head, payload] = source.split(',');
+    const mime = (head.match(/^data:([^;,]+)/i) || [])[1] || 'image/png';
+    const image = Buffer.from(payload || '', 'base64');
+    if (!image.length) return res.type('image/svg+xml').send(fallbackLogoSvg(church.name));
+    return res.set('Content-Type', SHARE_IMAGE_MIME[mime.toLowerCase()] || 'image/png').send(image);
+  }
+  if (/^https?:\/\//i.test(source)) return res.redirect(302, source);
+  return res.type('image/svg+xml').send(fallbackLogoSvg(church.name));
+});
+
+app.get('/s/:slug', async (req, res) => {
+  const slug = String(req.params.slug || '').trim().toLowerCase();
+  let church;
+  try {
+    church = (await query("SELECT name, slug, city, description, pastors, logo_url, public_settings FROM churches WHERE slug = $1 AND status IN ('active', 'trial')", [slug])).rows[0];
+  } catch (error) {
+    // Link compartilhado nunca pode derrubar o servico nem mostrar tela em branco.
+    return res.status(503).type('html').send(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"><title>Estamos voltando</title><body style="font:16px/1.6 system-ui,sans-serif;background:#171615;color:#f5f1e9;display:grid;place-items:center;min-height:100vh;margin:0"><div style="text-align:center;padding:28px"><h1 style="font:500 26px Georgia;margin:0 0 10px">A página está indisponível</h1><p style="color:#b8b0a4;margin:0">Tente novamente em alguns segundos.</p></div></body></html>`);
+  }
+  const settings = church?.public_settings || {};
+  const apiOrigin = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
+  const target = `${PUBLIC_APP_URL}/publica.html?igreja=${encodeURIComponent(slug)}`;
+  const escHtml = value => String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  res.set('Cache-Control', 'no-cache');
+  if (!church) {
+    return res.status(404).type('html').send(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Igreja não encontrada</title><body style="font:16px/1.6 system-ui,sans-serif;background:#171615;color:#f5f1e9;display:grid;place-items:center;min-height:100vh;margin:0"><div style="text-align:center;padding:28px"><h1 style="font:500 26px Georgia;margin:0 0 10px">Link inválido</h1><p style="color:#b8b0a4;margin:0">Esta igreja não está publicada no momento.</p></div></body></html>`);
+  }
+  const headline = settings.headline || church.description || `Página oficial da ${church.name}.`;
+  const image = `${apiOrigin}/api/public/church/${encodeURIComponent(church.slug)}/logo.png`;
+  const shareUrl = `${apiOrigin}/s/${encodeURIComponent(church.slug)}`;
+  res.type('html').send(`<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escHtml(church.name)}${settings.headline ? ` · ${escHtml(settings.headline)}` : ''}</title>
+<meta name="description" content="${escHtml(headline.slice(0, 180))}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escHtml(church.name)}">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="${escHtml(church.name)}">
+<meta property="og:description" content="${escHtml(headline.slice(0, 200))}">
+<meta property="og:url" content="${escHtml(shareUrl)}">
+<meta property="og:image" content="${escHtml(image)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo da ${escHtml(church.name)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escHtml(church.name)}">
+<meta name="twitter:description" content="${escHtml(headline.slice(0, 200))}">
+<meta name="twitter:image" content="${escHtml(image)}">
+<meta name="theme-color" content="#171615">
+<link rel="canonical" href="${escHtml(shareUrl)}">
+<meta http-equiv="refresh" content="0; url=${escHtml(target)}">
+<script>try{window.location.replace(${JSON.stringify(target)})}catch(e){window.location.href=${JSON.stringify(target)}}</script>
+</head>
+<body style="font:16px/1.6 system-ui,sans-serif;background:#171615;color:#f5f1e9;display:grid;place-items:center;min-height:100vh;margin:0">
+<main style="text-align:center;padding:28px;max-width:520px">
+<img src="${escHtml(image)}" alt="Logo da ${escHtml(church.name)}" style="width:76px;height:76px;object-fit:cover;border-radius:22px;background:#242320">
+<h1 style="font:500 26px Georgia;margin:16px 0 6px">${escHtml(church.name)}</h1>
+<p style="color:#b8b0a4;margin:0 0 18px">${escHtml(headline.slice(0, 160))}</p>
+<a href="${escHtml(target)}" style="display:inline-block;padding:12px 22px;border-radius:10px;background:#d7a84b;color:#201a10;font-weight:700;text-decoration:none">Entrar na página da igreja</a>
+</main>
+</body>
+</html>`);
 });
 
 app.post('/api/public/church/:slug/visitors', async (req, res) => {

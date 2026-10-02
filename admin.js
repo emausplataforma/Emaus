@@ -138,7 +138,7 @@ function mapChurchFromApi(church) {
     phone: church.phone,
     pastors: church.pastors,
     initials: initials(church.name),
-    logoImage: String(church.slug || '').toLowerCase() === 'bethesda' ? 'bethesda-logo.png' : '',
+    logoImage: church.logo_url || '',
     plan: church.plan_id || '',
     planName: church.plan_name || '',
     status: churchStatus({ apiStatus: status, trialEndsAt: church.trial_ends_at }).label,

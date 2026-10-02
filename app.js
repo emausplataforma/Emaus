@@ -47,7 +47,7 @@ const defaultState = {
     announcements: 0
   },
   churches: [
-    { id: 'batesda', name: 'Bethesda', slug: 'bethesda', city: 'Itaboraí • RJ', phone: '(21) 00000-0000', pastors: 'Evandro e Simone', description: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', initials: 'BE', logoSymbol: 'B', logoImage: 'bethesda-logo.png', appearance: { ...DEFAULT_APPEARANCE }, publicSettings: { visible: true, headline: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', address: 'Itaboraí • RJ', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar' }, members: 0, status: 'Ativa', plan: 'Essencial' }
+    { id: 'batesda', name: 'Igreja', slug: 'igreja', city: '', phone: '', pastors: '', description: '', initials: 'IG', logoSymbol: '', logoImage: '', appearance: { ...DEFAULT_APPEARANCE }, publicSettings: { visible: true, headline: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', address: 'Itaboraí • RJ', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar' }, members: 0, status: 'Ativa', plan: 'Essencial' }
   ],
   visitors: [],
   announcements: [],
@@ -198,7 +198,7 @@ async function loadRemoteChurchState(user) {
       description: church.description || '',
       initials: initials(church.name),
       logoSymbol: serverPublicSettings.logoSymbol || localChurch?.logoSymbol || initials(church.name).slice(0, 2),
-      logoImage: church.logo_url || localChurch?.logoImage || (String(church.slug || '').toLowerCase() === 'bethesda' ? 'bethesda-logo.png' : ''),
+      logoImage: church.logo_url || localChurch?.logoImage || '',
       appearance: { ...DEFAULT_APPEARANCE, ...(localChurch?.appearance || {}), ...(serverPublicSettings.appearance || {}) },
       publicSettings: { visible: true, ...(localChurch?.publicSettings || {}), ...serverPublicSettings },
       members: Number(church.member_count || 0),
@@ -445,16 +445,24 @@ function getActiveChurch() {
   return state.churches.find(church => church.id === state.activeChurchId) || state.churches[0];
 }
 function updateChurchEntryIdentity(church = getActiveChurch()) {
-  const name = church?.name || 'Bethesda';
-  const logo = church?.logoImage || 'bethesda-logo.png';
+  const name = church?.name || 'Igreja';
+  const logo = church?.logoImage || '';
   const loginName = $('#churchLoginName');
   const loginLogo = $('#churchLoginLogo');
   if (loginName) loginName.textContent = name;
   if (loginLogo) {
-    loginLogo.src = /^(data:|https?:|\/)/i.test(logo) ? logo : logo.replace(/^\.\//, '');
+    const resolved = logo ? (/^(data:|https?:|\/|\.)/i.test(logo) ? logo : `./${logo}`) : '';
+    if (resolved) { loginLogo.src = resolved; loginLogo.hidden = false; }
+    else { loginLogo.removeAttribute('src'); loginLogo.hidden = true; }
     loginLogo.alt = `Logo da ${name}`;
   }
   document.title = `${name} · Área da igreja`;
+  // Identidade gravada para o proximo abrir: o splash entao mostra o logo desta
+  // igreja (e nao de uma igreja especifica embutida no arquivo).
+  try {
+    const shared = { name, logo: logo ? (/^(data:|https?:|\/|\.)/i.test(logo) ? logo : `./${logo}`) : '', at: Date.now() };
+    localStorage.setItem('emaus-church-splash-v1', JSON.stringify(shared));
+  } catch (error) {}
 }
 function isPlatformAdmin() {
   return state.currentUser?.roleKey === 'platform_admin';
@@ -1016,7 +1024,7 @@ function renderSettings() {
       ${profileCard}
       ${securityCard}
       ${backupCard}
-      <section class="settings-card public-settings-card" data-settings-panel="public"><div class="settings-card-header"><div><h2>Página pública da igreja</h2><p>Edite o conteúdo que qualquer pessoa pode ver, sem login.</p></div><div class="icon-tile gold">${ICON('external')}</div></div><form data-form="organization" data-public-settings-form><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('shield')}</span><p><strong>Link público:</strong> ${esc(`${window.location.origin}${(window.location.pathname || '/').replace(/[^/]*$/, '')}publica.html?igreja=${encodeURIComponent(church.slug || slugify(church.name))}`)}<br>O pastor pode deixar a página invisível enquanto prepara as informações.</p></div><div class="toggle-row"><div class="toggle-copy"><strong>Publicar página da igreja</strong><span>Quando desligada, visitantes receberão uma mensagem de indisponibilidade.</span></div><input type="checkbox" name="publicVisible" ${publicSettings.visible !== false ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--gold);" aria-label="Publicar página pública"></div><div class="form-grid"><div class="form-field full"><label for="publicHeadline">Chamada principal</label><input class="input" id="publicHeadline" name="publicHeadline" value="${esc(publicSettings.headline)}" placeholder="Ex.: Um lugar para pertencer"></div><div class="form-field full"><label for="publicHistory">História da igreja</label><textarea class="textarea" id="publicHistory" name="publicHistory" rows="4" placeholder="Conte brevemente como a igreja começou, sua caminhada e o que Deus tem feito nesta comunidade.">${esc(publicSettings.history || '')}</textarea><p class="field-note">Este texto será exibido na página pública somente depois de salvo.</p></div><div class="form-field full"><label for="publicPastors">Sobre os pastores</label><textarea class="textarea" id="publicPastors" name="publicPastors" rows="4" placeholder="Apresente os pastores, sua trajetória e como servem a igreja.">${esc(publicSettings.pastorsBio || '')}</textarea><p class="field-note">Escreva somente as informações que a liderança deseja tornar públicas.</p></div><div class="form-field full"><div class="scope-note" style="margin:0;"><span>${ICON('whatsapp')}</span><p><strong>Bot de WhatsApp preparado para o Zapster</strong><br>Usará uma instância compartilhada da plataforma, com o nome da igreja no texto. O número central continuará visível e nenhum envio externo acontece antes da configuração da instância.</p></div></div><div class="form-field full"><label for="botYoutubeUrl">Vídeo do YouTube para a mensagem dos visitantes</label><input class="input" id="botYoutubeUrl" name="botYoutubeUrl" type="url" value="${esc(bot.youtubeUrl || '')}" placeholder="https://www.youtube.com/watch?v=..."><p class="field-note">A segunda mensagem só será liberada depois que este link for cadastrado.</p></div><div class="form-field full"><label class="check-row"><input type="checkbox" name="botPlanningEnabled" ${bot.enabled !== false ? 'checked' : ''}><span><strong>Manter a programação do bot preparada</strong><small>Visitantes: página pública às 22:30 no dia da visita; vídeo e pergunta de continuidade às 17:00 do dia seguinte; aviso de culto às 17:00 do dia anterior.</small></span></label></div><div class="form-field full"><p class="field-note">A sequência do visitante acontece uma única vez por contato e pergunta apenas uma vez. Responder NÃO interrompe novos convites. Os horários usam Brasília.</p></div><div class="form-field full"><label for="publicAddress">Endereço ou referência</label><input class="input" id="publicAddress" name="publicAddress" value="${esc(publicSettings.address)}" placeholder="Rua, número, bairro e cidade"></div><div class="form-field"><label for="publicHours">Horários</label><input class="input" id="publicHours" name="publicHours" value="${esc(publicSettings.hours)}" placeholder="Domingos às 19h"></div><div class="form-field"><label for="publicCta">Botão de chamada</label><input class="input" id="publicCta" name="publicCta" value="${esc(publicSettings.cta)}" placeholder="Venha nos visitar"></div><div class="form-field"><label for="publicInstagram">Instagram</label><input class="input" id="publicInstagram" name="publicInstagram" value="${esc(publicSettings.instagram)}" placeholder="https://instagram.com/..."></div><div class="form-field"><label for="publicFacebook">Facebook</label><input class="input" id="publicFacebook" name="publicFacebook" value="${esc(publicSettings.facebook)}" placeholder="https://facebook.com/..."></div><div class="form-field"><label for="publicYoutube">YouTube</label><input class="input" id="publicYoutube" name="publicYoutube" value="${esc(publicSettings.youtube)}" placeholder="https://youtube.com/..."></div></div><p class="field-note">Clique em “Salvar alterações” no alto da página depois de editar os campos.</p></form></section>
+      <section class="settings-card public-settings-card" data-settings-panel="public"><div class="settings-card-header"><div><h2>Página pública da igreja</h2><p>Edite o conteúdo que qualquer pessoa pode ver, sem login.</p></div><div class="icon-tile gold">${ICON('external')}</div></div><form data-form="organization" data-public-settings-form><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('shield')}</span><p><strong>Link público:</strong> ${esc(publicShareUrl(church))} <button type="button" class="btn btn-quiet btn-small" data-action="copy-public-link">${ICON('clipboard-check')} Copiar</button><br><span style="font-size:10px;color:var(--muted)">É este link que abre com o logo da igreja na prévia do WhatsApp.</span><br>O pastor pode deixar a página invisível enquanto prepara as informações.</p></div><div class="toggle-row"><div class="toggle-copy"><strong>Publicar página da igreja</strong><span>Quando desligada, visitantes receberão uma mensagem de indisponibilidade.</span></div><input type="checkbox" name="publicVisible" ${publicSettings.visible !== false ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--gold);" aria-label="Publicar página pública"></div><div class="form-grid"><div class="form-field full"><label for="publicHeadline">Chamada principal</label><input class="input" id="publicHeadline" name="publicHeadline" value="${esc(publicSettings.headline)}" placeholder="Ex.: Um lugar para pertencer"></div><div class="form-field full"><label for="publicHistory">História da igreja</label><textarea class="textarea" id="publicHistory" name="publicHistory" rows="4" placeholder="Conte brevemente como a igreja começou, sua caminhada e o que Deus tem feito nesta comunidade.">${esc(publicSettings.history || '')}</textarea><p class="field-note">Este texto será exibido na página pública somente depois de salvo.</p></div><div class="form-field full"><label for="publicPastors">Sobre os pastores</label><textarea class="textarea" id="publicPastors" name="publicPastors" rows="4" placeholder="Apresente os pastores, sua trajetória e como servem a igreja.">${esc(publicSettings.pastorsBio || '')}</textarea><p class="field-note">Escreva somente as informações que a liderança deseja tornar públicas.</p></div><div class="form-field full"><div class="scope-note" style="margin:0;"><span>${ICON('whatsapp')}</span><p><strong>Bot de WhatsApp preparado para o Zapster</strong><br>Usará uma instância compartilhada da plataforma, com o nome da igreja no texto. O número central continuará visível e nenhum envio externo acontece antes da configuração da instância.</p></div></div><div class="form-field full"><label for="botYoutubeUrl">Vídeo do YouTube para a mensagem dos visitantes</label><input class="input" id="botYoutubeUrl" name="botYoutubeUrl" type="url" value="${esc(bot.youtubeUrl || '')}" placeholder="https://www.youtube.com/watch?v=..."><p class="field-note">A segunda mensagem só será liberada depois que este link for cadastrado.</p></div><div class="form-field full"><label class="check-row"><input type="checkbox" name="botPlanningEnabled" ${bot.enabled !== false ? 'checked' : ''}><span><strong>Manter a programação do bot preparada</strong><small>Visitantes: página pública às 22:30 no dia da visita; vídeo e pergunta de continuidade às 17:00 do dia seguinte; aviso de culto às 17:00 do dia anterior.</small></span></label></div><div class="form-field full"><p class="field-note">A sequência do visitante acontece uma única vez por contato e pergunta apenas uma vez. Responder NÃO interrompe novos convites. Os horários usam Brasília.</p></div><div class="form-field full"><label for="publicAddress">Endereço ou referência</label><input class="input" id="publicAddress" name="publicAddress" value="${esc(publicSettings.address)}" placeholder="Rua, número, bairro e cidade"></div><div class="form-field"><label for="publicHours">Horários</label><input class="input" id="publicHours" name="publicHours" value="${esc(publicSettings.hours)}" placeholder="Domingos às 19h"></div><div class="form-field"><label for="publicCta">Botão de chamada</label><input class="input" id="publicCta" name="publicCta" value="${esc(publicSettings.cta)}" placeholder="Venha nos visitar"></div><div class="form-field"><label for="publicInstagram">Instagram</label><input class="input" id="publicInstagram" name="publicInstagram" value="${esc(publicSettings.instagram)}" placeholder="https://instagram.com/..."></div><div class="form-field"><label for="publicFacebook">Facebook</label><input class="input" id="publicFacebook" name="publicFacebook" value="${esc(publicSettings.facebook)}" placeholder="https://facebook.com/..."></div><div class="form-field"><label for="publicYoutube">YouTube</label><input class="input" id="publicYoutube" name="publicYoutube" value="${esc(publicSettings.youtube)}" placeholder="https://youtube.com/..."></div></div><p class="field-note">Clique em “Salvar alterações” no alto da página depois de editar os campos.</p></form></section>
       <section class="settings-card" data-settings-panel="notifications"><div class="settings-card-header"><div><h2>Preferências de notificação</h2><p>Escolha como a equipe recebe as informações importantes.</p></div><div class="icon-tile copper">${ICON('bell')}</div></div><div class="toggle-row"><div class="toggle-copy"><strong>Novo visitante para o pastor</strong><span>Enviar um alerta quando a recepção finalizar um cadastro.</span></div><button class="toggle on" data-toggle="pastorAlert" aria-label="Alternar alerta ao pastor"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>Resumo diário da igreja</strong><span>Receba um resumo com visitantes, avisos e eventos do dia.</span></div><button class="toggle on" data-toggle="dailySummary" aria-label="Alternar resumo diário"></button></div><div class="toggle-row"><div class="toggle-copy"><strong>Confirmação de leitura</strong><span>Registrar quando uma pessoa visualizar um aviso.</span></div><button class="toggle on" data-toggle="readReceipt" aria-label="Alternar confirmação de leitura"></button></div></section>
       <section class="settings-card team-settings-card" data-settings-panel="team"><div class="settings-card-header"><div><h2>Equipe e acesso</h2><p>Convide obreiros e membros para ajudar na portaria com segurança.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><div class="reception-link-card"><div class="reception-link-copy"><span class="scope-label">LINK DA RECEPÇÃO</span><strong>${esc(receptionLink(church))}</strong><p>Depois de abrir o link, o obreiro entra com seu login e senha. Cada acesso é individual e protegido.</p></div><button class="btn btn-primary" data-action="copy-reception-link">${ICON('external')} Copiar link</button></div><div class="team-list-header"><div><h3>Acessos da recepção</h3><p>Todos os acessos cadastrados recebem a aba Acolhimento e podem cadastrar visitantes.</p></div><button class="btn btn-gold" data-action="new-reception">${ICON('plus')} Adicionar acesso</button></div><div class="team-list">${renderReceptionUsers()}</div></section>
       ${organizationManagement}
@@ -1206,7 +1214,7 @@ function updateLogoPreview() {
 function handleLogoFile(file) {
   if (!file) return;
   if (!file.type.startsWith('image/')) return showToast('Escolha uma imagem PNG, JPG ou WEBP.', 'error');
-  if (file.size > 2 * 1024 * 1024) return showToast('A imagem do logo deve ter no máximo 2 MB.', 'error');
+  if (file.size > 300 * 1024) return showToast('Envie o logo em PNG ou JPG com até 300 KB (ideal 1200 × 630). É ele que aparece na prévia dos links da igreja.', 'error');
   const reader = new FileReader();
   reader.onload = () => { pendingLogoImage = String(reader.result || ''); updateLogoPreview(); showToast('Logo carregado. Clique em “Salvar alterações” para aplicar.'); };
   reader.readAsDataURL(file);
@@ -1669,7 +1677,10 @@ Nome, telefone, culto e observações saem do banco da igreja. Acompanhamentos d
     const extra = detached || closed ? ` ${detached ? `${detached} acompanhamento(s) mantido(s) na lista.` : ''}${closed ? ` ${closed} acompanhamento(s) já encerrado(s) foram removidos junto.` : ''}`.trim() : '';
     showToast(`Cadastro de ${visitor.name} excluído.${extra ? ` ${extra}` : ''}`);
   } catch (error) {
-    showToast(`Não foi possível excluir o visitante: ${error.message}`, 'error');
+    const routeMissing = /HTTP 404/.test(error.message || '');
+    showToast(routeMissing
+      ? 'O cadastro continua salvo. A exclusão ainda não está ativa porque a API em produção precisa ser republicada no Railway.'
+      : `Não foi possível excluir o visitante: ${error.message}`, 'error');
   }
 }
 
@@ -1715,6 +1726,26 @@ function exportVisitors() {
   const csv = [headers, ...rows].map(row => row.map(escapeCSV).join(';')).join('\n');
   downloadBlob(`visitantes-${slugify(getActiveChurch()?.name || 'igreja')}-${TODAY}.csv`, `\ufeff${csv}`, 'text/csv;charset=utf-8;');
   showToast('Planilha de visitantes exportada.');
+}
+
+function publicShareUrl(church) {
+  const slug = String(church?.slug || slugify(church?.name || 'igreja'));
+  // O link curto sai da API, e e ela que renderiza o cartao com o logo da igreja.
+  return API_BASE
+    ? `${API_BASE}/s/${encodeURIComponent(slug)}`
+    : `${window.location.origin}${(window.location.pathname || '/').replace(/[^/]*$/, '')}publica.html?igreja=${encodeURIComponent(slug)}`;
+}
+
+async function copyPublicPageLink() {
+  const link = publicShareUrl(getActiveChurch());
+  try {
+    await navigator.clipboard.writeText(link);
+    showToast('Link da página pública copiado. Ele abre com o logo da igreja na prévia.');
+  } catch {
+    const helper = document.createElement('textarea');
+    helper.value = link; document.body.appendChild(helper); helper.select(); document.execCommand('copy'); helper.remove();
+    showToast('Link da página pública copiado.');
+  }
 }
 
 async function copyReceptionLink() {
@@ -1845,7 +1876,8 @@ function handleAction(actionEl) {
     case 'calendar-prev': shiftCalendar(-1); break;
     case 'calendar-next': shiftCalendar(1); break;
     case 'today': state.calendarMonth = TODAY.slice(0, 7); saveState(); render(); break;
-    case 'open-public-page': { const publicPath = `${(window.location.pathname || '/').replace(/[^/]*$/, '')}publica.html?igreja=${encodeURIComponent(getActiveChurch()?.slug || slugify(getActiveChurch()?.name || 'igreja'))}`; window.open(publicPath, '_blank', 'noopener'); break; }
+    case 'copy-public-link': copyPublicPageLink(); break;
+    case 'open-public-page': { window.open(publicShareUrl(getActiveChurch()), '_blank', 'noopener'); break; }
     case 'remove-logo': pendingLogoImage = ''; updateLogoPreview(); showToast('O símbolo de texto será usado como logo.'); break;
     case 'apply-palette': applyPalette(actionEl.dataset.palette); break;
     case 'new-reception': openModal('reception'); break;

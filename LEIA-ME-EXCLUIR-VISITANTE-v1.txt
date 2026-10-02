@@ -1,6 +1,6 @@
 EXCLUSÃO DE VISITANTE — NOVA AÇÃO NA ÁREA DO PASTOR
 Data: 27/09/2026 (madrugada de 28/09)
-Cache do app: emaus-shell-v68-visitor-delete
+Cache do app: emaus-shell-v69-excluir-mensagem-clara
 Depende de: emaus-correcao-cache-visitante-v1.zip (já publicado, commit 9a8cea52)
 
 =====================================================================

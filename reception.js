@@ -7,7 +7,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const fallbackState = {
   activeChurchId: 'batesda',
   metrics: { visits: 0, returns: 0, reach: 0, announcements: 0 },
-  churches: [{ id: 'batesda', name: 'Bethesda', city: 'Itaboraí • RJ', initials: 'BE', logoSymbol: 'B', logoImage: 'bethesda-logo.png' }],
+  churches: [{ id: 'local', name: '', city: '', initials: '', logoSymbol: '', logoImage: '' }],
   visitors: [],
   activity: [],
   receptionUsers: []
@@ -36,7 +36,7 @@ async function loadRemoteChurchData() {
   const church = churchPayload.church;
   if (church) {
     state.activeChurchId = church.id;
-    state.churches = [{ id: church.id, name: church.name, city: church.city, initials: initials(church.name), logoSymbol: initials(church.name).slice(0, 2), logoImage: String(church.slug || '').toLowerCase() === 'bethesda' ? 'bethesda-logo.png' : '' }];
+    state.churches = [{ id: church.id, name: church.name, slug: church.slug || '', city: church.city, initials: initials(church.name), logoSymbol: initials(church.name).slice(0, 2), logoImage: church.logo_url || '' }];
   }
   state.visitors = (visitorPayload.visitors || []).map(visitor => ({
     id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: visitor.visit_date || TODAY, service: visitor.service || 'Culto de Celebração', neighborhood: '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: Boolean(visitor.communication_consent), communicationConsent: Boolean(visitor.communication_consent), churchId: visitor.church_id
@@ -134,12 +134,17 @@ function showToast(message) {
 function renderChurchIdentity() {
   const church = getChurch();
   const logo = document.querySelector('#churchLogo');
-  document.querySelector('#churchName').textContent = church.name || 'Bethesda';
+  document.querySelector('#churchName').textContent = church.name || 'Igreja';
   const receptionBrandLabel = document.querySelector('#receptionBrandLabel');
-  if (receptionBrandLabel) receptionBrandLabel.textContent = `Recepção · ${church.name || 'Bethesda'}`;
-  document.querySelector('#footerChurchName').textContent = church.name || 'Bethesda';
+  if (receptionBrandLabel) receptionBrandLabel.textContent = `Recepção · ${church.name || 'Igreja'}`;
+  document.querySelector('#footerChurchName').textContent = church.name || 'Igreja';
   document.querySelector('#churchCity').textContent = `${church.city || 'Sua cidade'} · área de acolhimento`;
-  document.title = `Recepção · ${church.name || 'Bethesda'}`;
+  document.title = `Recepção · ${church.name || 'Igreja'}`;
+  // Salva a identidade para o splash das proximas aberturas (logo desta igreja).
+  try {
+    const logoSource = church.logoImage || '';
+    localStorage.setItem('emaus-church-splash-v1', JSON.stringify({ name: church.name || '', logo: logoSource && !/^(data:|https?:|\/|\.)/i.test(logoSource) ? `./${logoSource}` : logoSource, at: Date.now() }));
+  } catch (error) {}
   if (church.logoImage) {
     const nestedReceptionPage = /\/recepcao(?:\/|\/index\.html$)/i.test(window.location.pathname);
     const assetPrefix = nestedReceptionPage ? '../' : './';

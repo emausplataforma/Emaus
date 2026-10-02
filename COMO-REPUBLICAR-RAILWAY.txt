@@ -1,0 +1,69 @@
+COMO REPUBLICAR A API NO RAILWAY (passo que falta)
+=====================================================
+
+Situacao medida em 28/09, 00:52:
+  - GitHub (emausplataforma/Emaus, branch main) JA TEM o codigo novo:
+    server.js com a rota DELETE de visitante, service-worker v68/v69.
+  - A API no Railway ainda roda o build antigo de 22/09:
+      DELETE /api/church/visitors/...  -> 404 "Cannot DELETE"
+      GET  /api/admin/billing/subscriptions -> 404 "Cannot GET"
+  - /health continua ok. Nao e falha de codigo: e falta de deploy.
+
+Motivo: o servico Emaus esta conectado ao nome ANTIGO do repositorio
+(ruggineconsultoria-cyber/Emaus), que foi renomeado para
+emausplataforma/Emaus. O Railway nao consegue resolver o nome antigo,
+entao "Auto deploy unavailable" e "Could not load branches".
+
+
+PLANO A - reconectar o GitHub (2 minutos, recomendado)
+-------------------------------------------------------
+1) GitHub -> https://github.com/settings/installations
+   - se o app Railway aparecer: Configure -> All repositories -> Save
+   - se NAO aparecer: https://github.com/apps/railwayapp/installations/new
+     -> instalar para a conta emausplataforma -> All repositories
+2) Railway -> projeto honest-gentleness -> servico Emaus -> Settings -> Source
+   - Disconnect o repositorio antigo
+   - escolher emausplataforma/Emaus, branch main
+   - Root Directory: VAZIO (nao preencher)
+   - Auto deploy: ligado
+3) Deployments -> tres pontinhos do deploy ACTIVE -> Redeploy
+   (ou Deploy -> "Deploy latest commit" para forcar o 9a8cea52 / mais novo)
+4) Aguardar 1 a 3 minutos ate ACTIVE.
+
+SUCESSO = estas duas respostas mudam:
+   GET  /api/admin/billing/subscriptions      -> 401 {"error":"Autenticação necessária."}
+   DELETE /api/church/visitors/qualquer-coisa -> 401 {"error":"Autenticação necessária."}
+   GET  /health                               -> continua {"ok":true,...}
+
+
+PLANO B - publicar sem depender do GitHub (CLI do Railway)
+-----------------------------------------------------------
+Use se o Plano A travar. Roda no SEU computador, no terminal. Nada de
+senha vai para o chat: o login e feito pelo proprio navegador do CLI.
+
+  npm install -g @railway/cli
+  railway login
+  railway link          # escolha honest-gentleness / production / Emaus
+
+Depois, dentro da pasta que contem server.js, package.json,
+schema.sql e billing-mercadopago.js (os arquivos deste ZIP):
+
+  railway up
+
+O CLI sobe o codigo e dispara o build. Variveis privadas do Railway
+(DATABASE_URL, JWT_SECRET, PASTOR_PASSWORD...) nao sao tocadas.
+
+Atencao: o proximo deploy via GitHub pode sobrescrever esse build.
+Assim que o Plano A voltar a funcionar, prefira ele.
+
+
+DEPOIS DE PUBLICAR - teste da exclusao (o botao ja esta na tela)
+-----------------------------------------------------------------
+1) Abra a area do pastor com Ctrl+Shift+R (ou aba anonima).
+2) Acolhimento -> abrir "TESTE Sistema (pode apagar)" -> Excluir visitante.
+3) Esperado: "Cadastro de TESTE Sistema (pode apagar) excluído."
+4) A lista nao deve mais mostrar o nome. Atualize e confirme.
+
+Enquanto o deploy nao acontecer, o botao mostra a mensagem explicativa
+("A exclusao ainda nao esta ativa porque a API em producao precisa ser
+republicada no Railway.") e o cadastro fica preservado.

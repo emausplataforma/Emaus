@@ -7,9 +7,10 @@ function esc(value = '') {
 }
 function assetUrl(value, churchSlug) {
   const source = String(value || '');
-  if (/^(data:|https?:|\/)/i.test(source)) return source;
-  if (source) return source;
-  return churchSlug === 'bethesda' ? 'bethesda-logo.png' : '';
+  if (source) return /^(data:|https?:|\/|\.)/i.test(source) ? source : `./${source}`;
+  // Sem logo cadastrado: a pagina mostra as iniciais da propria igreja (setLogo).
+  // Nao existe mais arquivo de uma igreja especifica como padrao aqui.
+  return '';
 }
 function formatDate(value) {
   if (!value) return '';

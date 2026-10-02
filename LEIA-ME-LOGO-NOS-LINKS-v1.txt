@@ -1,0 +1,90 @@
+LOGO DA IGREJA EM TODOS OS LINKS E MENSAGENS ENVIADOS
+Data: 02/10/2026
+Cache do app: emaus-shell-v70-logo-por-igreja
+
+=====================================================================
+O QUE PASSA A ACONTECER
+=====================================================================
+Quando a igreja compartilha um link (pagina publica, convite, mensagem
+do bot), quem recebe ve um cartao de previsualizacao com o LOGO e o nome
+DAQUELA igreja, e nao da Emaus nem de outra igreja.
+
+  link curto:  https://<sua-api>/s/<slug-da-igreja>
+       |
+       v
+  cartao com og:image = https://<sua-api>/api/public/church/<slug>/logo.png
+       |
+       v
+  depois de mostrar o cartao, o navegador cai em publica.html?igreja=<slug>
+
+Onde o link com marca e usado:
+  - Configuracoes > Pagina publica: "Link publico" + botao Copiar
+  - mensagem do bot ao visitante (visitor_public_page), quando a
+    programacao estiver ativa
+  - qualquer compartilhamento pelo painel passa por publicShareUrl()
+
+Por que nasceu na API e nao no Pages: o frontend e estatico e os robos
+do WhatsApp/Facebook/Instagram NAO executam JavaScript. Cartao por igreja
+so pode ser HTML gerado no servidor.
+
+=====================================================================
+COMO O LOGO E RESOLVIDO (tres casos)
+=====================================================================
+1) logo_url = data:image/... (enviado pela igreja no painel)
+   -> a API devolve os bytes decodificados como image/png|jpeg|webp
+2) logo_url = https://... (URL externa)
+   -> redirecionamento 302 para a URL
+3) logo_url = arquivo no repositorio (ex.: bethesda-logo.png)
+   -> 302 para o asset no GitHub Pages
+4) sem logo cadastrado
+   -> SVG gerado com as INICIAIS E O NOME DA PROPRIA igreja (nunca o logo
+      de outra igreja). Para o cartao ficar bonito, pea a igreja um
+      PNG/JPG ate 300 KB em 1200 x 630.
+
+=====================================================================
+VARIAVEL NOVA OBRIGATORIA NO RAILWAY
+=====================================================================
+PUBLIC_API_URL = https://emaus-production-2de0.up.railway.app
+
+Sem ela, o link dentro das mensagens do bot continua apontando para a
+pagina estatica (sem cartao). Os links copiados do painel ja funcionam,
+porque o frontend usa a URL da API que esta no api-config.js.
+Nenhum valor secreto: e so o endereco publico da propria API.
+
+=====================================================================
+BUGS ENCONTRADOS E CORRIGIDOS NESTE MESMO PACOTE
+=====================================================================
+A) As mensagens do bot NUNCA eram gravadas na fila.
+   visit_date chega do PostgreSQL como objeto Date, e zonedDateTimeToUtc /
+   addDaysIso so sabiam ler texto: "Mon Sep 28" nao vira data e a agenda
+   era descartada em silencio. Antes: 0 linhas na fila. Agora: 2 linhas
+   (primeira mensagem planejada, segunda bloqueada ate haver video).
+   Consertado com isoDay(), que aceita Date e texto.
+
+B) Uma oscilacao do banco derrubava a API inteira.
+   O pool do 'pg' emite 'error' em cliente ocioso sem ouvinte, e o Node 20
+   encerra o processo: todas as igrejas ficavam sem servico. Somado a
+   62 das 66 rotas sem try/catch, uma unica query que falhassem derrubava
+   tudo. Corrigido com:
+     - pool.on('error') -> loga e mantem o servico de pe
+     - process.on('unhandledRejection') -> nao mata o processo
+     - connectionTimeoutMillis: 10000 -> sem espera infinita
+     - trava global em /api: resposta 503 em 15s em vez de pendurar
+   Medido: com o banco caido, /s/ responde 503 e a API segue viva; quando
+   o banco volta, tudo volta a responder 200 sem reiniciar nada.
+
+C) Identidade da Bethesda estava embutida em arquivos genericos
+   (visita.html, index.html, recepcao.html, splash.js, reception.js,
+   admin.js, service-worker). A igreja 2 veria o logo e o nome da Bethesda
+   na tela de entrada e no splash. Todos os casos viraram neutros ou
+   "por igreja". O splash continua em 5 segundos e o Emaus continua so no
+   splash, no administrador e na identificacao tecnica.
+
+=====================================================================
+IMPACTO NO QUE JA ESTAVA COMBINADO
+=====================================================================
+- WhatsApp continua sem envio externo: as mensagens seguem apenas
+  agendadas na fila, sentat NULL, como antes.
+- Cobranca, termos e contrato seguem como estao (pendencias proprias).
+- Nenhum dado de producao foi tocado por este pacote.
+=====================================================================
