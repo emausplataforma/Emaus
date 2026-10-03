@@ -1,0 +1,30 @@
+name: Publicar API no Railway
+
+# Voce sobe os arquivos no GitHub (pela web mesmo) e esta acao publica o backend
+# sozinha. Nao depende do app do Railway instalado no repositorio.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/railwayapp/cli:latest
+    env:
+      # Nome do servico no Railway, igual ao que aparece no painel.
+      SVC_ID: Emaus
+      # O token nunca fica neste arquivo: so o nome da referencia ao secret.
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enviar codigo e disparar o build
+        run: railway up --service=${{ env.SVC_ID }} --detach
+
+      - name: Conferir se a API respondeu
+        run: |
+          sleep 45
+          curl -s -o /tmp/h.json -w "health=%{http_code}\n" https://emaus-production-2de0.up.railway.app/health
+          cat /tmp/h.json

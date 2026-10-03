@@ -1,0 +1,85 @@
+AUTODEPLOY PELO GITHUB ACTIONS - "eu subo no GitHub e o Railway publica"
+02/10/2026
+
+=====================================================================
+POR QUE ISTO EXISTE (medido em 02/10/2026, 22:40)
+=====================================================================
+  ultimo deploy criado pelo app do Railway : 2026-09-19T14:56:02Z (ref 280dbd7d)
+  pushes na main depois disso             : 20
+  deployments do Railway para esses pushes : 0
+  deployment do Pages para o ultimo push  : 18 segundos depois (22:32:20 -> 22:32:38)
+Ou seja: o push chega no GitHub e o Pages publica. O Railway nao e avisado.
+Em vez de depender do aviso, esta acao publicamente conhecida do Railway faz o
+upload do codigo ela mesma, a cada push na main - sem precisar do app instalado.
+
+=====================================================================
+ARQUIVOS DESTES PACOTE (suba os 4 na RAIZ do repositorio Emaus)
+=====================================================================
+  .github/workflows/deploy-railway.yml   a automacao (publica a cada push na main)
+  railway.json                           build "npm install", start "node server.js",
+                                         healthcheck em /health (nao depende de tela)
+  package-lock.json                      versoes travadas (o repo nao tinha)
+  LEIA-ME-AUTODEPLOY-RAILWAY-v1.txt      este arquivo
+
+=====================================================================
+COMO LIGAR (5 minutos, uma vez so)
+=====================================================================
+1) Token do projeto no Railway
+   Railway -> projeto honest-gentleness -> Settings -> Tokens (ou "Project tokens")
+   -> New token. Use token de PROJETO. Token de conta/team costuma falhar com
+   "Project Token not found" ou 401.
+   >>> NAO cole esse token no chat, nem em arquivo, nem em print. <<<
+
+2) Salvar o token no GitHub (como secret, nao como variable)
+   github.com/emausplataforma/Emaus -> Settings -> Secrets and variables -> Actions
+   -> New repository secret
+   Nome:  RAILWAY_TOKEN
+   Valor: o token do passo 1
+
+3) Conferir que Actions podem rodar
+   Settings -> Actions -> General -> Workflow permissions: deixe o padrao
+   (Read repository contents). Nada de "Allow all actions" e necessario.
+
+4) Subir os 4 arquivos (Add file -> Upload files -> Commit directly to main)
+   O push ja dispara sozinho.
+
+5) Onde olhar o resultado
+   aba Actions -> "Publicar API no Railway". O ultimo passo imprime
+   health=200 e o JSON {"ok":true,"service":"emaus-api",...}.
+
+=====================================================================
+DETALHES QUE ECONOMIZAM TEMPO
+=====================================================================
+- SVC_ID esta como "Emaus". Tem que ser EXATAMENTE o nome do servico no painel.
+  Se la for outro nome, troque no arquivo (ou use o ID do servico).
+- railway up sobe o conteudo do repositorio para o servico EXISTENTE indicado por
+  --service. Nao crie um servico novo so para isso: dois servicos = dois dominios e
+  voce apontando a igreja para o errado.
+- Nao mexe no Postgres ligado ao servico, nem em glow-platform.
+- O deploy usa --detach (nao fica preso em confirmacao interativa).
+- O Pages continua publicando do jeito dele (recurso nativo do GitHub, sem app).
+- Se preferir o caminho "oficial", e o mesmo resultado: instalar o app
+  https://github.com/apps/railway-app/installations/new (conta emausplataforma,
+  repo Emaus), ligar Autodeploy em Settings -> Source. A acao acima e o plano que
+  funciona mesmo enquanto essa instalacao estiver morta.
+
+=====================================================================
+O QUE ESTA AUTOMACAO RESOLVE (depois do primeiro deploy verde)
+=====================================================================
+- Exclusao de visitante: DELETE /api/church/visitors/<id> passa a existir em producao
+  (hoje da 404, medido). Botao: Acolhimento -> "..." do visitante -> Excluir visitante.
+  So a conta de pastor da igreja ve o botao.
+- Cartao com logo no WhatsApp: GET /s/<slug> com og:image propria por igreja
+  (hoje 404, medido) e /api/public/church/<slug>/logo.png.
+- O painel troca o link para o formato curto sozinho: a pagina jate a sonda
+  (app.js da v71 no ar) e, ao ver a rota respondendo, comeca a entregar
+  https://...up.railway.app/s/<slug>. Sem reenviar nada.
+
+=====================================================================
+LIMITE DESTE TESTE (honesto)
+=====================================================================
+Validei a sintaxe do YAML (pyyaml), os gatilhos (push + workflow_dispatch), o container
+ghcr.io/railwayapp/cli:latest e o formato "railway up --service=<id> --detach" conforme a
+documentacao do Railway. NAO rodei a acao num runner real daqui: nao tenho token seu nem
+access ao GitHub Actions do seu repo. O primeiro push e o teste de verdade; se der erro,
+cole o log da aba Actions (sem token) que eu corrijo o arquivo.
