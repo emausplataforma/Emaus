@@ -39,7 +39,7 @@ async function loadRemoteChurchData() {
     state.churches = [{ id: church.id, name: church.name, slug: church.slug || '', city: church.city, initials: initials(church.name), logoSymbol: initials(church.name).slice(0, 2), logoImage: church.logo_url || '' }];
   }
   state.visitors = (visitorPayload.visitors || []).map(visitor => ({
-    id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: visitor.visit_date || TODAY, service: visitor.service || 'Culto de Celebração', neighborhood: '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: Boolean(visitor.communication_consent), communicationConsent: Boolean(visitor.communication_consent), churchId: visitor.church_id
+    id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: String(visitor.visit_date || TODAY).slice(0, 10), service: visitor.service || 'Culto de Celebração', neighborhood: visitor.neighborhood || '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: Boolean(visitor.communication_consent), communicationConsent: Boolean(visitor.communication_consent), churchId: visitor.church_id
   }));
 }
 
@@ -224,7 +224,7 @@ async function handleVisitorSubmit(event) {
       familyName: String(data.get('familyName') || '').trim(),
       familyMembers: values.members.length ? values.members : [values.name],
       arrivalType: values.type,
-      phone: String(data.get('phone') || '').trim(),
+      phone: String(data.get('phone') || '').trim(), neighborhood: String(data.get('neighborhood') || '').trim(),
       visitDate: String(data.get('date') || TODAY),
       service: String(data.get('service') || 'Culto de Celebração'),
       invitedBy: String(data.get('invitedBy') || '').trim(),

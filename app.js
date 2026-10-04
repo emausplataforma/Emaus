@@ -2,6 +2,9 @@ const ICON = (name, className = 'icon') => `<svg class="${className}"><use href=
 const PLATFORM_NAME = 'Área da igreja';
 const VISUAL_STORAGE_KEY = 'emaus-visual-preferences-v1';
 const TODAY = new Date().toISOString().slice(0, 10);
+  // Ultima vez que o painel leu o banco da igreja (usado para nao sobrepor requisicoes).
+  let lastChurchSyncAt = 0;
+  let churchSyncInFlight = null;
 const DEFAULT_APPEARANCE = { theme: 'light', font: 'editorial', primary: '#d7a84b', accent: '#b86f45' };
 const DEFAULT_BOT_SETTINGS = { enabled: true, provider: 'zapster', channel: 'WhatsApp', senderMode: 'platform_shared', senderLabelMode: 'church_only', timezone: 'America/Sao_Paulo', visitorSequence: 'once_ever', visitorFirstTime: '22:30', visitorSecondTime: '17:00', cultReminderTime: '17:00', youtubeUrl: '', visitorFirstTemplate: 'Olá, {name}! Foi uma alegria receber você na {church_name}. Conheça nossa igreja: {public_url}', visitorSecondTemplate: 'Olá, {name}! Aqui está um vídeo sobre a {church_name}: {youtube_url}\n\nVocê deseja continuar recebendo convites para festividades e informações da igreja?\nResponda SIM para continuar ou NÃO para parar.' };
 const API_BASE = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
@@ -220,9 +223,34 @@ async function loadRemoteChurchState(user) {
   if (results[10].ok) state.announcements = (announcementsPayload.announcements || []).map(mapApiAnnouncement);
   if (results[11].ok) state.activity = (activityPayload.activity || []).map(mapApiActivity);
   state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: state.announcements.length };
+  lastChurchSyncAt = Date.now();
   setSyncStatus(results.every(result => result.ok) ? 'connected' : 'partial');
   state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || '', twoFactorEnabled: Boolean(user?.twoFactorEnabled) };
 }
+
+  // Quando a pessoa volta para a aba (ou clica em Atualizar), o painel busca o que
+  // a recepcao cadastrou enquanto a tela estava aberta. O intervalo minimo evita
+  // martelar o banco ao alternar abas, e uma requisicao por vez fica em andamento.
+  async function syncChurchData({ manual = false, minIntervalMs = 25000 } = {}) {
+    if (!state.currentUser || state.currentUser.roleKey === 'platform_admin') return false;
+    if (churchSyncInFlight) { if (manual) await churchSyncInFlight; return true; }
+    if (!manual && Date.now() - lastChurchSyncAt < minIntervalMs) return false;
+    const run = (async () => {
+      if (manual) setSyncStatus('syncing');
+      try {
+        await loadRemoteChurchState(state.currentUser);
+        render();
+        if (manual) showToast('Lista atualizada com o banco da igreja.');
+        return true;
+      } catch (error) {
+        setSyncStatus('error');
+        if (manual) showToast(`Não foi possível atualizar agora: ${error.message}`);
+        return false;
+      }
+    })();
+    churchSyncInFlight = run;
+    try { return await run; } finally { churchSyncInFlight = null; }
+  }
 
 function setSyncStatus(kind = 'idle') {
   const element = $('#syncStatus');
@@ -884,7 +912,7 @@ function renderAcolhimento() {
   const totalPeople = recent.reduce((total, visitor) => total + getFamilyMembers(visitor).length, 0);
   const groupMarkup = groups.length ? groups.map(group => `<div class="acolhimento-group-row"><div class="acolhimento-group-icon arrival-${arrivalTone(group.type)}">${ICON(arrivalIcon(group.type))}</div><div class="acolhimento-group-copy"><div class="acolhimento-group-title">${arrivalPill(group.type)}<strong>${esc(group.label)}</strong></div><p>${esc(namesAsSentence(group.names))}</p></div></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>Nenhum cadastro ainda</h3><p>Os visitantes cadastrados na recepção aparecerão aqui.</p></div>`;
   return `
-    <section class="page-head"><div><span class="eyebrow">RECEPÇÃO · ACOLHIMENTO</span><h1>Acolhimento</h1><p>Uma visão simples para a equipe receber cada pessoa pelo nome e respeitar seus grupos.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar mensagem</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
+    <section class="page-head"><div><span class="eyebrow">RECEPÇÃO · ACOLHIMENTO</span><h1>Acolhimento</h1><p>Uma visão simples para a equipe receber cada pessoa pelo nome e respeitar seus grupos.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="sync-church">${ICON('refresh')} Atualizar</button><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar mensagem</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
     <section class="welcome-banner acolhimento-welcome"><div class="welcome-copy"><div class="welcome-icon">${ICON('heart')}</div><div><strong>Todos os cadastros da recepção chegam a esta aba.</strong><p>Famílias, casais, amigos e visitantes individuais ficam organizados para facilitar o cuidado e o anúncio.</p></div></div><span class="access-scope-badge">ACESSO DA RECEPÇÃO</span></section>
     <div class="section-grid acolhimento-layout"><section class="panel acolhimento-message-panel"><div class="panel-header"><div class="panel-heading"><h2>Mensagem sugerida</h2><p>${pending.length ? `${pending.length} cadastro${pending.length === 1 ? '' : 's'} novo${pending.length === 1 ? '' : 's'} para anunciar` : 'Mensagem baseada nos cadastros mais recentes'}</p></div><span class="status-pill ${pending.length ? 'status-new' : 'status-integrated'}">${pending.length ? 'Pendente' : 'Em dia'}</span></div><div class="acolhimento-message-box"><span class="scope-label">PRÉVIA PARA A IGREJA</span><p>${esc(suggestedMessage.body)}</p></div><div class="acolhimento-panel-actions"><button class="btn btn-secondary" data-action="announce-visitors">${ICON('send')} Editar mensagem</button><button class="btn btn-quiet" data-view="pulpit">${ICON('expand')} Modo púlpito</button></div></section><section class="panel info-card acolhimento-summary"><div class="card-topline"><div><h3>Resumo da recepção</h3><p>Cadastros disponíveis para o acolhimento.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><div class="split-stat"><div><small>Pessoas</small><strong>${totalPeople}</strong></div><div><small>Grupos</small><strong>${groups.length}</strong></div><div><small>Novos</small><strong>${pending.length}</strong></div></div><button class="btn btn-secondary btn-full" style="margin-top:22px;" data-view="visitors">${ICON('users')} Ver cadastros</button></section></div>
     <section class="panel acolhimento-groups-panel"><div class="panel-header"><div class="panel-heading"><h2>Visitantes por grupo</h2><p>Os nomes permanecem juntos para facilitar o entendimento dos pastores e da recepção.</p></div><span class="panel-link">${ICON('shield')} Igreja: ${esc(church.name)}</span></div><div class="acolhimento-group-list">${groupMarkup}</div></section>
@@ -907,10 +935,10 @@ function renderVisitors() {
   const returnRate = hasVisitors ? '47,4%' : '0%';
   const returnTrend = hasVisitors ? `${ICON('arrow-up-right')} 4,8%` : '—';
   return `
-    <section class="page-head"><div><span class="eyebrow">RELACIONAMENTO</span><h1>Visitantes</h1><p>Receba, acompanhe e cuide de cada nova história que chega à ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar anúncio</button><button class="btn btn-secondary" data-view="pulpit">${ICON('expand')} Modo púlpito</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
+    <section class="page-head"><div><span class="eyebrow">RELACIONAMENTO</span><h1>Visitantes</h1><p>Receba, acompanhe e cuide de cada nova história que chega à ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="sync-church">${ICON('refresh')} Atualizar</button><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar anúncio</button><button class="btn btn-secondary" data-view="pulpit">${ICON('expand')} Modo púlpito</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
     <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Novos para acompanhar</span><span class="stat-icon copper">${ICON('clipboard-check')}</span></div><div class="stat-number">${newCount}</div><div class="stat-bottom"><span>precisam de atenção</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Retornaram</span><span class="stat-icon green">${ICON('refresh')}</span></div><div class="stat-number">${returned}</div><div class="stat-bottom"><span class="stat-trend">${hasVisitors ? `${ICON('arrow-up-right')} 9,4%` : '—'}</span><span>neste mês</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Total no mês</span><span class="stat-icon gold">${ICON('users')}</span></div><div class="stat-number">${state.metrics.visits}</div><div class="stat-bottom"><span>cadastros realizados</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Taxa de retorno</span><span class="stat-icon dark">${ICON('check-circle')}</span></div><div class="stat-number">${returnRate}</div><div class="stat-bottom"><span class="stat-trend">${returnTrend}</span><span>vs. mês anterior</span></div></article></section>
     <section class="panel arrival-overview"><div class="panel-header"><div class="panel-heading"><h2>Como chegaram à ${esc(church.name)}</h2><p>Identificação rápida para o cuidado e o anúncio dos pastores.</p></div><span class="panel-link">${ICON('shield')} Informação da recepção</span></div><div class="arrival-grid"><div class="arrival-card arrival-alone"><div class="arrival-card-icon">${ICON('user-round')}</div><div><strong>${visitorCountByArrival('Sozinho')}</strong><span>Sozinho</span></div></div><div class="arrival-card arrival-friends"><div class="arrival-card-icon">${ICON('sparkle')}</div><div><strong>${visitorCountByArrival('Com amigos')}</strong><span>Com amigos</span></div></div><div class="arrival-card arrival-couple"><div class="arrival-card-icon">${ICON('heart')}</div><div><strong>${visitorCountByArrival('Em casal')}</strong><span>Em casal</span></div></div><div class="arrival-card arrival-family"><div class="arrival-card-icon">${ICON('users')}</div><div><strong>${visitorCountByArrival('Família')}</strong><span>Família</span></div></div></div></section>
-    <section class="panel table-panel"><div class="panel-header"><div class="panel-heading"><h2>Todos os visitantes</h2><p>${state.visitors.length} registros recentes na área de trabalho</p></div><button class="btn btn-secondary" data-action="filter-help">${ICON('filter')} Filtros</button></div><div class="toolbar" style="padding: 0 21px;"><div class="toolbar-left"><div class="input-wrap">${ICON('search')}<input class="input" id="visitorSearch" type="search" placeholder="Buscar por nome ou telefone" autocomplete="off"></div></div><div class="toolbar-right"><select class="select" id="visitorArrival" aria-label="Filtrar como chegou"><option value="">Como chegou?</option><option value="Sozinho">Sozinho</option><option value="Com amigos">Com amigos</option><option value="Em casal">Em casal</option><option value="Família">Família</option></select><select class="select" id="visitorStatus" aria-label="Filtrar status"><option value="">Todos os status</option><option value="Novo">Novos</option><option value="Contatado">Contatados</option><option value="Retornou">Retornaram</option><option value="Integrado">Integrados</option></select></div></div><div class="table-scroll"><table><thead><tr><th>Visitante</th><th>Como veio</th><th>Data da visita</th><th>Contato</th><th>Status</th><th>Responsável</th><th></th></tr></thead><tbody id="visitorRows">${renderVisitorRows()}</tbody></table></div></section>
+    <section class="panel table-panel"><div class="panel-header"><div class="panel-heading"><h2>Todos os visitantes</h2><p>${state.visitors.length} registros recentes na área de trabalho</p></div><button class="btn btn-secondary" data-action="filter-help">${ICON('filter')} Filtros</button></div><div class="toolbar" style="padding: 0 21px;"><div class="toolbar-left"><div class="input-wrap">${ICON('search')}<input class="input" id="visitorSearch" type="search" placeholder="Buscar por nome, telefone ou bairro" autocomplete="off"></div></div><div class="toolbar-right"><select class="select" id="visitorArrival" aria-label="Filtrar como chegou"><option value="">Como chegou?</option><option value="Sozinho">Sozinho</option><option value="Com amigos">Com amigos</option><option value="Em casal">Em casal</option><option value="Família">Família</option></select><select class="select" id="visitorStatus" aria-label="Filtrar status"><option value="">Todos os status</option><option value="Novo">Novos</option><option value="Contatado">Contatados</option><option value="Retornou">Retornaram</option><option value="Integrado">Integrados</option></select></div></div><div class="table-scroll"><table><thead><tr><th>Visitante</th><th>Como veio</th><th>Data da visita</th><th>Contato</th><th>Status</th><th>Responsável</th><th></th></tr></thead><tbody id="visitorRows">${renderVisitorRows()}</tbody></table></div></section>
   `;
 }
 
@@ -919,13 +947,13 @@ function renderVisitorRows() {
   const statusFilter = $('#visitorStatus')?.value || '';
   const arrivalFilter = $('#visitorArrival')?.value || '';
   const visitors = state.visitors.filter(visitor => {
-    const matchesSearch = !search || `${visitor.name} ${visitor.phone} ${getFamilyMembers(visitor).join(' ')}`.toLowerCase().includes(search);
+    const matchesSearch = !search || `${visitor.name} ${visitor.phone} ${visitor.neighborhood || ''} ${getFamilyMembers(visitor).join(' ')}`.toLowerCase().includes(search);
     const matchesStatus = !statusFilter || visitor.status === statusFilter;
     const matchesArrival = !arrivalFilter || (visitor.arrivalType || 'Sozinho') === arrivalFilter;
     return matchesSearch && matchesStatus && matchesArrival;
   });
   if (!visitors.length) return `<tr><td colspan="7"><div class="empty-state"><div class="icon-tile">${ICON('search')}</div><h3>Nenhum visitante encontrado</h3><p>Tente mudar o termo de busca ou o filtro selecionado.</p></div></td></tr>`;
-  return visitors.map(visitor => `<tr><td><div class="person-cell"><div class="avatar ${iconTone(visitor.status === 'Novo' ? 'copper' : visitor.status === 'Retornou' ? 'olive' : 'dark')}">${esc(initials(visitor.name))}</div><div><strong>${esc(visitor.name)}</strong><span>${esc(visitor.service)}</span>${familySummary(visitor)}</div></div></td><td>${arrivalPill(visitor.arrivalType || 'Sozinho')}</td><td>${esc(formatDateShort(visitor.date))}</td><td>${esc(visitor.phone || 'Sem telefone')}</td><td><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></td><td>${esc(visitor.responsible)}</td><td><button class="table-action" data-action="visitor-detail" data-id="${esc(visitor.id)}" aria-label="Ver detalhes de ${esc(visitor.name)}">${ICON('more')}</button></td></tr>`).join('');
+  return visitors.map(visitor => `<tr><td><div class="person-cell"><div class="avatar ${iconTone(visitor.status === 'Novo' ? 'copper' : visitor.status === 'Retornou' ? 'olive' : 'dark')}">${esc(initials(visitor.name))}</div><div><strong>${esc(visitor.name)}</strong><span>${esc([visitor.service, visitor.neighborhood].filter(Boolean).join(' · '))}</span>${familySummary(visitor)}</div></div></td><td>${arrivalPill(visitor.arrivalType || 'Sozinho')}</td><td>${esc(formatDateShort(visitor.date))}</td><td>${esc(visitor.phone || 'Sem telefone')}</td><td><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></td><td>${esc(visitor.responsible)}</td><td><button class="table-action" data-action="visitor-detail" data-id="${esc(visitor.id)}" aria-label="Ver detalhes de ${esc(visitor.name)}">${ICON('more')}</button></td></tr>`).join('');
 }
 
 function pendingPulpitVisitors() {
@@ -1912,6 +1940,7 @@ function handleAction(actionEl) {
     case 'open-public-page': { window.open(publicShareUrl(getActiveChurch()), '_blank', 'noopener'); break; }
     case 'remove-logo': pendingLogoImage = ''; updateLogoPreview(); showToast('O símbolo de texto será usado como logo.'); break;
     case 'apply-palette': applyPalette(actionEl.dataset.palette); break;
+    case 'sync-church': syncChurchData({ manual: true }); break;
     case 'new-reception': openModal('reception'); break;
     case 'copy-reception-link': copyReceptionLink(); break;
     case 'reception-detail': openModal('reception-detail', { id: actionEl.dataset.id }); break;
@@ -2023,3 +2052,10 @@ openModal = function(type, data = {}) {
 
 init();
 detectApiRoutes();
+
+// Cadastros novos da recepcao entram sozinhos quando a aba volta a ficar visivel
+// (alt+tab, voltar do WhatsApp, desbloquear o telefone) e no retorno de navegacao.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncChurchData();
+});
+window.addEventListener('pageshow', event => { if (event.persisted) syncChurchData(); });
