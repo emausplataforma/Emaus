@@ -1000,3 +1000,33 @@ td { font-size: 12px; }
 .table-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
 .table-action-danger { border-color: #e7c9c3; background: var(--danger-soft); color: var(--danger); }
 .table-action-danger:hover { border-color: #d89b91; background: #f6dfdb; }
+
+/* ===== Saudação do púlpito (nomes em destaque) ===== */
+.greeting-panel { border-left: 3px solid var(--gold); }
+.greeting-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.greeting-size-chip { font-family: var(--font-display); font-size: 15px; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+.greeting-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(272px, 1fr)); gap: 12px; padding: 18px 21px 21px; }
+.greeting-card { min-width: 0; padding: 14px 15px 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); }
+.greeting-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.greeting-card-group { color: var(--muted); font-size: 9.5px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.greeting-card-date { margin-left: auto; color: var(--muted-2); font-size: 9.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.greeting-names { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 12px; margin-top: 11px; }
+.greeting-name { font-family: var(--font-display); font-size: 25px; font-weight: 600; line-height: 1.14; letter-spacing: -.015em; color: var(--ink); overflow-wrap: anywhere; }
+.greeting-name + .greeting-name::before { content: '·'; margin-right: 12px; color: var(--gold); }
+.greeting-empty { display: grid; justify-items: center; gap: 4px; padding: 26px 20px; text-align: center; color: var(--muted); }
+.greeting-empty h3 { color: var(--ink); font-size: 14px; }
+.greeting-empty p { margin: 0; font-size: 11px; max-width: 44ch; }
+/* nome do visitante em evidencia tambem na tabela */
+.visitor-name { font-size: 14px !important; letter-spacing: -.01em; }
+/* os tres tamanhos pedidos: padrao -> grande -> enorme */
+:root[data-greeting-size="lg"] .greeting-name { font-size: 32px; }
+:root[data-greeting-size="xl"] .greeting-name { font-size: 41px; }
+:root[data-greeting-size="lg"] .visitor-name { font-size: 16.5px !important; }
+:root[data-greeting-size="xl"] .visitor-name { font-size: 19px !important; }
+:root[data-greeting-size="lg"] .pulpit-names .pulpit-name strong, :root[data-greeting-size="lg"] .pulpit-single-name strong { font-size: 29px; }
+:root[data-greeting-size="xl"] .pulpit-names .pulpit-name strong, :root[data-greeting-size="xl"] .pulpit-single-name strong { font-size: 38px; }
+@media (max-width: 720px) {
+  .greeting-list { grid-template-columns: 1fr; padding: 15px 16px 17px; }
+  .greeting-name { font-size: 23px; }
+  .greeting-panel .panel-header { flex-wrap: wrap; }
+}

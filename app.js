@@ -225,7 +225,12 @@ async function loadRemoteChurchState(user) {
   state.metrics = { ...(state.metrics || {}), visits: state.visitors.length, returns: state.visitors.filter(visitor => ['Retornou', 'Integrado'].includes(visitor.status)).length, reach: Number(church?.member_count || 0), announcements: state.announcements.length };
   lastChurchSyncAt = Date.now();
   setSyncStatus(results.every(result => result.ok) ? 'connected' : 'partial');
-  state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.role || 'church_admin', churchId: user?.churchId || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || '', twoFactorEnabled: Boolean(user?.twoFactorEnabled) };
+  // O objeto recebido aqui pode vir da API (user.role = 'church_admin') ou do proprio
+  // estado ja convertido (user.role = 'Pastor da igreja', que e rotulo de tela). Por isso
+  // roleKey e login preservam o que ja foi resolvido: sem isso, qualquer gravacao (excluir
+  // visitante, salvar acesso) fazia o painel perder a identidade de administrador e
+  // escondia botoes ate a pagina ser recarregada.
+  state.currentUser = { id: user?.id || '', name: user?.name || 'Pastor', preferredName: user?.preferredName || '', gender: user?.gender || 'unspecified', role: user?.role === 'reception' ? (user?.jobRole || 'Recepção') : genderedRole(user || {}, 'Pastor da igreja'), roleKey: user?.roleKey || (user?.role === 'reception' ? 'reception' : user?.role === 'platform_admin' ? 'platform_admin' : 'church_admin'), churchId: user?.churchId || user?.church_id || state.activeChurchId, permissions: Array.isArray(user?.permissions) ? user.permissions : [], status: user?.status || 'active', login: user?.email || user?.login || '', twoFactorEnabled: Boolean(user?.twoFactorEnabled) };
 }
 
   // Quando a pessoa volta para a aba (ou clica em Atualizar), o painel busca o que
@@ -904,6 +909,55 @@ function renderMembers() {
   return `<section class="page-head"><div><span class="eyebrow">COMUNIDADE</span><h1>Membros</h1><p>Uma base organizada para cuidar das pessoas que fazem parte da ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-members">${ICON('download')} Exportar membros</button><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Novo membro</button></div></section><div class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Membros cadastrados</span><span class="stat-icon copper">${ICON('users')}</span></div><div class="stat-number">${esc(total)}</div><div class="stat-bottom"><span>base da igreja</span><span>multi-igreja</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Ativos</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(active)}</div><div class="stat-bottom"><span>em acompanhamento</span><span>status atualizado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Meta de crescimento</span><span class="stat-icon gold">${ICON('arrow-up-right')}</span></div><div class="stat-number">${esc(state.growthGoals?.members || 0)}</div><div class="stat-bottom"><span>membros até o fim do ciclo</span><button class="panel-link" data-action="growth-goals">Editar meta ${ICON('arrow-up-right')}</button></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Presenças no mês</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(state.attendanceSummary?.month || 0)}</div><div class="stat-bottom"><span>membros registrados</span><span>cuidado, não ranking</span></div></article></div><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Cadastro de membros</h2><p>Dados separados e protegidos para esta igreja.</p></div><span class="status-pill status-integrated">${esc(total)} ${total === 1 ? 'membro' : 'membros'}</span></div><div class="team-list" style="padding:0 22px 22px;">${rows}</div></section>`;
 }
 
+  // ===== Saudação do púlpito: nomes em destaque para ler do altar =====
+  // O tamanho escolhido fica no aparelho (não no cadastro), porque é uma
+  // preferência de leitura de quem está no púlpito, não um dado da igreja.
+  const GREETING_SIZE_KEY = 'emaus-greeting-size';
+  const GREETING_SIZES = { md: 'padrão', lg: 'grande', xl: 'enorme' };
+  function greetingSize() {
+    try {
+      const valor = localStorage.getItem(GREETING_SIZE_KEY);
+      return valor === 'lg' || valor === 'xl' ? valor : 'md';
+    } catch (error) {
+      return 'md';
+    }
+  }
+  function applyGreetingSize() {
+    try { document.documentElement.dataset.greetingSize = greetingSize(); } catch (error) { /* sem localStorage: usa o padrão */ }
+  }
+  function cycleGreetingSize() {
+    const ordem = ['md', 'lg', 'xl'];
+    const proxima = ordem[(ordem.indexOf(greetingSize()) + 1) % ordem.length];
+    try { localStorage.setItem(GREETING_SIZE_KEY, proxima); } catch (error) { /* só não lembra na próxima visita */ }
+    applyGreetingSize();
+    render();
+    showToast(`Texto da saudação em tamanho ${GREETING_SIZES[proxima]}.`);
+  }
+  // Quem saudar: primeiro os que ainda não foram apresentados; se não houver,
+  // os cadastros dos últimos sete dias (para o pastor não ficar com a tela vazia).
+  function greetingVisitors() {
+    const pending = pendingPulpitVisitors();
+    if (pending.length) return pending;
+    const semanaAtras = isoDateFromDate(addDaysToDate(parseDate(TODAY), -6));
+    return state.visitors.filter(visitor => String(visitor.date || '') >= semanaAtras).slice(0, 12);
+  }
+  function renderGreetingCard(visitor) {
+    const members = getFamilyMembers(visitor);
+    const type = visitor.arrivalType || 'Sozinho';
+    const heading = members.length > 1 ? (visitor.familyName || `${members.length} pessoas juntas`) : (visitor.invitedBy && visitor.invitedBy !== '—' ? `convidado por ${visitor.invitedBy}` : 'Visitante');
+    const names = members.length > 1 ? members : [visitor.name];
+    return `<article class="greeting-card"><div class="greeting-card-head">${arrivalPill(type)}<span class="greeting-card-group">${esc(heading)}</span><span class="greeting-card-date">${esc(formatDateShort(visitor.date))}</span></div><div class="greeting-names">${names.map(name => `<span class="greeting-name">${esc(name)}</span>`).join('')}</div></article>`;
+  }
+  function renderGreetingPanel() {
+    const visitors = greetingVisitors();
+    const people = visitors.reduce((total, visitor) => total + getFamilyMembers(visitor).length, 0);
+    const cards = visitors.length
+      ? visitors.map(renderGreetingCard).join('')
+      : `<div class="greeting-empty"><span class="icon-tile">${ICON('check-circle')}</span><h3>Nenhum visitante para saudar agora</h3><p>Assim que a recepção registrar alguém, o nome aparece aqui em destaque.</p></div>`;
+    const label = visitors.length ? `${people} ${people === 1 ? 'pessoa' : 'pessoas'} para saudar` : 'Sem saudações pendentes';
+    return `<section class="panel greeting-panel"><div class="panel-header"><div class="panel-heading"><span class="eyebrow">${label}</span><h2>Saudação do púlpito</h2><p>Nomes grandes, na ordem de chegada, para ler do altar sem apertar os olhos.</p></div><div class="greeting-actions"><button class="btn btn-secondary" data-action="cycle-greeting-size"><span class="greeting-size-chip">Aa</span> Texto: ${GREETING_SIZES[greetingSize()]}</button><button class="btn btn-secondary" data-view="pulpit">${ICON('expand')} Modo púlpito</button>${visitors.length ? `<button class="btn btn-gold" data-action="announce-visitors">${ICON('megaphone')} Preparar saudação</button>` : `<button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Cadastrar visitante</button>`}</div></div><div class="greeting-list">${cards}</div></section>`;
+  }
+
 function renderAcolhimento() {
   const church = getActiveChurch();
   const pending = pendingPulpitVisitors();
@@ -915,6 +969,7 @@ function renderAcolhimento() {
   const groupMarkup = groups.length ? groups.map(group => `<div class="acolhimento-group-row"><div class="acolhimento-group-icon arrival-${arrivalTone(group.type)}">${ICON(arrivalIcon(group.type))}</div><div class="acolhimento-group-copy"><div class="acolhimento-group-title">${arrivalPill(group.type)}<strong>${esc(group.label)}</strong></div><p>${esc(namesAsSentence(group.names))}</p></div></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>Nenhum cadastro ainda</h3><p>Os visitantes cadastrados na recepção aparecerão aqui.</p></div>`;
   return `
     <section class="page-head"><div><span class="eyebrow">RECEPÇÃO · ACOLHIMENTO</span><h1>Acolhimento</h1><p>Uma visão simples para a equipe receber cada pessoa pelo nome e respeitar seus grupos.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="sync-church">${ICON('refresh')} Atualizar</button><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar mensagem</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
+    ${renderGreetingPanel()}
     <section class="welcome-banner acolhimento-welcome"><div class="welcome-copy"><div class="welcome-icon">${ICON('heart')}</div><div><strong>Todos os cadastros da recepção chegam a esta aba.</strong><p>Famílias, casais, amigos e visitantes individuais ficam organizados para facilitar o cuidado e o anúncio.</p></div></div><span class="access-scope-badge">ACESSO DA RECEPÇÃO</span></section>
     <div class="section-grid acolhimento-layout"><section class="panel acolhimento-message-panel"><div class="panel-header"><div class="panel-heading"><h2>Mensagem sugerida</h2><p>${pending.length ? `${pending.length} cadastro${pending.length === 1 ? '' : 's'} novo${pending.length === 1 ? '' : 's'} para anunciar` : 'Mensagem baseada nos cadastros mais recentes'}</p></div><span class="status-pill ${pending.length ? 'status-new' : 'status-integrated'}">${pending.length ? 'Pendente' : 'Em dia'}</span></div><div class="acolhimento-message-box"><span class="scope-label">PRÉVIA PARA A IGREJA</span><p>${esc(suggestedMessage.body)}</p></div><div class="acolhimento-panel-actions"><button class="btn btn-secondary" data-action="announce-visitors">${ICON('send')} Editar mensagem</button><button class="btn btn-quiet" data-view="pulpit">${ICON('expand')} Modo púlpito</button></div></section><section class="panel info-card acolhimento-summary"><div class="card-topline"><div><h3>Resumo da recepção</h3><p>Cadastros disponíveis para o acolhimento.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><div class="split-stat"><div><small>Pessoas</small><strong>${totalPeople}</strong></div><div><small>Grupos</small><strong>${groups.length}</strong></div><div><small>Novos</small><strong>${pending.length}</strong></div></div><button class="btn btn-secondary btn-full" style="margin-top:22px;" data-view="visitors">${ICON('users')} Ver cadastros</button></section></div>
     <section class="panel acolhimento-groups-panel"><div class="panel-header"><div class="panel-heading"><h2>Visitantes por grupo</h2><p>Os nomes permanecem juntos para facilitar o entendimento dos pastores e da recepção.</p></div><span class="panel-link">${ICON('shield')} Igreja: ${esc(church.name)}</span></div><div class="acolhimento-group-list">${groupMarkup}</div></section>
@@ -955,7 +1010,7 @@ function renderVisitorRows() {
     return matchesSearch && matchesStatus && matchesArrival;
   });
   if (!visitors.length) return `<tr><td colspan="7"><div class="empty-state"><div class="icon-tile">${ICON('search')}</div><h3>Nenhum visitante encontrado</h3><p>Tente mudar o termo de busca ou o filtro selecionado.</p></div></td></tr>`;
-  return visitors.map(visitor => `<tr><td><div class="person-cell"><div class="avatar ${iconTone(visitor.status === 'Novo' ? 'copper' : visitor.status === 'Retornou' ? 'olive' : 'dark')}">${esc(initials(visitor.name))}</div><div><strong>${esc(visitor.name)}</strong><span>${esc([visitor.service, visitor.neighborhood].filter(Boolean).join(' · '))}</span>${familySummary(visitor)}</div></div></td><td>${arrivalPill(visitor.arrivalType || 'Sozinho')}</td><td>${esc(formatDateShort(visitor.date))}</td><td>${esc(visitor.phone || 'Sem telefone')}</td><td><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></td><td>${esc(visitor.responsible)}</td><td class="table-row-actions"><button class="table-action" data-action="visitor-detail" data-id="${esc(visitor.id)}" aria-label="Ver detalhes de ${esc(visitor.name)}">${ICON('more')}</button>${canDeleteVisitor() ? `<button class="table-action table-action-danger" data-action="delete-visitor" data-id="${esc(visitor.id)}" aria-label="Excluir visitante ${esc(visitor.name)}" title="Excluir visitante">${ICON('x')}</button>` : ''}</td></tr>`).join('');
+  return visitors.map(visitor => `<tr><td><div class="person-cell"><div class="avatar ${iconTone(visitor.status === 'Novo' ? 'copper' : visitor.status === 'Retornou' ? 'olive' : 'dark')}">${esc(initials(visitor.name))}</div><div><strong class="visitor-name">${esc(visitor.name)}</strong><span>${esc([visitor.service, visitor.neighborhood].filter(Boolean).join(' · '))}</span>${familySummary(visitor)}</div></div></td><td>${arrivalPill(visitor.arrivalType || 'Sozinho')}</td><td>${esc(formatDateShort(visitor.date))}</td><td>${esc(visitor.phone || 'Sem telefone')}</td><td><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></td><td>${esc(visitor.responsible)}</td><td class="table-row-actions"><button class="table-action" data-action="visitor-detail" data-id="${esc(visitor.id)}" aria-label="Ver detalhes de ${esc(visitor.name)}">${ICON('more')}</button>${canDeleteVisitor() ? `<button class="table-action table-action-danger" data-action="delete-visitor" data-id="${esc(visitor.id)}" aria-label="Excluir visitante ${esc(visitor.name)}" title="Excluir visitante">${ICON('x')}</button>` : ''}</td></tr>`).join('');
 }
 
 function pendingPulpitVisitors() {
@@ -1942,6 +1997,7 @@ function handleAction(actionEl) {
     case 'remove-logo': pendingLogoImage = ''; updateLogoPreview(); showToast('O símbolo de texto será usado como logo.'); break;
     case 'apply-palette': applyPalette(actionEl.dataset.palette); break;
     case 'sync-church': syncChurchData({ manual: true }); break;
+    case 'cycle-greeting-size': cycleGreetingSize(); break;
     case 'new-reception': openModal('reception'); break;
     case 'copy-reception-link': copyReceptionLink(); break;
     case 'reception-detail': openModal('reception-detail', { id: actionEl.dataset.id }); break;
@@ -1966,6 +2022,7 @@ function handleAction(actionEl) {
 
 function init() {
   applyAppearance();
+  applyGreetingSize();
   render();
   document.addEventListener('click', event => {
     const nav = event.target.closest('[data-view]');
