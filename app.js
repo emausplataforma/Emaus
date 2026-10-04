@@ -659,8 +659,10 @@ function visitorCountByArrival(type) {
 }
 function canDeleteVisitor() {
   // So o administrador da igreja exclui cadastro; a equipe da recepcao apenas registra.
-  // Com o build antigo no ar o botao nem aparece, para ninguem clicar em algo sem efeito.
-  return state.currentUser?.roleKey === 'church_admin' && apiRoutes.mode !== 'legacy';
+  // A presenca do botao nao depende mais da sonda que tentava adivinhar o build da API:
+  // uma unica chamada que falhasse escondia o botao pela sessao inteira, mesmo com a
+  // rota funcionando. Quem manda e o servidor - se faltar a rota, o aviso aparece ao clicar.
+  return state.currentUser?.roleKey === 'church_admin';
 }
 
 function familyNamesForVisitors(visitors) {
@@ -953,7 +955,7 @@ function renderVisitorRows() {
     return matchesSearch && matchesStatus && matchesArrival;
   });
   if (!visitors.length) return `<tr><td colspan="7"><div class="empty-state"><div class="icon-tile">${ICON('search')}</div><h3>Nenhum visitante encontrado</h3><p>Tente mudar o termo de busca ou o filtro selecionado.</p></div></td></tr>`;
-  return visitors.map(visitor => `<tr><td><div class="person-cell"><div class="avatar ${iconTone(visitor.status === 'Novo' ? 'copper' : visitor.status === 'Retornou' ? 'olive' : 'dark')}">${esc(initials(visitor.name))}</div><div><strong>${esc(visitor.name)}</strong><span>${esc([visitor.service, visitor.neighborhood].filter(Boolean).join(' · '))}</span>${familySummary(visitor)}</div></div></td><td>${arrivalPill(visitor.arrivalType || 'Sozinho')}</td><td>${esc(formatDateShort(visitor.date))}</td><td>${esc(visitor.phone || 'Sem telefone')}</td><td><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></td><td>${esc(visitor.responsible)}</td><td><button class="table-action" data-action="visitor-detail" data-id="${esc(visitor.id)}" aria-label="Ver detalhes de ${esc(visitor.name)}">${ICON('more')}</button></td></tr>`).join('');
+  return visitors.map(visitor => `<tr><td><div class="person-cell"><div class="avatar ${iconTone(visitor.status === 'Novo' ? 'copper' : visitor.status === 'Retornou' ? 'olive' : 'dark')}">${esc(initials(visitor.name))}</div><div><strong>${esc(visitor.name)}</strong><span>${esc([visitor.service, visitor.neighborhood].filter(Boolean).join(' · '))}</span>${familySummary(visitor)}</div></div></td><td>${arrivalPill(visitor.arrivalType || 'Sozinho')}</td><td>${esc(formatDateShort(visitor.date))}</td><td>${esc(visitor.phone || 'Sem telefone')}</td><td><span class="status-pill ${statusClass(visitor.status)}">${esc(visitor.status)}</span></td><td>${esc(visitor.responsible)}</td><td class="table-row-actions"><button class="table-action" data-action="visitor-detail" data-id="${esc(visitor.id)}" aria-label="Ver detalhes de ${esc(visitor.name)}">${ICON('more')}</button>${canDeleteVisitor() ? `<button class="table-action table-action-danger" data-action="delete-visitor" data-id="${esc(visitor.id)}" aria-label="Excluir visitante ${esc(visitor.name)}" title="Excluir visitante">${ICON('x')}</button>` : ''}</td></tr>`).join('');
 }
 
 function pendingPulpitVisitors() {
@@ -1717,9 +1719,8 @@ Nome, telefone, culto e observações saem do banco da igreja. Acompanhamentos d
     showToast(`Cadastro de ${visitor.name} excluído.${extra ? ` ${extra}` : ''}`);
   } catch (error) {
     const routeMissing = /HTTP 404/.test(error.message || '');
-    if (routeMissing) apiRoutes.mode = 'legacy';
     showToast(routeMissing
-      ? 'O cadastro continua salvo. A exclusão ainda não está ativa porque a API em produção precisa ser republicada no Railway.'
+      ? 'O cadastro continua salvo. A rota de exclusão respondeu 404: aperte Ctrl+Shift+R, tente de novo e, se persistir, a API do Railway precisa ser republicada.'
       : `Não foi possível excluir o visitante: ${error.message}`, 'error');
   }
 }

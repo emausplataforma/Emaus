@@ -650,7 +650,7 @@ tbody tr:hover td { background: #fcfbf9; }
 .metric-event-detail { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-top: 14px; }
 .metric-event-detail > div { display: flex; align-items: center; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 9px; }
 .metric-event-detail .icon { width: 13px; height: 13px; color: var(--copper); }
-.modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; padding-top: 17px; border-top: 1px solid #f0ede7; }
+.modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; row-gap: 8px; margin-top: 22px; padding-top: 17px; border-top: 1px solid #f0ede7; }
 .radio-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .radio-card { position: relative; }
 .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
@@ -995,3 +995,8 @@ td { font-size: 12px; }
 
 .security-status-row { display:flex; align-items:center; gap:11px; padding:13px 0; border-top:1px solid #f0ede7; border-bottom:1px solid #f0ede7; }
 .security-status-row > div { min-width:0; flex:1; }.security-status-row strong,.security-status-row p { display:block; }.security-status-row strong { color:var(--ink); font-size:11px; }.security-status-row p { margin:4px 0 0; color:var(--muted); font-size:9px; line-height:1.45; }.security-status-dot { width:10px; height:10px; flex:none; border-radius:50%; background:#b9ad9b; }.security-status-dot.is-on { background:var(--success); box-shadow:0 0 0 4px var(--success-soft); }
+
+/* Ações por linha da tabela: detalhes + excluir, com o perigo separado e visível */
+.table-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.table-action-danger { border-color: #e7c9c3; background: var(--danger-soft); color: var(--danger); }
+.table-action-danger:hover { border-color: #d89b91; background: #f6dfdb; }
