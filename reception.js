@@ -57,6 +57,9 @@ function getChurch() {
   return state.churches.find(church => church.id === state.activeChurchId) || state.churches[0] || fallbackState.churches[0];
 }
 
+function esc(value = '') {
+  return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
 function initials(name = '') {
   return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'B';
 }
@@ -145,13 +148,16 @@ function renderChurchIdentity() {
     const logoSource = church.logoImage || '';
     localStorage.setItem('emaus-church-splash-v1', JSON.stringify({ name: church.name || '', logo: logoSource && !/^(data:|https?:|\/|\.)/i.test(logoSource) ? `./${logoSource}` : logoSource, at: Date.now() }));
   } catch (error) {}
+  const fallbackSymbol = church.logoSymbol || initials(church.name);
   if (church.logoImage) {
     const nestedReceptionPage = /\/recepcao(?:\/|\/index\.html$)/i.test(window.location.pathname);
     const assetPrefix = nestedReceptionPage ? '../' : './';
     const logoSource = /^(data:|https?:|\/)/i.test(church.logoImage) ? church.logoImage : `${assetPrefix}${church.logoImage.replace(/^\.\//, '')}`;
-    logo.innerHTML = `<img src="${logoSource}" alt="Logo da ${church.name}">`;
+    // Se o arquivo da logo nao existir no site, a caixa mostra as iniciais da igreja
+    // em vez do icone de imagem quebrada.
+    logo.innerHTML = `<img src="${logoSource}" alt="Logo da ${church.name}" onerror="this.parentNode.textContent='${esc(fallbackSymbol)}'">`;
   } else {
-    logo.textContent = church.logoSymbol || initials(church.name);
+    logo.textContent = fallbackSymbol;
   }
 }
 

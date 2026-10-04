@@ -322,9 +322,19 @@ function readVisualPreferences() {
   }
 }
 
+// Celulares e tablets mais antigos (iOS < 15.4, Chrome/WebView < 98) nao possuem
+// structuredClone. Sem esta compatibilidade o app morava na primeira linha e a tela
+// do celular ficava em branco - por isso abria no computador e nao abria no telefone.
+function cloneValue(value) {
+  if (typeof structuredClone === 'function') {
+    try { return structuredClone(value); } catch (error) { /* segue para o plano B */ }
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
 function loadState() {
   const visualPreferences = readVisualPreferences();
-  const freshState = structuredClone(defaultState);
+  const freshState = cloneValue(defaultState);
   freshState.churches = freshState.churches.map(church => ({
     ...church,
     appearance: { ...DEFAULT_APPEARANCE, ...(visualPreferences[church.id] || {}) }

@@ -29,9 +29,14 @@ function setLogo(symbolId, imageId, church, fallbackSymbol = '') {
   const symbol = document.getElementById(symbolId);
   const image = document.getElementById(imageId);
   const source = assetUrl(church.logo_url, church.slug);
+  const fallbackText = String(fallbackSymbol || church.name || 'I').trim().slice(0, 2).toUpperCase();
   if (source) {
     if (symbol) symbol.hidden = true;
-    if (image) { image.hidden = false; image.src = source; image.alt = `Logo da ${church.name}`; }
+    if (image) {
+      image.hidden = false; image.src = source; image.alt = `Logo da ${church.name}`;
+      // Arquivo de logo ausente: mostra as iniciais, nao o icone de imagem quebrada.
+      image.onerror = () => { image.hidden = true; if (symbol) { symbol.hidden = false; symbol.textContent = fallbackText; } };
+    }
   } else {
     if (symbol) { symbol.hidden = false; symbol.textContent = String(fallbackSymbol || church.name || 'I').trim().slice(0, 2).toUpperCase(); }
     if (image) image.hidden = true;

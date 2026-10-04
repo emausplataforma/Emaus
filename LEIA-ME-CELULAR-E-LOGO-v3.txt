@@ -1,0 +1,84 @@
+LEIA-ME v3 - "no telefone nao abre" e "a logo da igreja nao aparece na recepcao"
+04/10/2026
+
+=====================================================================
+1) TELEFONE QUE NAO ABRIA - CAUSA ENCONTRADA E CORRIGIDA
+=====================================================================
+O app.js usava um comando chamado structuredClone na primeira linha de execucao
+(linha 60). Esse comando nao existe em celular mais antigo: iPhone com iOS anterior
+a 15.4 e Android com Chrome/WebView anterior a 98 (marco de 2022). Quando o comando
+nao existe, o navegador para o script inteiro ali - e nada mais do painel carrega.
+No computador o comando existe, entao abria normalmente. Foi o meu erro ao escrever
+isso; nao tinha como eu descobrir sem um celular antigo nas maos.
+
+Correcao: agora o programa tenta o comando rapido e, se o aparelho nao tiver, usa
+o caminho compativel (JSON). Ja existia esse risco em outro lugar? Nao - procurei em
+todos os arquivos e era so esse um ponto.
+
+Prova feita (executei a funcao real do app.js, nao uma copia):
+  - aparelho antigo (sem o comando): loadState() rodou | igrejas: 1 | calendario: 2026-10
+    e a clonacao continua profunda (mexer no estado nao altera o padrao)
+  - aparelho moderno: mesmo resultado
+  - codigo de ontem, no mesmo teste de aparelho antigo: TypeError: structuredClone is not a
+    function  -> e era isso que deixava a tela branca
+
+=====================================================================
+2) LOGO DA IGREJA NA RECEPCAO - O QUE A PRODUCAO DIZ AGORA
+=====================================================================
+A API respondeu (medido hoje):  GET /api/public/church?slug=bethesda
+  church.logo_url = "./bethesda-logo.png"
+  church.name     = Bethesda | slug: bethesda
+
+Ou seja: no banco da Bethesda esta gravado um endereco de arquivo, nao uma imagem
+enviada pelo painel. Esse arquivo existe no site (200, PNG, 161.379 bytes), e a
+funcao real da recepcao, executada com esse valor, gera IMG src="./bethesda-logo.png".
+Se mesmo assim voce nao ve a logo, os motivos possiveis sao estes:
+
+  a)Cache do navegador segurando a versao antiga -> este pacote sobe o cache para
+    emaus-shell-v72-celular-antigo, que obriga todos os aparelhos a baixarem de novo.
+  b) A igreja em questao nunca salvou logo (Configuracoes > Identidade da igreja).
+    Sem logo gravada, a caixa mostra as duas iniciais do nome - foi o combinado de
+    mostrar "so o nome da igreja" como marca, entao nao e tela quebrada.
+  c) A logo foi salva mas o arquivo apontado nao existe mais no site (por exemplo
+    um nome antigo). Isso mostrava o quadradinho de "imagem quebrada".
+
+Melhoria aplicada (recepcao e pagina publica): se o arquivo da logo nao existir,
+a caixa passa a mostrar as iniciais da igreja em vez do icone de imagem quebrada.
+Testado com a funcao real em quatro casos:
+  "./bethesda-logo.png"  -> IMG (e o endereco responde 200 no site)
+  sem logo               -> iniciais "VN", sem imagem quebrada
+  data: URI enviada pelo painel -> IMG com a imagem interna
+  "./nao-existe.png"     -> IMG com fallback ligado (o endereco real responde 404)
+  nome com apostrofo     -> atributo escapado, nao quebra a pagina
+
+=====================================================================
+3) O QUE MUDOU NOS ARQUIVOS
+=====================================================================
+  app.js             clone compativel (corrige o celular)
+  reception.js       iniciais quando a logo falha + esc() para atributos
+  publica.js         mesma protecao na pagina que o visitante abre no celular
+  service-worker.js  cache emaus-shell-v72-celular-antigo
+
+Nada de backend mudou neste pacote. Continua valendo: o codigo do servidor esta no
+GitHub (commit com server.js idendico ao testado), mas o Railway ainda roda o build
+de 19/09 - por isso "excluir visitante" e o cartao com logo nos links seguem parados.
+
+IMPORTANTE sobre links antigos: qualquer link no formato
+  https://emaus-production-2de0.up.railway.app/s/<igreja>
+que foi copiado/ enviado ANTES da v71 vai abrir com erro em qualquer aparelho
+(medido hoje: 404 "Cannot GET /s/bethesda"). Isso so para de acontecer quando o
+Railway publicar o codigo novo. A partir da v71 o painel entrega o link que funciona.
+
+=====================================================================
+4) O QUE VOCE FAZ AGORA (2 minutos)
+=====================================================================
+1) Suba estes 4 arquivos no GitHub (Add file -> Upload files -> Commit to main).
+2) No celular, abra o endereco do painel:
+     https://emausplataforma.github.io/Emaus/index.html
+   se abrir, a correcao do aparelho antigo esta valendo.
+3) Para ver a logo na recepcao: entre em Configuracoes > Identidade da igreja,
+   envie o arquivo da logo (PNG ou JPG ate 300 KB) e clique em Salvar alteracoes.
+   Depois abra a recepcao com Ctrl+Shift+R (no celular: fechar e abrir de novo).
+4) Se a logo continuar sem aparecer, mande um print da tela da recepcao (e o nome
+   da igreja). Eu nao consigo ver a tela de voces - com o print eu digo exatamente
+   qual dos casos (a, b ou c) esta acontecendo.
