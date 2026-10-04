@@ -913,17 +913,19 @@ function renderMembers() {
   // O tamanho escolhido fica no aparelho (não no cadastro), porque é uma
   // preferência de leitura de quem está no púlpito, não um dado da igreja.
   const GREETING_SIZE_KEY = 'emaus-greeting-size';
-  const GREETING_SIZES = { md: 'padrão', lg: 'grande', xl: 'enorme' };
+  const GREETING_SIZES = { md: 'normal', lg: 'médio', xl: 'grande' };
   function greetingSize() {
     try {
       const valor = localStorage.getItem(GREETING_SIZE_KEY);
-      return valor === 'lg' || valor === 'xl' ? valor : 'md';
+      // quem já escolheu mantém a escolha; quem nunca escolheu abre no médio
+      if (valor === 'md') return 'md';
+      return valor === 'xl' ? 'xl' : 'lg';
     } catch (error) {
-      return 'md';
+      return 'lg';
     }
   }
   function applyGreetingSize() {
-    try { document.documentElement.dataset.greetingSize = greetingSize(); } catch (error) { /* sem localStorage: usa o padrão */ }
+    try { document.documentElement.dataset.greetingSize = greetingSize(); } catch (error) { /* sem localStorage: abre no médio */ }
   }
   function cycleGreetingSize() {
     const ordem = ['md', 'lg', 'xl'];
