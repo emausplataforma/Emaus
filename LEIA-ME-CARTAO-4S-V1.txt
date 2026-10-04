@@ -1,0 +1,72 @@
+LEIA-ME - CARTAO DE ENTRADA COM A LOGO DA IGREJA (4 segundos)
+04/10/2026
+
+=====================================================================
+O QUE VOCE PEDIU E O QUE FOI FEITO
+=====================================================================
+"quando a recepcao entrar na area da recepcao, o pastor entrar na area do pastor e
+ quando os visitantes entrarem na pagina da igreja, apareca a logo da igreja por
+ 4 segundos e depois abra a pagina; e nessas paginas tem que estar a logo da igreja
+ SEM a palavra Emaus"
+
+Ficou assim, nos tres lugares:
+  - area do pastor (index.html)        cartao de 4 s com a logo da igreja  (ja existia, corrigido)
+  - area da recepcao (recepcao.html)   cartao de 4 s com a logo da igreja  (ja existia, corrigido)
+  - pagina da igreja (publica.html)    cartao de 4 s com a logo da igreja  (NOVO: nao existia)
+
+A palavra "Emaus" saiu dessas tres paginas e da pagina de cadastro do visitante:
+  - no cartao de espera: agora aparece so o nome da igreja (antes era "Emaus - area da igreja")
+  - no cabecalho da pagina da igreja: saiu o "EMAUS" que ficava acima do nome
+  - no titulo da aba do navegador e no texto de descricao da pagina: saiu "Emaus" e o
+    nome "Bethesda" que estava escrito dentro do arquivo
+  - o rodape da recepcao e a legenda "Recepcao - Bethesda" tambem deixaram de trazer
+    nome de igreja chumbado (agora vem do cadastro de cada igreja)
+No administrador da plataforma (admin.html) "Emaus" continua, como combinado.
+
+=====================================================================
+TEMPO: 4 SEGUNDOS
+=====================================================================
+Era 5 segundos (combinado antigo). Voces pediram 4, entao agora e 4:
+  SPLASH_DURATION_MS = 4000  em splash.js
+Depois dos 4 s o cartao sai sozinho e a pagina abre.
+
+=====================================================================
+COMO A LOGO DE CADA IGREJA CHEGA ATE O CARTAO
+=====================================================================
+  - pastor e recepcao: ao entrar, a propria area grava a identidade (nome + logo) no
+    aparelho; no acesso seguinte o cartao ja abre com a logo, sem esperar a internet.
+  - visitante na pagina da igreja: o cartao busca o cadastro da igreja pelo endereco
+    (?igreja=<nome-da-igreja>) e mostra o logo dela. Se a internet demorar mais de
+    2,5 s, o cartao sai no tempo normal mostrando as iniciais do nome - nunca trava.
+  - igreja sem logo enviada: o cartao mostra as iniciais do nome (ex.: "VN"), e nao
+    um quadrado de imagem quebrada. O mesmo vale se o arquivo da logo sumir do site.
+
+Provas executadas (o arquivo real de cartao, rodando no computador, sem navegador):
+  area do pastor   : tempo 4000 ms | nome "Vida Nova" | logo "./minha-logo.png" | nenhuma
+                     ocorrencia de "Emaus" em nenhum texto | ao fim dos 4 s o cartao sai
+  pagina da igreja : nome "Bethesda" | logo "./bethesda-logo.png" | esse endereco responde
+                     200 image/png 161.379 bytes no site | identidade gravada para a
+                     proxima abertura | fallback de imagem quebrada ligado
+  iniciais         : cartao e painel usam a MESMA regra: "Betel"=B, "Vida Nova"=VN,
+                     "Igreja do Caminho"=ID, "Assembléia do Caminho"=AD
+  marca cruzada    : nenhuma das paginas acima contem "Emaus" nem "Bethesda" no arquivo
+                     (varredura: 0 e 0 nas quatro paginas + nos quatro arquivos js)
+
+=====================================================================
+ARQUIVOS PARA SUBIR (todos na RAIZ do repositorio, entao "Upload files" funciona)
+=====================================================================
+  index.html        recepcao.html      publica.html       visita.html
+  splash.js         splash.css         app.js             reception.js
+  publica.js        service-worker.js  styles.css         admin.css
+O cache do aplicativo mudou para emaus-shell-v73-cartao-4s, o que obriga cada celular e
+computador a baixar a versao nova na proxima abertura (sem isso, o aparelho fica na copia
+velha e voce nao ve a mudanca).
+
+=====================================================================
+O QUE ISTO NAO MUDA
+=====================================================================
+  - Continua faltando publicar o backend no Railway (medido hoje: /s/<igreja> e o
+    logo.png por igreja respondem 404). Enquanto isso, o cartao bonito do WhatsApp e o
+    botao "Excluir visitante" seguem parados. Nada disso tem relacao com esta mudanca.
+  - "Excluir visitante" e so para a conta de pastor da igreja (recepcao e administrador
+    da plataforma nao veem o botao).

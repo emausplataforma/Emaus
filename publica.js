@@ -92,6 +92,10 @@ function renderPage(payload) {
   setText('contactDescription', description);
   setText('footerName', church.name, 'Igreja');
   document.title = `${church.name || 'Igreja'} · Página da igreja`;
+  // O cartao de espera (4 s) mostra a marca desta igreja; quem abre de novo ja
+  // tem a identidade guardada e ve o logo imediatamente.
+  try { window.__emausSplash?.update({ name: church.name || '', logo: church.logo_url || '' }); } catch (error) {}
+  try { localStorage.setItem('emaus-church-splash-v1', JSON.stringify({ name: church.name || '', logo: String(church.logo_url || '').trim() && !/^(data:|https?:|\/|\.)/i.test(church.logo_url) ? `./${church.logo_url}` : (church.logo_url || ''), at: Date.now() })); } catch (error) {}
   const visitorPath = `visita.html?igreja=${encodeURIComponent(church.slug || slug)}`;
   ['headerCta', 'heroCta', 'contactCta'].forEach(id => { const el = document.getElementById(id); if (el) { el.firstChild.nodeValue = `${cta} `; el.href = visitorPath; } });
   setLogo('brandSymbol', 'brandImage', church, settings.logoSymbol || '');

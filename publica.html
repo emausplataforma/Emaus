@@ -5,15 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0d0e0d">
   <meta name="description" content="Página pública da igreja">
-  <title>Página da igreja · Bethesda</title>
+  <title>Página da igreja</title>
+  <link rel="stylesheet" href="splash.css">
   <link rel="stylesheet" href="publica.css?v=54">
 </head>
 <body>
+  <section id="emausSplash" role="status" aria-label="Abrindo a página da igreja">
+    <div class="splash-inner">
+      <div class="splash-halo" aria-hidden="true"></div>
+      <div class="splash-logo-wrap">
+        <img id="splashLogo" class="splash-logo" alt="Logo da igreja" hidden>
+        <span id="splashLogoText" class="splash-logo-text" hidden>I</span>
+      </div>
+      <span id="splashKicker" class="splash-kicker">Área da igreja</span>
+      <strong class="splash-title">Seja bem-vindo</strong>
+      <p class="splash-subtitle">Um lugar para pertencer, crescer e viver a fé em comunidade.</p>
+    </div>
+  </section>
+
   <div class="public-shell" id="publicShell">
     <header class="public-header">
       <a class="brand" href="#inicio" aria-label="Início">
         <span class="brand-mark" id="brandMark"><span id="brandSymbol">B</span><img id="brandImage" alt="" hidden></span>
-        <span class="brand-copy"><small>EMAÚS</small><strong id="brandName">Igreja</strong></span>
+        <span class="brand-copy"><strong id="brandName">Igreja</strong></span>
       </a>
       <nav aria-label="Navegação pública">
         <a href="#sobre">Sobre</a>
@@ -69,6 +83,7 @@
   </div>
   <div class="state-message is-hidden" id="stateMessage"><div class="state-mark">E</div><h1 id="stateTitle">Página não encontrada</h1><p id="stateText">Não foi possível carregar esta igreja agora.</p><a class="primary-button" href="index.html">Voltar para a igreja <span>↗</span></a></div>
   <script src="api-config.js?v=58"></script>
+  <script src="splash.js"></script>
   <script src="publica.js?v=58"></script>
 </body>
 </html>

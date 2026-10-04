@@ -498,7 +498,7 @@ function receptionLink(church = getActiveChurch()) {
   return `${window.location.origin}${basePath}recepcao.html?igreja=${encodeURIComponent(slug)}`;
 }
 function churchLogoText(church) {
-  return String(church?.logoSymbol || (church?.id === 'batesda' ? 'B' : initials(church?.name || 'B'))).trim().slice(0, 2).toUpperCase() || 'B';
+  return String(church?.logoSymbol || initials(church?.name || 'Igreja')).trim().slice(0, 2).toUpperCase() || 'IG';
 }
 function normalizeHex(value, fallback) {
   return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value).toLowerCase() : fallback;
@@ -700,12 +700,12 @@ function updateShell() {
   if (current) current.textContent = meta.label;
   const church = getActiveChurch();
   const churchName = $('#activeChurchName');
-  if (churchName) churchName.textContent = church?.name || 'Bethesda';
+  if (churchName) churchName.textContent = church?.name || 'Igreja';
   const sidebarBrandName = $('#sidebarBrandName');
-  if (sidebarBrandName) sidebarBrandName.textContent = church?.name || 'Bethesda';
+  if (sidebarBrandName) sidebarBrandName.textContent = church?.name || 'Igreja';
   const topbarChurchName = $('#topbarChurchName');
-  if (topbarChurchName) topbarChurchName.textContent = church?.name || 'Bethesda';
-  document.title = `${church?.name || 'Bethesda'} · ${PLATFORM_NAME}`;
+  if (topbarChurchName) topbarChurchName.textContent = church?.name || 'Igreja';
+  document.title = `${church?.name || 'Igreja'} · Área da igreja`;
   const userName = preferredDisplayName(state.currentUser) || 'Evandro & Simone';
   const userRole = genderedRole(state.currentUser, state.currentUser?.role || 'Pastor da igreja');
   if ($('#sidebarUserName')) $('#sidebarUserName').textContent = userName;
