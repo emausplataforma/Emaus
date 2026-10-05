@@ -5,3 +5,8 @@
 @media(max-width:420px){.header-cta{display:none}.hero h1{font-size:40px}.hero-card{height:270px}.contact-details{grid-template-columns:1fr}.public-footer{flex-direction:column;align-items:flex-start}}
 
 .story-section{border-top:1px solid var(--line);padding:0 4% 85px}.story-card{max-width:900px;border:1px solid var(--line);background:linear-gradient(120deg,#1c1e1a,#131512);padding:42px 48px}.story-card h2{font-family:var(--display);font-size:clamp(31px,4vw,51px);line-height:1.1;margin:14px 0 20px;font-weight:600;letter-spacing:-.02em}.story-card p{max-width:760px;color:var(--muted);font-size:17px;line-height:1.8;white-space:pre-line;margin:0}@media(max-width:800px){.story-section{padding:0 2% 58px}.story-card{padding:30px 25px}.story-card p{font-size:16px;line-height:1.7}}
+.pastor-list{display:flex;flex-wrap:wrap;gap:12px 30px;margin:0 0 8px}
+.pastor-name{display:inline-flex;align-items:center;gap:11px;font-family:var(--display);font-size:clamp(21px,2.3vw,29px);line-height:1.2;color:var(--ink);letter-spacing:-.01em}
+.pastor-name::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--gold);flex:0 0 auto}
+.pastor-list+#pastorsText:empty{display:none}
+@media(max-width:800px){.pastor-name{font-size:20px}.pastor-list{gap:9px 20px}}

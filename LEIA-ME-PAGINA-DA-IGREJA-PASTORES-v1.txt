@@ -1,0 +1,81 @@
+PÁGINA DA IGREJA — JÁ DÁ PARA COLOCAR MAIS DE UM PASTOR
+pacote v13  ·  cache do aplicativo v82  ·  5 de outubro de 2026
+
+O QUE ESTAVA ACONTECENDO
+------------------------
+Você dizia que tinha dois pastores na Bethesda e não conseguia colocar. Havia
+dois motivos, os dois do mesmo lado (o do site, não o do banco de dados):
+
+1) O campo "Pastores responsáveis", no painel, era uma linha só. Dava para
+   escrever os dois nomes ali, mas eles viravam um texto corrido.
+
+2) Na página pública, o bloco dos pastores só aparecia se houvesse TEXTO de
+   biografia preenchido em Configurações ▸ Página da igreja. Sem biografia, o
+   nome ia para o banco de dados, ficava salvo, e a página não mostrava nada —
+   parecia que não tinha adiantado colocar.
+
+O QUE MUDOU
+-----------
+· Configurações ▸ Identidade da igreja ▸ "Pastores responsáveis" agora é uma
+  caixa que aceita várias linhas. Escreva um nome por linha. Também são
+  aceitos vírgula, "e" e "&" como separadores, para quem já escrevia assim.
+· A página pública monta uma lista: cada pastor vira um item próprio, na fonte de
+  título da página, com um ponto dourado antes do nome. Ficam lado a lado quando
+  há espaço e caem um por linha no celular.
+· O título se ajusta sozinho: "Nosso pastor" com um nome, "Nossos pastores"
+  com dois ou mais, "Sobre os pastores" quando há só a biografia.
+· A biografia continuou opcional. Com nomes cadastrados, o bloco aparece de
+  qualquer jeito; sem biografia, não sobra parágrafo vazio no meio da página.
+· Saiu do código o nome "Evandro e Simone" que aparecia como padrão para
+  qualquer igreja nova, e as iniciais "ES" presas no canto da barra. Agora cada
+  igreja mostra o que o próprio pastor cadastrou, e as iniciais vêm de quem
+  entrou.
+· Nada de banco de dados mudou. A coluna que guarda os nomes sempre coube
+  texto livre, e a API já gravava o campo sem cortá-lo.
+
+COMO PUBLICAR (não precisa mexer no Railway)
+--------------------------------------------
+São 6 arquivos, todos vão na PASTA RAIZ do repositório Emaus (por cima dos que
+já estão lá):
+
+  app.js
+  index.html
+  publica.html
+  publica.js
+  publica.css
+  service-worker.js
+
+Depois é normal de sempre: commit e push. O site publicado atualiza quando o
+GitHub Pages terminar (costuma levar menos de um minuto). O cache novo
+("emaus-shell-v82-pagina-pastores") obriga o aplicativo a jogar fora a versão
+antiga, então ninguém fica preso na página velha.
+
+COMO CONFERIR
+-------------
+1. Painel ▸ Configurações ▸ Identidade da igreja ▸ "Pastores responsáveis":
+   escreva, uma por linha:
+       Pr. Evandro Silva
+       Pra. Simone Silva
+   Salve.
+2. Abra a página da igreja (pelo link "Página da igreja" ou pelo endereço
+   /s/bethesda ▸ botão). Se o navegador teimar em mostrar a versão velha,
+   aperte Ctrl+Shift+R uma vez.
+3. Teste rápido do que não pode quebrar: apague os nomes e salve. Sem nomes e
+   sem biografia, o bloco dos pastores some da página (era assim antes,
+   continua assim) — ele não aparece vazio.
+
+LIMITES E DETALHES QUE FICARAM DECIDIDOS ASSIM
+---------------------------------------------
+· A lista mostra no máximo 6 nomes por igreja. Se alguém escrever mais, os
+  primeiros 6 aparecem.
+· Uma palavra solta " e " vira separador. Isso significa que um nome composto
+  do tipo "Maria e José Ministérios" seria cortado ao meio — para esses casos,
+  use uma linha por nome.
+· O que é escrito é escapado antes de virar HTML: nome com "<" ou colchete não
+  vira código, vira texto.
+
+ARQUIVOS QUE NÃO FORAM TOCADOS
+------------------------------
+recepcao.html, reception.js, styles.css, splash.js, api-config.js, admin.*,
+server.js, schema.sql — nenhuma linha. A tela da portaria, a área do pastor e
+a API continuam exatamente como no ar.

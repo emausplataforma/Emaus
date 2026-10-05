@@ -21,6 +21,30 @@ function safeExternalUrl(value) {
   const source = String(value || '').trim();
   return /^https?:\/\//i.test(source) ? source : '';
 }
+// "Evandro e Simone", "Evandro, Simone" ou um por linha: todos viram uma lista.
+function pastorNames(value) {
+  return String(value || '')
+    .split(/\r?\n|;|,|\s+e\s+|\s*&\s*/)
+    .map(nome => nome.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+function renderPastors(church, bio) {
+  const secao = document.getElementById('pastorsSection');
+  if (!secao) return;
+  const nomes = pastorNames((church && church.pastors) || '');
+  const lista = document.getElementById('pastorsList');
+  const titulo = document.getElementById('pastorsTitle');
+  const paragrafo = document.getElementById('pastorsText');
+  if (lista) {
+    lista.innerHTML = nomes.map(nome => `<span class="pastor-name">${esc(nome)}</span>`).join('');
+    lista.hidden = !nomes.length;
+  }
+  if (titulo) titulo.textContent = nomes.length > 1 ? 'Nossos pastores' : nomes.length === 1 ? 'Nosso pastor' : 'Sobre os pastores';
+  if (paragrafo) { paragrafo.textContent = bio || ''; paragrafo.hidden = !bio; }
+  // a lista dos nomes basta para a seção aparecer; a biografia segue opcional
+  secao.classList.toggle('is-hidden', !nomes.length && !bio);
+}
 function setText(id, value, fallback = '') {
   const element = document.getElementById(id);
   if (element) element.textContent = value || fallback;
@@ -80,10 +104,8 @@ function renderPage(payload) {
   const history = String(settings.history || '').trim();
   const pastorsBio = String(settings.pastorsBio || '').trim();
   setText('historyText', history);
-  setText('pastorsTitle', church.pastors ? `Pastores ${church.pastors}` : 'Sobre os pastores');
-  setText('pastorsText', pastorsBio);
+  renderPastors(church, pastorsBio);
   document.getElementById('historySection')?.classList.toggle('is-hidden', !history);
-  document.getElementById('pastorsSection')?.classList.toggle('is-hidden', !pastorsBio);
   setText('heroAddress', address);
   setText('heroHours', hours);
   setText('contactAddress', address);
