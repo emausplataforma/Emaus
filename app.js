@@ -1,7 +1,16 @@
 const ICON = (name, className = 'icon') => `<svg class="${className}"><use href="#icon-${name}"></use></svg>`;
 const PLATFORM_NAME = 'Área da igreja';
 const VISUAL_STORAGE_KEY = 'emaus-visual-preferences-v1';
-const TODAY = new Date().toISOString().slice(0, 10);
+// "Hoje" é o dia de Brasília, nunca o dia do relógio UTC do aparelho:
+// um culto às 19h30 de sábado continuaria sendo sábado no domingo de madrugada em UTC.
+function brasiliaToday(value = new Date()) {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value);
+  const pega = tipo => { const parte = partes.find(item => item.type === tipo); return parte ? parte.value : ''; };
+  const ano = pega('year'), mes = pega('month'), dia = pega('day');
+  if (ano && mes && dia) return `${ano}-${mes}-${dia}`;
+  return value.toISOString().slice(0, 10);
+}
+const TODAY = brasiliaToday();
   // Ultima vez que o painel leu o banco da igreja (usado para nao sobrepor requisicoes).
   let lastChurchSyncAt = 0;
   let churchSyncInFlight = null;

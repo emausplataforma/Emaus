@@ -2,7 +2,16 @@ const SESSION_KEY = 'emaus-reception-session';
 const RECEPTION_TOKEN_KEY = 'emaus-reception-token';
 const RECEPTION_USER_KEY = 'emaus-reception-user';
 const API_BASE = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
-const TODAY = new Date().toISOString().slice(0, 10);
+// A portaria não digita mais a data: ela é a de Brasília, calculada na hora de salvar
+// (um celular com relógio em UTC anotaria o culto de sábado à noite como domingo).
+function brasiliaToday(value = new Date()) {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value);
+  const pega = tipo => { const parte = partes.find(item => item.type === tipo); return parte ? parte.value : ''; };
+  const ano = pega('year'), mes = pega('month'), dia = pega('day');
+  if (ano && mes && dia) return `${ano}-${mes}-${dia}`;
+  return value.toISOString().slice(0, 10);
+}
+const TODAY = brasiliaToday();
 
 const fallbackState = {
   activeChurchId: 'batesda',
@@ -83,6 +92,35 @@ function groupLabel(type, familyName) {
   return 'Sozinho';
 }
 
+function groupRowsFor(type) {
+  if (type === 'Em casal') return 1;
+  if (type === 'Família' || type === 'Com amigos') return 2;
+  return 1;
+}
+
+// "Família Nogueira" sem ninguém precisar digitar: vale quando todos os nomes
+// terminam com o mesmo sobrenome. Caso contrário a lacuna fica para o pastor preencher.
+function autoFamilyName(type, members) {
+  if (type !== 'Família' || members.length < 2) return '';
+  const sobrenomes = members.map(member => String(member).trim().split(/\s+/).pop() || '');
+  if (sobrenomes.some(item => !item || item.length <= 2)) return '';
+  if (new Set(sobrenomes.map(item => item.toLowerCase())).size !== 1) return '';
+  return `Família ${sobrenomes[0]}`;
+}
+
+function companionPhones() {
+  const linhas = [...document.querySelectorAll('.family-row')];
+  const registros = [];
+  for (const linha of linhas) {
+    const campoNome = linha.querySelector('input[name="familyMember"]');
+    const campoTelefone = linha.querySelector('input[name="familyMemberPhone"]');
+    const nome = String(campoNome && campoNome.value || '').trim();
+    const telefone = String(campoTelefone && campoTelefone.value || '').trim();
+    if (nome && telefone) registros.push(`${nome} ${telefone}`);
+  }
+  return registros;
+}
+
 function getFormValues() {
   const form = document.querySelector('#visitorForm');
   const data = new FormData(form);
@@ -90,12 +128,16 @@ function getFormValues() {
   const type = String(data.get('arrivalType') || 'Sozinho');
   const additionalNames = [...document.querySelectorAll('input[name="familyMember"]')].map(input => input.value);
   const members = uniqueNames([name, ...additionalNames]);
+  const familyName = autoFamilyName(type, members);
+  const phones = companionPhones();
   return {
     name,
     type,
-    familyName: String(data.get('familyName') || '').trim(),
+    familyName,
     members,
-    message: members.length ? `${groupLabel(type, String(data.get('familyName') || '').trim())}: ${namesAsSentence(members)}` : `${groupLabel(type, String(data.get('familyName') || '').trim())}: informe o nome do visitante.`
+    phones,
+    notesExtra: phones.length ? `Telefones de quem veio junto: ${phones.join(' · ')}` : '',
+    message: members.length ? `${groupLabel(type, familyName)}: ${namesAsSentence(members)}` : `${groupLabel(type, familyName)}: informe o nome do visitante.`
   };
 }
 
@@ -113,7 +155,12 @@ function showFamilyFields(force = false) {
   const shouldShow = force || checkbox.checked || arrival.value !== 'Sozinho';
   fields.classList.toggle('hidden', !shouldShow);
   checkbox.checked = shouldShow;
-  if (shouldShow && !document.querySelector('input[name="familyMember"]')) addFamilyMember();
+  if (shouldShow) {
+    // ao classificar como casal, família ou amigos, as lacunas já abrem na quantidade certa
+    const existentes = document.querySelectorAll('input[name="familyMember"]').length;
+    const desejadas = groupRowsFor(arrival.value);
+    for (let indice = existentes; indice < desejadas; indice += 1) addFamilyMember(indice === existentes);
+  }
   updatePreview();
 }
 
@@ -121,9 +168,10 @@ function addFamilyMember() {
   const list = document.querySelector('#familyList');
   const row = document.createElement('div');
   row.className = 'family-row';
-  row.innerHTML = '<input name="familyMember" placeholder="Nome da outra pessoa"><button class="remove-member" type="button" aria-label="Remover pessoa">×</button>';
+  row.innerHTML = '<input class="member-name" name="familyMember" placeholder="Nome de quem veio junto" autocomplete="off" inputmode="text"><input class="member-phone" name="familyMemberPhone" type="tel" inputmode="tel" placeholder="Telefone (opcional)" autocomplete="off"><button class="remove-member" type="button" aria-label="Remover pessoa">×</button>';
   list.appendChild(row);
-  row.querySelector('input').focus();
+  const primeiro = row.querySelector('input');
+  if (primeiro) primeiro.focus();
   updatePreview();
 }
 
@@ -170,7 +218,7 @@ function showLoggedInView(user) {
   document.querySelector('#logoutButton').classList.remove('hidden');
   document.querySelector('#welcomeTitle').textContent = `Olá, ${user.name.split(' ')[0]}!`;
   renderChurchIdentity();
-  document.querySelector('#visitorDate').value = TODAY;
+  document.querySelector('#visitorDate').value = brasiliaToday();
   updatePreview();
 }
 
@@ -215,20 +263,22 @@ async function handleVisitorSubmit(event) {
   const values = getFormValues();
   if (!values.name) return showToast('Informe o nome principal do visitante.');
   const form = document.querySelector('#visitorForm');
+  // a data entra sozinha, no instante do cadastro, e é a de Brasília
+  document.querySelector('#visitorDate').value = brasiliaToday();
   const data = new FormData(form);
   const button = form.querySelector('button[type=submit]');
   button.disabled = true;
   try {
     await apiRequest('/api/church/visitors', { method: 'POST', body: {
       name: values.name,
-      familyName: String(data.get('familyName') || '').trim(),
+      familyName: values.familyName,
       familyMembers: values.members.length ? values.members : [values.name],
       arrivalType: values.type,
       phone: String(data.get('phone') || '').trim(), neighborhood: String(data.get('neighborhood') || '').trim(),
-      visitDate: String(data.get('date') || TODAY),
+      visitDate: String(data.get('date') || brasiliaToday()),
       service: String(data.get('service') || 'Culto de Celebração'),
       invitedBy: String(data.get('invitedBy') || '').trim(),
-      notes: String(data.get('notes') || '').trim(),
+      notes: [String(data.get('notes') || '').trim(), values.notesExtra].filter(Boolean).join('\n'),
       communicationConsent: data.get('communicationConsent') === 'on',
       consentVersion: 'reception-v1'
     }});
@@ -236,7 +286,7 @@ async function handleVisitorSubmit(event) {
     document.querySelector('#successText').textContent = `${values.message}. O pastor já poderá visualizar este cadastro no Acolhimento.`;
     document.querySelector('#successMessage').classList.remove('hidden');
     form.reset();
-    document.querySelector('#visitorDate').value = TODAY;
+    document.querySelector('#visitorDate').value = brasiliaToday();
     document.querySelector('#familyList').innerHTML = '';
     document.querySelector('#familyFields').classList.add('hidden');
     updatePreview();
@@ -266,14 +316,14 @@ async function init() {
   });
   document.querySelector('#clearForm').addEventListener('click', () => {
     document.querySelector('#visitorForm').reset();
-    document.querySelector('#visitorDate').value = TODAY;
+    document.querySelector('#visitorDate').value = brasiliaToday();
     document.querySelector('#familyList').innerHTML = '';
     document.querySelector('#familyFields').classList.add('hidden');
     document.querySelector('#successMessage').classList.add('hidden');
     updatePreview();
   });
   document.querySelector('#logoutButton').addEventListener('click', showLoggedOutView);
-  document.querySelector('#visitorDate').value = TODAY;
+  document.querySelector('#visitorDate').value = brasiliaToday();
   const sessionUserId = sessionStorage.getItem(SESSION_KEY);
   const savedUser = sessionStorage.getItem(RECEPTION_USER_KEY);
   if (sessionUserId && sessionStorage.getItem(RECEPTION_TOKEN_KEY) && savedUser) {
