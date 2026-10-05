@@ -1,8 +1,51 @@
-Emaús — expansão do Administrador central v1.5
-Frontend: admin.html / admin.js / admin.css com visão geral em cartões, detalhes, edição, status, pipeline, planos, financeiro, suporte, configurações, 2FA e auditoria.
-Backend: server.js/schema.sql com rotas administrativas de detalhes, edição/status, leads, suporte e tabelas persistentes platform_leads/platform_support_requests.
-Financeiro: sem DEFAULT_FINANCE e sem números de demonstração no administrador; receita/gastos/resultado vêm do PostgreSQL ou aparecem como Indisponível.
-Isolamento: consultas administrativas de detalhes e atividades são vinculadas ao church_id; nenhuma alteração foi feita em glow-platform.
-Bot: permanece preparado, sem envio externo Zapster até ativação explícita; senderMode platform_shared e senderLabelMode church_only permanecem no backend.
-Publicação: atualize o frontend no GitHub Pages e publique emaus-api/ no serviço Railway Emaús para habilitar as rotas novas.
-Segurança: não há senhas, tokens, DATABASE_URL, chaves privadas ou segredos neste pacote.
+Emaús — registro da publicação
+Atualizado em 05/10/2026, 14:35 (Brasília). Nada neste arquivo contém senha, token,
+DATABASE_URL, chave privada ou segredo de qualquer tipo.
+
+RELEASE EM PRODUÇÃO
+  Pacote ......... v13  (emaus-pagina-da-igreja-dois-pastores-v13.zip)
+  Commit ......... 26c44eaa em main ("Add files via upload", 05/10/2026 14:29)
+  Cache do app ... emaus-shell-v82-pagina-pastores   (service-worker.js)
+  Frontend ....... github.com/emausplataforma/Emaus  ->  emausplataforma.github.io/Emaus
+  API ............ emaus-production-2de0.up.railway.app  (não foi republicada nesta rodada)
+
+O QUE ESTA RELEASE COLOCOU NO AR
+  1. Página pública da igreja lista mais de um pastor. "Pastores responsáveis" aceita
+     vários nomes (um por linha; vírgula, "e" e "&" também separam) e a página monta um
+     item por nome, na fonte de título, com ponto dourado. Máximo de 6 nomes por igreja.
+  2. O bloco dos pastores deixou de depender da biografia: antes ele só aparecia se
+     "Biografia dos pastores" estivesse preenchida, o que fazia o cadastro parecer
+     perdido. Título se ajusta: "Nosso pastor" / "Nossos pastores" / "Sobre os pastores".
+  3. Nome de uma igreja não aparece mais em outra: saíram do código os padrões
+     "Evandro e Simone" (fallback do painel), "Evandro & Simone" (placeholder da barra)
+     e "Pr. Evandro" (responsável chumbado ao marcar um visitante como contatado). As
+     iniciais do canto agora vêm de quem entrou.
+  4. Continua valendo das rodadas anteriores: data e saudação pelo horário de Brasília,
+     culto no cabeçalho da portaria, bloco "quem veio junto" abrindo por classificação,
+     telefone de quem veio junto guardado nas observações da visita.
+
+ARQUIVOS DESTA RELEASE (raiz do repositório)
+  app.js · index.html · publica.html · publica.js · publica.css · service-worker.js
+  LEIA-ME-PAGINA-DA-IGREJA-PASTORES-v1.txt
+
+VERIFICADO DEPOIS DE PUBLICAR
+  Os 6 arquivos servidos pelo Pages têm o mesmo MD5 dos arquivos testados; os 20 itens da
+  casca respondem 200; o publica.js que está no ar, rodando contra a API real da Bethesda,
+  mostra "Nossos pastores" com "Evandro" e "Simone" e nenhum parágrafo vazio.
+
+VOLTA ATRAS, SE PRECISAR
+  O commit anterior (72ac4c6e) tem a versão v81 inteira. Reverter os 6 arquivos dele já
+  desfaz esta rodada; banco de dados não foi tocado, então não há dado a restaurar.
+
+PENDENCIA ABERTA
+  Renomear o rótulo "Como veio? *" para "Com quem veio?" na tela da portaria
+  (1 linha em recepcao.html + cache v83). Aguardando confirmação do pastor.
+
+REGISTRO ANTERIOR (v1.5, mantido por histórico)
+  Emaús — expansão do Administrador central v1.5. Frontend admin.html/admin.js/admin.css
+  com visão geral em cartões, detalhes, edição, status, pipeline, planos, financeiro,
+  suporte, configurações, 2FA e auditoria; cache emaus-shell-v59-admin-v15. Backend
+  server.js/schema.sql com rotas administrativas novas e tabelas platform_leads /
+  platform_support_requests. Sem DEFAULT_FINANCE e sem número de demonstração no
+  administrador. Isolamento por church_id; glow-platform intocado. Bot preparado, sem
+  envio externo Zapster até ativação explícita.
