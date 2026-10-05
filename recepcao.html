@@ -64,6 +64,13 @@
     .family-row input { flex:1; min-width:0; }
     .family-row .member-name { flex:1.7; }
     .family-row .member-phone { flex:1; }
+    .card-head-copy { flex:1; min-width:0; }
+    .head-service { display:flex; flex-direction:column; gap:5px; flex:0 0 auto; }
+    .head-service > span { color:var(--muted-2); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .head-service select { min-width:196px; }
+    .group-block { gap:0; }
+    .group-block .group-toggle { margin-top:0; }
+    .group-block .family-fields { margin-top:9px; }
     @media (max-width:650px) { .family-row { flex-wrap:wrap; } .family-row .member-name { flex:1 1 100%; } .family-row .member-phone { flex:1; } }
     .remove-member { width:32px; height:32px; padding:0; border:1px solid var(--line); border-radius:8px; color:var(--muted); background:transparent; }
     .remove-member:hover { color:var(--danger); border-color:#70443e; }
@@ -92,6 +99,10 @@
       .form-actions { align-items:stretch; flex-direction:column-reverse; }
       .form-actions .primary-button,.form-actions .secondary-button { width:100%; }
       .family-head { flex-direction:column; }
+      .card-head { flex-direction:column; align-items:stretch; gap:13px; }
+      .head-service select { width:100%; min-width:0; }
+      .head-service > span { font-size:11px; }
+      .form-grid { gap:14px; }
     }
   </style>
 
@@ -182,21 +193,22 @@
     <section class="app-view hidden" id="appView">
       <div class="welcome"><div><span class="eyebrow">ACOLHIMENTO</span><strong id="welcomeTitle">Olá!</strong><p>Registre cada pessoa com carinho e mantenha os grupos juntos para o anúncio.</p></div><span class="welcome-chip">Acesso autorizado</span></div>
       <section class="card content-card">
-        <div class="card-head"><div><h3>Novo visitante</h3><p>Os dados serão enviados para a área dos pastores e para o Acolhimento.</p></div><span class="status">Igreja ativa</span></div>
         <form id="visitorForm">
+          <div class="card-head"><div class="card-head-copy"><h3>Novo visitante</h3><p>Os dados serão enviados para a área dos pastores e para o Acolhimento.</p></div><label class="head-service"><span>Culto ou evento</span><select id="visitorService" name="service"><option>Culto de Celebração</option><option>Culto da Família</option><option>Culto de Ensino</option><option>Santa Ceia</option><option>Outro evento</option></select></label><span class="status">Igreja ativa</span></div>
           <div class="form-grid">
             <div class="field full"><label for="visitorName">Nome principal *</label><input id="visitorName" name="name" placeholder="Ex.: João da Silva" required></div>
             <div class="field"><label for="visitorPhone">Telefone / WhatsApp</label><input id="visitorPhone" name="phone" placeholder="(21) 99999-9999"></div>
+            <div class="field"><label for="visitorArrival">Como veio? *</label><select id="visitorArrival" name="arrivalType" required><option>Sozinho</option><option>Com amigos</option><option>Em casal</option><option>Família</option></select></div>
             <!-- A data nao e mais digitada na portaria: entra sozinha, no dia de Brasilia, e fica na ficha. -->
             <input type="hidden" id="visitorDate" name="date">
-            <div class="field"><label for="visitorService">Culto ou evento</label><select id="visitorService" name="service"><option>Culto de Celebração</option><option>Culto da Família</option><option>Culto de Ensino</option><option>Santa Ceia</option><option>Outro evento</option></select></div>
-            <div class="field"><label for="visitorArrival">Como veio? *</label><select id="visitorArrival" name="arrivalType" required><option>Sozinho</option><option>Com amigos</option><option>Em casal</option><option>Família</option></select></div>
+            <div class="field full group-block">
+              <label class="group-toggle"><input id="registerGroup" name="registerGroup" type="checkbox"><span><strong>Cadastrar pessoas que vieram juntas</strong>Adicione todos os nomes para que a mensagem fique organizada como “Família Nogueira: Nome 1, Nome 2 e Nome 3”.</span></label>
+              <div class="family-fields hidden" id="familyFields"><div class="family-head"><div><label>Quem veio junto</label><p>O nome principal já está incluído. Informe o nome de cada pessoa que veio com ele — e o telefone, se souber.</p></div><button class="secondary-button" id="addMember" type="button">+ Adicionar pessoa</button></div><div class="family-list" id="familyList"></div></div>
+            </div>
             <div class="field"><label for="visitorInvitedBy">Quem convidou?</label><input id="visitorInvitedBy" name="invitedBy" placeholder="Nome ou equipe"></div>
             <div class="field"><label for="visitorNeighborhood">Bairro ou cidade</label><input id="visitorNeighborhood" name="neighborhood" placeholder="Ex.: Centro" autocomplete="off"></div>
             <div class="field full"><label for="visitorNotes">Observações</label><textarea id="visitorNotes" name="notes" placeholder="Algum detalhe importante para o cuidado?"></textarea></div>
           </div>
-          <label class="group-toggle"><input id="registerGroup" name="registerGroup" type="checkbox"><span><strong>Cadastrar pessoas que vieram juntas</strong>Adicione todos os nomes para que a mensagem fique organizada como “Família Nogueira: Nome 1, Nome 2 e Nome 3”.</span></label>
-          <div class="family-fields hidden" id="familyFields"><div class="family-head"><div><label>Quem veio junto</label><p>O nome principal já está incluído. Informe o nome de cada pessoa que veio com ele — e o telefone, se souber.</p></div><button class="secondary-button" id="addMember" type="button">+ Adicionar pessoa</button></div><div class="family-list" id="familyList"></div></div>
           <label class="group-toggle" style="margin-top:14px;"><input name="communicationConsent" type="checkbox" required checked><span><strong>Autoriza o contato da igreja</strong>O visitante autorizou receber acompanhamento e informações da comunidade. A autorização pode ser retirada depois.</span></label>
           <div class="preview"><span class="preview-label">Prévia da mensagem</span><p id="messagePreview">Sozinho: informe o nome do visitante.</p></div>
           <div class="form-actions"><button class="secondary-button" id="clearForm" type="button">Limpar</button><button class="primary-button" type="submit">Salvar visitante</button></div>
