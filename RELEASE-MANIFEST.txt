@@ -1,5 +1,5 @@
 Emaús — registro da publicação
-Atualizado em 05/10/2026, 14:35 (Brasília). Nada neste arquivo contém senha, token,
+Atualizado em 05/10/2026, 15:10 (Brasília). Nada neste arquivo contém senha, token,
 DATABASE_URL, chave privada ou segredo de qualquer tipo.
 
 RELEASE EM PRODUÇÃO
@@ -37,9 +37,22 @@ VOLTA ATRAS, SE PRECISAR
   O commit anterior (72ac4c6e) tem a versão v81 inteira. Reverter os 6 arquivos dele já
   desfaz esta rodada; banco de dados não foi tocado, então não há dado a restaurar.
 
+PRÓXIMO PACOTE (v14, em mãos, ainda não publicado)
+  Arquivos: admin.js · admin.html · service-worker.js · LEIA-ME-ADMIN-MUITOS-PASTORES-v1.txt
+  Cache: emaus-shell-v83-admin-muitos-pastores
+  O que traz: na área do administrador, "Pastores / liderança" (editar igreja) e
+  "Responsável" (cadastrar igreja) deixam de ser linha única e passam a aceitar
+  vários nomes, um por linha. O rótulo do cadastro vira "Pastor(es) responsável(is)".
+  As duas gravações normalizam \r\n. Nenhum CSS novo, nenhuma mudança na API, no
+  banco ou no Railway: a coluna churches.pastors já é TEXT e as rotas
+  /api/admin/churches (POST e PATCH) já gravavam o campo como texto livre.
+  Verificação: teste-admin-pastores.js, 24 conferências, montando a tela real com a
+  função renderChurchEditForm do arquivo; e o conjunto todo (8 arquivos de teste,
+  219 conferências) passa.
+
 PENDENCIA ABERTA
   Renomear o rótulo "Como veio? *" para "Com quem veio?" na tela da portaria
-  (1 linha em recepcao.html + cache v83). Aguardando confirmação do pastor.
+  (1 linha em recepcao.html + troca de cache + ZIP). Aguardando confirmação do pastor.
 
 REGISTRO ANTERIOR (v1.5, mantido por histórico)
   Emaús — expansão do Administrador central v1.5. Frontend admin.html/admin.js/admin.css

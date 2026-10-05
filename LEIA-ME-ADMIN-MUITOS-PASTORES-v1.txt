@@ -1,0 +1,71 @@
+ÁREA DO ADMINISTRADOR — MAIS DE UM PASTOR POR IGREJA
+pacote v14  ·  cache do aplicativo v83  ·  5 de outubro de 2026
+
+O QUE FALTAVA
+-------------
+Na v13 o campo "Pastores responsáveis" do painel da igreja (Configurações ▸
+Identidade da igreja) já aceitava vários nomes. Mas o outro lugar onde se
+escreve o nome do pastor — na área do administrador — ainda era linha única:
+
+· Organizações ▸ Editar igreja ▸ "Pastores / liderança"  → era <input>, uma linha
+· Organizações ▸ "+ Adicionar igreja" ▸ "Responsável"    → era <input>, uma linha,
+  com o rótulo no singular
+
+Ou seja: por ali só cabia um pastor, e o rótulo dizia "Responsável".
+
+O QUE MUDOU
+-----------
+· Os dois campos viraram caixas de texto de várias linhas e passaram a ocupar a
+  linha inteira do formulário (o estilo .form-grid .full do admin.css já existia,
+  nenhum CSS foi acrescentado).
+· "Responsável" passou a se chamar "Pastor(es) responsável(is)" e a caixa de
+  cadastro já nasce com o exemplo "Um nome por linha".
+· As duas gravações normalizam a quebra de linha do Windows (\r\n → \n), para o
+  texto ficar limpo no banco não importa de onde foi digitado.
+· Nada de banco nem de API: POST /api/admin/churches e PATCH
+  /api/admin/churches/:id já gravavam pastors como texto livre, e a coluna é
+  TEXT. A prévia continua sem precisar de republicação no Railway.
+
+ONDE ISTO SE ENCONTRA (a mesma coisa, dois caminhos)
+----------------------------------------------------
+Os dois campos escrevem na MESMA coluna (churches.pastors) e a página pública lê
+dela. Não existe "lista do painel" e "lista do administrador" separadas: gravou
+em um lugar, aparece no outro e na página da igreja.
+
+  painel da igreja ... Configurações ▸ Identidade da igreja ▸ Pastores responsáveis
+  administrador ...... Organizações ▸ Editar igreja ▸ Pastores / liderança
+
+COMO ESCREVER
+-------------
+· Um nome por linha (jeito recomendado). Também são aceitos vírgula, "e" e "&".
+· A página pública mostra no máximo 6 nomes.
+· Uma palavra solta " e " no meio de um nome funciona como separador. Para nome
+  composto desse tipo, use uma linha por pessoa.
+
+COMO PUBLICAR
+-------------
+3 arquivos na RAIZ do repositório Emaus:
+
+  admin.js
+  admin.html
+  service-worker.js
+
+Commit e push. Cache novo ("emaus-shell-v83-admin-muitos-pastores") descarta a
+casca antiga, então quem estava com a tela velha aberta passa a ver a nova.
+
+COMO CONFERIR
+-------------
+1. Área do administrador ▸ Organizações ▸ Editar (qualquer igreja).
+2. O campo "Pastores / liderança" agora é uma caixa alta, com o texto em duas
+   linhas se a igreja tem dois pastores.
+3. Escreva dois nomes, um por linha, salve. Recarregue a página pública da
+   igreja: os dois aparecem na lista, com o título "Nossos pastores".
+4. Cadastre uma igreja de teste pelo botão "+ Adicionar igreja": a caixa
+   "Pastor(es) responsável(is)" aceita os dois nomes já no cadastro.
+
+O QUE NÃO FOI TOCADO
+--------------------
+A tabela de organizações, os detalhes da igreja, planos, financeiro, suporte,
+auditoria, lead e o login continuam idênticos ao que está no ar. Fora dos dois
+campos e das duas normalizações, o admin.js é byte a byte o arquivo publicado
+(o teste que prova isso é o teste-admin-pastores.js).
