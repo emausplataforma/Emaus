@@ -1022,11 +1022,60 @@ app.patch('/api/church/reception-users/:userId', auth(['church_admin']), require
   res.json({ user: { ...result.rows[0], login: result.rows[0].email, passwordStatus: 'Ativa', role: 'reception' } });
 });
 
+// Excluir um acesso de recepção exige trabalho antes do DELETE: seis tabelas guardam
+// o id de quem registrou (visitantes, avisos, presencas, cuidado, despesas e auditoria)
+// sem ON DELETE SET NULL. Sem desanexar, o PostgreSQL recusa o DELETE, a rota nao tem
+// resposta e o relogio de seguranca de 15s devolve "o servico nao respondeu a tempo" —
+// que e exatamente o que a igreja via na tela. Agora: transacao, desanexa, apaga, e
+// qualquer falha vira uma resposta com motivo em vez de hang.
+const RECEPTION_DETACH = [
+  ['visitors', 'created_by'],
+  ['church_announcements', 'created_by'],
+  ['member_attendance', 'created_by'],
+  ['care_tasks', 'created_by'],
+  ['expenses', 'created_by'],
+  ['audit_events', 'actor_id']
+];
+
 app.delete('/api/church/reception-users/:userId', auth(['church_admin']), requireChurch, async (req, res) => {
-  const result = await query("DELETE FROM users WHERE id = $1 AND church_id = $2 AND role = 'reception' RETURNING id", [req.params.userId, req.churchId]);
-  if (!result.rows[0]) return res.status(404).json({ error: 'Acesso da recepção não encontrado.' });
-  await audit(req.user, 'reception_user_deleted', { userId: req.params.userId, name: 'Acesso da recepção' }, req.churchId);
-  res.json({ ok: true });
+  const client = await pool.connect();
+  let answered = false;
+  const respond = (status, body) => { answered = true; return res.status(status).json(body); };
+  try {
+    await client.query("BEGIN");
+    const alvo = (await client.query("SELECT id, name, email FROM users WHERE id = $1 AND church_id = $2 AND role = 'reception' FOR UPDATE", [req.params.userId, req.churchId])).rows[0];
+    if (!alvo) {
+      await client.query("ROLLBACK");
+      return respond(404, { error: 'Acesso da recepção não encontrado nesta igreja.' });
+    }
+    const soltos = {};
+    for (const [tabela, coluna] of RECEPTION_DETACH) {
+      const existe = (await client.query('SELECT to_regclass($1) AS nome', [tabela])).rows[0]?.nome;
+      if (!existe) continue;
+      const desanexado = await client.query(`UPDATE ${tabela} SET ${coluna} = NULL WHERE ${coluna} = $1`, [alvo.id]);
+      if (desanexado.rowCount) soltos[tabela] = desanexado.rowCount;
+    }
+    const removido = await client.query("DELETE FROM users WHERE id = $1 AND church_id = $2 AND role = 'reception' RETURNING id", [alvo.id, req.churchId]);
+    if (!removido.rows[0]) {
+      await client.query("ROLLBACK");
+      return respond(404, { error: 'Acesso da recepção não encontrado nesta igreja.' });
+    }
+    await client.query("COMMIT");
+    await audit(req.user, 'reception_user_deleted', { userId: alvo.id, name: alvo.name, detached: soltos }, req.churchId);
+    res.json({ ok: true, name: alvo.name, detached: soltos });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error('Falha ao excluir acesso da recepção:', error && error.message);
+    if (!answered) {
+      respond(500, {
+        error: error && error.code === '23503'
+          ? 'ainda há registros ligados a este acesso que o banco não permite soltar. Nenhum dado foi perdido; o acesso continua na lista.'
+          : 'o banco não completou a exclusão. Nenhum dado foi perdido; o acesso continua na lista.'
+      });
+    }
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/api/church/visitors', auth(['church_admin', 'reception']), requireChurch, async (req, res) => {

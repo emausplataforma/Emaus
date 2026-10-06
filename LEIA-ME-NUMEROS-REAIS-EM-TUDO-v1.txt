@@ -1,0 +1,137 @@
+TODOS OS NÚMEROS DA PLATAFORMA SAEM DO QUE EXISTE — NENHUM É DE ENFEITE
+pacote v17  ·  cache do aplicativo v86  ·  6 de outubro de 2026 (madrugada de terça)
+
+A REGRA, AGORA VALENDO NA PLATAFORMA INTEIRA
+--------------------------------------------
+Todo número que aparece numa tela tem de sair de um cadastro, de uma contagem ou de um
+cálculo sobre eles. Se a plataforma não tem o dado, a tela mostra um traço (—) com a
+explicação, ou não mostra o número. Nunca um valor de exemplo, nunca uma porcentagem
+"típica", nunca um total herdado de outra igreja ou de um campo de texto.
+
+O QUE ESTAVA FALSO E O QUE É AGORA
+----------------------------------
+1) PAINEL ▸ VISITANTES
+   · "Retornaram" tinha, escrito no arquivo, `↗ 9,4%`. Era enfeite. Agora o rodapé é a
+     comparação real do mês com o mês anterior, e quando não há retornos no mês anterior
+     aparece "—" em vez de uma variação inventada.
+   · "Taxa de retorno" mostrava 0% para igreja sem nenhum cadastro. 0% é uma afirmação.
+     Agora é "—" com o rodapé "ainda sem cadastros para comparar".
+
+2) PAINEL ▸ COMUNICAÇÃO
+   · "Leitura (sem envio) — 0%": a plataforma não envia nada, logo não existe leitura a
+     medir. O cartão virou "Leitura dos avisos —" com a frase "a plataforma ainda não
+     envia, então não há leitura a medir".
+   · "Canais configurados — 0" era um zero chumbado no arquivo. Saiu. No lugar entrou um
+     número que existe: quantos visitantes marcaram consentimento para contato, com a
+     porcentagem calculada sobre os cadastros (2 de 4 = 50%).
+   · "Pessoas na base" usava o alcance do mês e tinha a legenda "membros e visitantes" —
+     número e etiqueta de origens diferentes. Agora soma os membros ativos com os
+     visitantes cadastrados e diz quantos são de cada lado ("2 membros · 4 visitantes").
+
+3) PAINEL ▸ MEMBROS
+   · "Membros cadastrados" caía no `member_count` da ficha da igreja (o seed gravou 246)
+     quando não havia nenhuma ficha na lista. Agora conta a lista. Sem cadastro, é 0.
+   · "Ativos" usava `|| total`, então uma lista de inativos dizia que todos estavam
+     ativos. Agora conta os que têm status ativo — três inativos dão "Ativos 0".
+   · Quando o número digitado na ficha for diferente da contagem, a tela mostra os dois,
+     cada um com seu nome: o cartão diz "na ficha da igreja está digitado 246" e o aviso
+     de lista vazia explica que é um número solto, não uma lista. Ninguém mais confunde.
+   · "Presenças no mês" já vinha da API e continua vindo.
+
+4) METAS DE CRESCIMENTO (três telas)
+   · O código trazia uma meta padrão: 50 visitantes, 25 retornos, 300 membros. Enquanto a
+     igreja não salvasse as metas dela, o painel afirmava esses números como se fossem
+     objetivos da Bethesda. A meta padrão saiu do arquivo.
+   · Sem meta salva: "Visitantes no mês 2" com a nota "sem meta definida".
+   · Com meta salva (Configurações ▸ Metas): "2 / 40" e a nota "meta salva nesta igreja".
+   · O formulário de metas abre vazio (com o exemplo no placeholder), e não já preenchido
+     com 50/25/300.
+   · Ao trocar de igreja, as metas da igreja anterior não ficam penduradas na tela.
+
+5) PAINEL ▸ CONFIGURAÇÕES
+   · O campo do telefone vinha preenchido com "(21) 00000-0000" e o do horário da página
+     pública com "Domingos às 19h". Isso não era dica: era texto no campo, que virava dado
+     real no instante em que o senhor salvasse. Os dois agora começam vazios e o exemplo
+     fica no placeholder, onde é dica de verdade.
+
+6) ADMINISTRADOR DA PLATAFORMA (igrejas)
+   · Os cartões de uso do plano usam o `member_count` informado na ficha. A tela agora diz
+     isso: "Pessoas (declarado)", "Pessoas informadas / limite" e a nota "o percentual usa
+     o número informado pela igreja, não uma contagem do cadastro".
+   · No detalhe da igreja, a etiqueta muda conforme a fonte: "contados no cadastro de
+     membros" quando a API devolve a contagem, "valor digitado na ficha (a lista não foi
+     contada)" quando é preciso recorrer ao campo da igreja.
+   · Igreja sem dado continua mostrando "Indisponível" — nunca 0 — e a barra de uso some
+     quando não há o que calcular. Isso o administrador já fazia direito.
+
+O QUE FOI VARRIDO E ESTÁ LIMPO
+------------------------------
+· recepção (reception.js), página pública (publica.js) e o restante do administrador:
+  nenhuma porcentagem, contagem ou valor digitado à mão dentro do HTML. Todos os números
+  vêm de `length`, de soma ou do que a API devolve.
+· "Estratégia de crescimento" (os marcos de 50 em 50) conta `activeMemberCount()` — a
+  lista real de membros — e não o número da ficha.
+· Os cartões do Início, o gráfico de 12 semanas, o "Como chegaram" (4 categorias) e o
+  modal de detalhe de cada métrica já vieram da rodada v15 e continuam calculados.
+· visitas.html, pagamento.html, index.html: nenhum número apresentado como fato (só CSS).
+
+O QUE AINDA NÃO EXISTE (e por isso aparece como traço)
+------------------------------------------------------
+· Envio de avisos, leitura de mensagens, taxa de abertura, "canais" e "presença média por
+  ministério": a plataforma não faz isso ainda, então não há número. As telas dizem isso.
+· O 246 continua no banco, no campo `churches.member_count`, porque o seed o gravou ali.
+  Isso é dado, não tela: o painel de Membros não o usa mais como contagem e o administrador
+  o mostra rotulado como "declarado". Para ele virar verdade de verdade, o caminho é
+  cadastrar as pessoas (Membros ▸ Novo membro) — aí o número da tela vem da lista. Se o
+  senhor quiser um campo para ajustar esse valor na ficha, é uma rodada à parte: a coluna
+  existe, mas hoje não há campo para editá-la na tela da igreja.
+
+COMO O SENHOR CONFERE NA TELA
+-----------------------------
+1. Painel ▸ Visitantes ▸ some o 9,4%; o rodapé do "Retornaram" bate com a contagem dos
+   status "Retornou"/"Integrado" do mês.
+2. Painel ▸ Comunicação ▸ "Pessoas na base" = membros ativos + visitantes; o cartão de
+   leitura mostra "—".
+3. Painel ▸ Membros ▸ cadastre um membro e o cartão sobe para 1; marque-o inativo e
+   "Ativos" volta para 0 (antes ficava 1).
+4. Painel ▸ Início ▸ Metas de crescimento ▸ "Editar metas" ▸ salve 40/10/25 ▸ o painel
+   passa a mostrar "2 / 40" e "meta salva nesta igreja". E em uma igreja onde o senhor
+   nunca salvou, o texto é "sem meta definida".
+5. Configurações ▸ Identidade ▸ com telefone e horário vazios, os campos começam vazios.
+
+COMO ISTO FOI TESTADO
+---------------------
+Arquivo novo: `teste-numeros-reais-em-tudo.js` (59 conferências em 10 seções). Ele não
+conferiu texto solto: montou as NOVE telas do painel executando as funções de render
+reais do app.js contra uma base conhecida (4 visitantes em datas sabidas, 3 membros — um
+inativo —, ficha com 246 "membros" digitados, duas igrejas de pastor) e conferiu o HTML
+de cada uma. Entre as garantias:
+· nenhum número chumbado reaparece em tela nenhuma (18,4% · 6,2% · 12,8% · 47,4% · 4,8%
+  · 14,2% · 9,4% · 92% · 78% · 54% · série 38/44/… · 246 como contagem · "(21)
+  00000-0000" e "Domingos às 19h" dentro de campo);
+· nenhum cartão tem número escrito à mão no arquivo — a varredura procura
+  `stat-number">` seguido de dígito e não acha nenhum no app.js inteiro;
+· os cartões conferem com a contagem, um por um, e o "Ativos" não herdava o total;
+· o administrador (cartão, tabela e detalhe) rotula a origem do número, as tags continuam
+  balanceadas e igreja sem dado mostra "Indisponível";
+· as telas do administrador, da recepção e da página pública foram escaneadas e estavam
+  limpas.
+Bateria completa: 11 arquivos, 387 conferências, todos passando, e `node --check` em
+app.js, admin.js, reception.js, service-worker.js e server.js. Também aproveitei para
+corrigir dois pontos do próprio teste: a comparação do app.js com o arquivo publicado não
+enxergava as funções `async`, e o teste do administrador comparava o arquivo linha a linha
+(o que inflava qualquer mudança de uma linha). Agora os dois comparam por função, contra o
+arquivo que está no ar.
+
+O QUE PUBLICAR
+--------------
+A rodada v16 (o "Excluir acesso" da recepção) AINDA não está no repositório — conferido
+agora: o `server.js` do `main` é o mesmo de antes do conserto. Então este pacote leva as
+duas rodadas juntas, 10 arquivos:
+  da v17: admin.js · admin.html · admin.css · app.js · index.html · service-worker.js
+  da v16: server.js · LEIA-ME-EXCLUIR-ACESSO-RECEPCAO-v1.txt
+  e este guia + RELEASE-MANIFEST.txt
+Cache novo: emaus-shell-v86-numeros-reais-em-tudo (app.js?v=62, admin.js?v=60,
+admin.css?v=60). `styles.css`, `recepcao.html` e `reception.js` não vão porque já estão no
+ar, igualzinhos. Nada de `schema.sql`, nenhuma coluna nova, nenhuma rota nova — os números
+que faltam continuam sendo traço, não estimativa.

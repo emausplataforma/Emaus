@@ -1,0 +1,155 @@
+ACOLHIMENTO — EM DESTAQUE SÓ QUEM AINDA VAI SER ANUNCIADO
+rodada v18 · feito em 06/10/2026 · cache emaus-shell-v87-acolhimento-so-para-anunciar
+_arquivos deste pacote: app.js · index.html · service-worker.js · (e, cumulativo, o que
+as rodadas v16 e v17 mudaram e ainda não foi publicado: admin.js · admin.html · admin.css ·
+server.js · os dois LEIA-ME anteriores · RELEASE-MANIFEST.txt)_
+
+=======================================================================
+1. O QUE ESTAVA ACONTECENDO (lido no arquivo, não é suposição)
+=======================================================================
+O Acolhimento tinha três "planos B" que puxavam cadastros já anunciados para a frente
+da tela:
+
+· greetingVisitors() — linha ~1096 do app.js antigo:
+      const pending = pendingPulpitVisitors();
+      if (pending.length) return pending;
+      const semanaAtras = isoDateFromDate(addDaysToDate(parseDate(TODAY), -6));
+      return state.visitors.filter(... >= semanaAtras).slice(0, 12);
+  ou seja: quando a fila de pendentes esvaziava, o cartão grande "Saudação do púlpito"
+  se reaproveitava dos cadastros dos últimos sete dias — e ali estavam, outra vez, os
+  nomes que o pastor já tinha anunciado.
+
+· renderAcolhimento() — linha ~1122 antiga:
+      const recent = state.visitors.slice(0, 8);
+      const groups = visitorAnnouncementGroups(recent);
+  "Visitantes por grupo" era montado sobre os oito cadastros mais recentes, anunciados
+  ou não. E a "Mensagem sugerida" usava `pending.length ? pending : recent.slice(0, 4)`.
+
+· announceNewVisitors() — linha ~1823 antiga:
+      const visitors = pending.length ? pending : state.visitors.slice(0, 6);
+  o botão "Preparar mensagem" abria o modal com gente já apresentada.
+
+=======================================================================
+2. O QUE É AGORA
+=======================================================================
+Uma fonte só, sem plano B em lugar nenhum:
+
+      function pendingPulpitVisitors() {          // continuou a mesma
+        return state.visitors.filter(v => v.status === 'Novo' && !v.announced);
+      }
+      function greetingVisitors() {               // agora só devolve a fila
+        return pendingPulpitVisitors();
+      }
+
+· O destaque ("Saudação do púlpito") só lista quem AINDA VAI SER ANUNCIADO.
+· O painel passou a se chamar "Para anunciar, por grupo" e usa a mesma fila.
+· A "Mensagem sugerida" usa a mesma fila; sem pendência, ela diz
+  "Nenhum cadastro aguardando o anúncio" em vez de reaproveitar nomes.
+· "Preparar mensagem", sem pendência, avisa na tela em vez de abrir o modal.
+· Saiu do arquivo a busca pelos "últimos sete dias" (conferência 7 do teste garante).
+
+=======================================================================
+3. PARA ONDE VÃO OS QUE JÁ FORAM ANUNCIADOS
+=======================================================================
+Eles ganharam a própria lista, mais abaixo: painel "Já anunciados", com o tipo de
+chegada, o nome (ou o nome da família, quando vieram em grupo) e a data do cadastro —
+"Anunciado em 04 out · continua na lista de Visitantes e nas estatísticas do mês".
+
+O "Resumo da recepção" passou a ter três contagens, e as três somam o que existe:
+
+      Para anunciar 2 · Pessoas na fila 3 · Já anunciados 2
+      "2 de 5 cadastros da base já foram anunciados. Os dois grupos continuam
+       contados no Início: anunciar não apaga ninguém."
+
+O botão "Marcar como anunciados" agora aparece na própria aba (não só no Modo púlpito)
+e só existe quando há pendência — sem pendência, não há o que marcar, e ele some.
+
+=======================================================================
+4. O FLUXO DO PASTOR, PASSO A PASSO
+=======================================================================
+1) a portaria cadastra o visitante (status 'Novo', announced = false) → o nome entra na
+   fila de anúncio do Acolhimento e na saudação em letras grandes;
+2) o pastor anuncia no culto e toca em "Marcar como anunciados" (na aba ou no Modo
+   púlpito — é o mesmo botão, data-action="mark-pulpit-announced");
+3) a plataforma manda PATCH /api/church/visitors/<id> com { announced: true } para cada
+   pendente, recarrega o estado da igreja e redesenha a tela;
+4) o nome sai do destaque, aparece em "Já anunciados" e as contagens sobem:
+   "Para anunciar" 2 → 0, "Já anunciados" 0 → 2;
+5) o aviso na tela diz para onde o nome foi: "Eles saem da fila de anúncio e entram na
+   contagem de já anunciados do Acolhimento."
+
+=======================================================================
+5. AS ESTATÍSTICAS (para não deixar dúvida)
+=======================================================================
+Anunciar nunca tirou ninguém da estatística, e continua não tirando: os cartões do Início
+e o engagementStats contam `state.visitors` por inteiro, com ou sem o campo `announced`.
+O que mudou é só a FILA DE ANÚNCIO — quem já foi apresentado sai da frente do pastor.
+Isso está escrito na tela (item 2 do resumo acima) justamente para ninguém pensar que
+um nome sumiu depois de marcado. As conferências 6 do teste provam: com os cinco cadastros
+da base, o total é 5 com todos pendentes, 5 com todos anunciados e 5 no meio-termo; mês e
+alcance idênticos.
+
+=======================================================================
+6. COMO FOI TESTADO (executando o app.js de verdade)
+=======================================================================
+Arquivo novo: teste-acolhimento-so-anunciar.js — 28 conferências, montando as telas com o
+código real do painel sobre uma base de cinco cadastros (2 pendentes, 2 já anunciados,
+1 que voltou), com rede falsa para gravar:
+
+  1) fila de anúncio só com pendentes; anunciados fora dela e fora do destaque grande;
+     já anunciados listados com a data; família pendente continua agrupada (6)
+  2) resumo: Para anunciar = 2 · Pessoas na fila = 3 (Clara + Davi + Elis) ·
+     Já anunciados = 2 · a linha "2 de 5 cadastros" · botão de marcar presente (5)
+  3) fila vazia: diz "Ninguém aguardando o anúncio", não repuxa ninguém, some o botão (4)
+  4) "Preparar mensagem": abre só com pendentes; sem pendência, avisa e não abre (2)
+  5) marcar: exatamente 2 PATCH (nem os já anunciados, nem o 'Retornou'), body
+     {"announced":true}, recarrega + redesenha, aviso diz para onde o nome vai (4)
+  6) estatísticas: total, mês e alcance não mudam com o flag de anunciado (3)
+  7) Modo púlpito intacto e os dois fallbacks sumiram do arquivo (4)
+
+Reescrito: teste-saudacao-pulpito.js — a seção 2 cobrava o comportamento antigo ("quando
+não há pendência, busca os últimos 7 dias"). Agora ela cobra o novo: sem pendência o
+cartão fica vazio, diz que a fila está zerada e os apresentados aparecem em "Já anunciados".
+Também entrou na lista de "tocadas de propósito" as funções announceNewVisitors e
+markPulpitAnnounced (a conferência que compara cada função de topo com o que está no ar).
+
+Bateria completa: 12 arquivos de teste, 417 conferências, 0 falhas — incluindo as
+conferências que comparam o pacote com o que está publicado (o cache saltou de
+emaus-shell-v86-numeros-reais-em-tudo para emaus-shell-v87-acolhimento-so-para-anunciar e
+o index.html passou a carregar app.js?v=63).
+
+Zero CSS novo: os dois painéis usam as classes que já existiam para o Acolhimento
+(acolhimento-groups-panel, acolhimento-group-row, empty-state, icon-tile green...).
+Foi conferido linha a linha no styles.css.
+
+=======================================================================
+7. LIMITES HONESTOS (o que esta rodada NÃO resolveu)
+=======================================================================
+· "Já anunciados" lista os oito mais recentes e avisa quantos ficaram de fora ("e mais 2
+  cadastros anunciados — a lista completa está em Visitantes"). Não é a lista inteira.
+· Marcar é de uma vez para todos os pendentes. Não existe marcar um por um, nem
+  "desanunciar" — se o pastor marcar sem querer, só volta mudando o cadastro à mão na
+  lista de Visitantes (não há interface para isso hoje).
+· A fila é dos cadastros com status 'Novo'. Quem entra como 'Retornou' não vai para a fila
+  de anúncio (regra que já existia no Modo púlpito e foi mantida).
+· Pendência não expira: se ninguém marcar, o nome continua na fila no culto seguinte — é
+  o preço de não repuxar mais a semana inteira. Se isso incomodar, o caminho é uma coluna
+  de "data do último anúncio" na API, não um chute na tela.
+· O cadastro precisa do id do visitante para o PATCH funcionar; um cadastro sem id
+  (importação manual) não consegue ser marcado — o erro aparece no aviso.
+· Nada aqui mexe na página pública nem na tela da portaria: nenhuma das duas mostrava
+  lista de anunciados, e nenhuma das duas mostra agora.
+
+=======================================================================
+8. O QUE PUBLICAR
+=======================================================================
+Este zip já vem cumulativo, porque as rodadas v16 e v17 ainda não foram publicadas:
+· server.js  → na Railway (Rota de Exclusão de Acesso da Portaria, v16). É o único
+  arquivo que precisa de deploy no servidor; confira o md5 antes:
+  md5sum server.js  →  deve bater com o servidor antes de subir.
+· app.js, index.html, service-worker.js, admin.js, admin.html, admin.css → arquivos
+  estáticos (GitHub Pages). Os três do administrador só estão aqui por causa da v17
+  ("números reais em tudo"); se a v17 já tiver sido publicada, basta ignorá-los.
+· depois de subir: abrir o Acolhimento com F12 → Network → os pedidos devem vir
+  app.js?v=63 e service-worker com v87; em "Aplicação/Service Workers" o novo cache
+  aparece e o v86 some.

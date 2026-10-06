@@ -40,12 +40,20 @@ const GROWTH_STRATEGY = [
 ];
 const GROWTH_STRATEGY_PRINCIPLES = ['Pessoas não são metas: os marcos servem para organizar o cuidado, não para pressionar conversões ou permanência.', 'Toda ação deve respeitar o evangelho: verdade, graça, liberdade de consciência, serviço ao próximo e centralidade de Cristo.', 'Não comprar, manipular ou constranger pessoas. Convites, contatos e testemunhos devem acontecer com consentimento.', 'Crescimento saudável inclui discipulado, proteção, prestação de contas, descanso da equipe e cuidado com quem já está na igreja.'];
 
+// Metas de crescimento são desejo da igreja, não número do sistema: sem elas
+// guardadas, nada de mostrar 50 / 25 / 300 como se o pastor tivesse pedido.
+function currentGrowthGoals() {
+  if (state.growthGoals) return state.growthGoals;
+  const church = typeof getActiveChurch === 'function' ? getActiveChurch() : null;
+  return (church && church.publicSettings && church.publicSettings.growthGoals) || null;
+}
+
 const defaultState = {
   activeView: 'dashboard',
   activeChurchId: 'batesda',
   settingsSection: 'organization',
   calendarMonth: TODAY.slice(0, 7),
-  growthGoals: { visitors: 50, returns: 25, members: 300 },
+  growthGoals: null,
   members: [],
   ministries: [],
   attendance: [],
@@ -59,7 +67,7 @@ const defaultState = {
     announcements: 0
   },
   churches: [
-    { id: 'batesda', name: 'Igreja', slug: 'igreja', city: '', phone: '', pastors: '', description: '', initials: 'IG', logoSymbol: '', logoImage: '', appearance: { ...DEFAULT_APPEARANCE }, publicSettings: { visible: true, headline: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', address: 'Itaboraí • RJ', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar' }, members: 0, status: 'Ativa', plan: 'Essencial' }
+    { id: 'batesda', name: 'Igreja', slug: 'igreja', city: '', phone: '', pastors: '', description: '', initials: 'IG', logoSymbol: '', logoImage: '', appearance: { ...DEFAULT_APPEARANCE }, publicSettings: { visible: true, headline: 'Um lugar para pertencer, crescer e viver a fé em comunidade.', address: 'Itaboraí • RJ', hours: '', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar' }, members: 0, status: 'Ativa', plan: 'Essencial' }
   ],
   visitors: [],
   announcements: [],
@@ -219,7 +227,7 @@ async function loadRemoteChurchState(user) {
     }];
     updateChurchEntryIdentity(state.churches[0]);
   }
-  if (serverPublicSettings.growthGoals) state.growthGoals = { ...(state.growthGoals || {}), ...serverPublicSettings.growthGoals };
+  state.growthGoals = serverPublicSettings.growthGoals || null;
   if (results[1].ok) state.visitors = (visitorsPayload.visitors || []).map(mapApiVisitor);
   if (results[2].ok) state.events = (eventsPayload.events || []).map(mapApiEvent);
   if (results[3].ok) state.members = (membersPayload.members || []).map(mapApiMember);
@@ -942,6 +950,7 @@ function engagementStats() {
     visitasMesAnterior: noMesPassado.length,
     visitasTotal: visitantes.length,
     retornosMes: noMes.filter(retornoConfirmado).length,
+    retornosMesAnterior: noMesPassado.filter(retornoConfirmado).length,
     retornosTotal: confirmados,
     alcanceMes: pessoasAlcancadas(noMes),
     alcanceTotal: pessoasAlcancadas(visitantes),
@@ -949,6 +958,7 @@ function engagementStats() {
     semanas,
     eixoMaximo: Math.max(5, Math.ceil(maiorSemana / 5) * 5),
     variacaoVisitas: variacao(noMes.length, noMesPassado.length),
+    variacaoRetornos: variacao(noMes.filter(retornoConfirmado).length, noMesPassado.filter(retornoConfirmado).length),
   };
 }
 // '+12%', '−8%', '0%' ou o aviso honesto de que não há mês anterior para comparar.
@@ -1015,10 +1025,17 @@ function renderDashboard() {
       ${grafico}
       <div class="chart-footer"><span>Este mês</span><strong>${engajamento.visitasMes} visitante${engajamento.visitasMes === 1 ? '' : 's'} de ${engajamento.visitasTotal} no total</strong><span class="stat-trend">${trendText(engajamento.variacaoVisitas)}</span><button class="panel-link" data-action="growth-goals">${ICON('sparkle')} Metas de crescimento</button></div>
     </section>
-    <section class="panel" style="margin-top:20px;"><div class="panel-header"><div class="panel-heading"><h2>Metas de crescimento</h2><p>Acompanhe objetivos simples para a próxima fase da igreja.</p></div><button class="btn btn-secondary" data-action="growth-goals">Editar metas</button></div><div class="split-stat" style="padding:0 22px 22px;"><div><small>Visitantes</small><strong>${esc(state.metrics.visits)} / ${esc(state.growthGoals?.visitors || 0)}</strong></div><div><small>Retornos</small><strong>${esc(state.metrics.returns)} / ${esc(state.growthGoals?.returns || 0)}</strong></div><div><small>Membros</small><strong>${esc(activeMemberCount())} / ${esc(state.growthGoals?.members || 0)}</strong></div></div></section>
+    ${renderGrowthGoalsPanel()}
     ${renderCareSummaryPanel()}
     ${renderGrowthStrategyPanel()}
   `;
+}
+
+function renderGrowthGoalsPanel() {
+  const metas = currentGrowthGoals();
+  const engajamento = engagementStats();
+  const celula = (rotulo, atual, meta) => `<div><small>${rotulo}</small><strong>${esc(atual)}${meta === null ? '' : ` / ${esc(meta)}`}</strong>${meta === null ? '<span class="stat-trend">sem meta definida</span>' : '<span class="stat-trend">meta salva nesta igreja</span>'}</div>`;
+  return `<section class="panel" style="margin-top:20px;"><div class="panel-header"><div class="panel-heading"><h2>Metas de crescimento</h2><p>Acompanhe objetivos simples para a próxima fase da igreja.</p></div><button class="btn btn-secondary" data-action="growth-goals">Editar metas</button></div><div class="split-stat" style="padding:0 22px 22px;">${celula('Visitantes no mês', engajamento.visitasMes, metas ? metas.visitors : null)}${celula('Retornos confirmados', engajamento.retornosTotal, metas ? metas.returns : null)}${celula('Membros ativos', activeMemberCount(), metas ? metas.members : null)}</div></section>`;
 }
 
 function statCard(label, value, trendOrSubtitle, subtitleOrIcon, icon, tone = 'gold', special = false, metric = '') {
@@ -1037,10 +1054,15 @@ function renderActivityItems() {
 function renderMembers() {
   const church = getActiveChurch();
   const members = state.members || [];
-  const total = members.length || Number(church?.members || 0);
-  const active = members.filter(member => member.status !== 'inactive').length || total;
-  const rows = members.length ? members.map(member => `<div class="team-user-row"><div class="avatar avatar-olive">${esc(initials(member.name))}</div><div class="team-user-copy"><strong>${esc(preferredDisplayName(member))}</strong><span>${esc(member.ministry || 'Membro')} · ${esc(member.phone || 'Telefone não informado')}</span><small>${member.email ? esc(member.email) : 'E-mail não informado'}${member.lastAttendedAt ? ` · última presença ${esc(formatDateShort(String(member.lastAttendedAt).slice(0, 10)))}` : ''}</small></div><span class="team-status">${member.status === 'inactive' ? 'Inativo' : 'Ativo'}</span><button class="table-action" data-action="member-detail" data-id="${esc(member.id)}" aria-label="Abrir membro">${ICON('more')}</button></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>A base de membros está pronta</h3><p>Cadastre os membros da ${esc(church.name)} para começar o acompanhamento.</p><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Cadastrar primeiro membro</button></div>`;
-  return `<section class="page-head"><div><span class="eyebrow">COMUNIDADE</span><h1>Membros</h1><p>Uma base organizada para cuidar das pessoas que fazem parte da ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-members">${ICON('download')} Exportar membros</button><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Novo membro</button></div></section><div class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Membros cadastrados</span><span class="stat-icon copper">${ICON('users')}</span></div><div class="stat-number">${esc(total)}</div><div class="stat-bottom"><span>base da igreja</span><span>multi-igreja</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Ativos</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(active)}</div><div class="stat-bottom"><span>em acompanhamento</span><span>status atualizado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Meta de crescimento</span><span class="stat-icon gold">${ICON('arrow-up-right')}</span></div><div class="stat-number">${esc(state.growthGoals?.members || 0)}</div><div class="stat-bottom"><span>membros até o fim do ciclo</span><button class="panel-link" data-action="growth-goals">Editar meta ${ICON('arrow-up-right')}</button></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Presenças no mês</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(state.attendanceSummary?.month || 0)}</div><div class="stat-bottom"><span>membros registrados</span><span>cuidado, não ranking</span></div></article></div><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Cadastro de membros</h2><p>Dados separados e protegidos para esta igreja.</p></div><span class="status-pill status-integrated">${esc(total)} ${total === 1 ? 'membro' : 'membros'}</span></div><div class="team-list" style="padding:0 22px 22px;">${rows}</div></section>`;
+  // os dois cartões contam a LISTA de membros. Antes, sem nenhum cadastro, eles
+  // repetiam o "member_count" digitado na ficha da igreja (246 no seed antigo) e o
+  // "ativos" caía no total — ou seja, a tela afirmava coisas que nenhum cadastro diz.
+  const total = members.length;
+  const active = members.filter(member => member.status !== 'inactive').length;
+  const digitadoNaFicha = Number((church && church.members) || 0);
+  const metasMembros = (currentGrowthGoals() || {}).members;
+  const rows = members.length ? members.map(member => `<div class="team-user-row"><div class="avatar avatar-olive">${esc(initials(member.name))}</div><div class="team-user-copy"><strong>${esc(preferredDisplayName(member))}</strong><span>${esc(member.ministry || 'Membro')} · ${esc(member.phone || 'Telefone não informado')}</span><small>${member.email ? esc(member.email) : 'E-mail não informado'}${member.lastAttendedAt ? ` · última presença ${esc(formatDateShort(String(member.lastAttendedAt).slice(0, 10)))}` : ''}</small></div><span class="team-status">${member.status === 'inactive' ? 'Inativo' : 'Ativo'}</span><button class="table-action" data-action="member-detail" data-id="${esc(member.id)}" aria-label="Abrir membro">${ICON('more')}</button></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>${digitadoNaFicha ? `Nenhum membro na lista — o ${esc(digitadoNaFicha)} da ficha é outro número` : 'Ainda não há membros cadastrados'}</h3><p>Cadastre os membros da ${esc(church.name)} para o acompanhamento sair deles, e não de um número digitado.</p><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Cadastrar primeiro membro</button></div>`;
+  return `<section class="page-head"><div><span class="eyebrow">COMUNIDADE</span><h1>Membros</h1><p>Uma base organizada para cuidar das pessoas que fazem parte da ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-members">${ICON('download')} Exportar membros</button><button class="btn btn-gold" data-action="new-member">${ICON('plus')} Novo membro</button></div></section><div class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Membros cadastrados</span><span class="stat-icon copper">${ICON('users')}</span></div><div class="stat-number">${esc(total)}</div><div class="stat-bottom"><span>cadastros nesta igreja</span><span>${digitadoNaFicha && digitadoNaFicha !== total ? `na ficha da igreja está digitado ${esc(digitadoNaFicha)}` : 'base da igreja'}</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Ativos</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(active)}</div><div class="stat-bottom"><span>em acompanhamento</span><span>status atualizado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Meta de crescimento</span><span class="stat-icon gold">${ICON('arrow-up-right')}</span></div><div class="stat-number">${metasMembros === undefined ? '—' : esc(metasMembros)}</div><div class="stat-bottom"><span>${metasMembros === undefined ? 'nenhuma meta salva ainda' : 'membros até o fim do ciclo'}</span><button class="panel-link" data-action="growth-goals">Editar meta ${ICON('arrow-up-right')}</button></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Presenças no mês</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">${esc(state.attendanceSummary?.month || 0)}</div><div class="stat-bottom"><span>membros registrados</span><span>cuidado, não ranking</span></div></article></div><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Cadastro de membros</h2><p>Dados separados e protegidos para esta igreja.</p></div><span class="status-pill status-integrated">${esc(total)} ${total === 1 ? 'membro' : 'membros'}</span></div><div class="team-list" style="padding:0 22px 22px;">${rows}</div></section>`;
 }
 
   // ===== Saudação do púlpito: nomes em destaque para ler do altar =====
@@ -1069,13 +1091,11 @@ function renderMembers() {
     render();
     showToast(`Texto da saudação em tamanho ${GREETING_SIZES[proxima]}.`);
   }
-  // Quem saudar: primeiro os que ainda não foram apresentados; se não houver,
-  // os cadastros dos últimos sete dias (para o pastor não ficar com a tela vazia).
+  // Quem saudar: SOMENTE quem ainda vai ser anunciado. Antes, quando a fila esvaziava,
+  // a tela caía nos cadastros dos últimos sete dias — e o pastor acabava vendo em
+  // destaque justamente os que já tinham sido anunciados. Anunciou, sai do destaque.
   function greetingVisitors() {
-    const pending = pendingPulpitVisitors();
-    if (pending.length) return pending;
-    const semanaAtras = isoDateFromDate(addDaysToDate(parseDate(TODAY), -6));
-    return state.visitors.filter(visitor => String(visitor.date || '') >= semanaAtras).slice(0, 12);
+    return pendingPulpitVisitors();
   }
   function renderGreetingCard(visitor) {
     const members = getFamilyMembers(visitor);
@@ -1089,7 +1109,7 @@ function renderMembers() {
     const people = visitors.reduce((total, visitor) => total + getFamilyMembers(visitor).length, 0);
     const cards = visitors.length
       ? visitors.map(renderGreetingCard).join('')
-      : `<div class="greeting-empty"><span class="icon-tile">${ICON('check-circle')}</span><h3>Nenhum visitante para saudar agora</h3><p>Assim que a recepção registrar alguém, o nome aparece aqui em destaque.</p></div>`;
+      : `<div class="greeting-empty"><span class="icon-tile">${ICON('check-circle')}</span><h3>Nenhum visitante para saudar agora</h3><p>Assim que a recepção registrar alguém, o nome aparece aqui em destaque. Quem você já anunciou fica em "Já anunciados", mais abaixo na tela.</p></div>`;
     const label = visitors.length ? `${people} ${people === 1 ? 'pessoa' : 'pessoas'} para saudar` : 'Sem saudações pendentes';
     return `<section class="panel greeting-panel"><div class="panel-header"><div class="panel-heading"><span class="eyebrow">${label}</span><h2>Saudação do púlpito</h2><p>Nomes grandes, na ordem de chegada, para ler do altar sem apertar os olhos.</p></div><div class="greeting-actions"><button class="btn btn-secondary" data-action="cycle-greeting-size"><span class="greeting-size-chip">Aa</span> Texto: ${GREETING_SIZES[greetingSize()]}</button><button class="btn btn-secondary" data-view="pulpit">${ICON('expand')} Modo púlpito</button>${visitors.length ? `<button class="btn btn-gold" data-action="announce-visitors">${ICON('megaphone')} Preparar saudação</button>` : `<button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Cadastrar visitante</button>`}</div></div><div class="greeting-list">${cards}</div></section>`;
   }
@@ -1097,18 +1117,22 @@ function renderMembers() {
 function renderAcolhimento() {
   const church = getActiveChurch();
   const pending = pendingPulpitVisitors();
-  const recent = state.visitors.slice(0, 8);
-  const groups = visitorAnnouncementGroups(recent);
-  const messageVisitors = pending.length ? pending : recent.slice(0, 4);
-  const suggestedMessage = buildVisitorAnnouncement(messageVisitors);
-  const totalPeople = recent.reduce((total, visitor) => total + getFamilyMembers(visitor).length, 0);
-  const groupMarkup = groups.length ? groups.map(group => `<div class="acolhimento-group-row"><div class="acolhimento-group-icon arrival-${arrivalTone(group.type)}">${ICON(arrivalIcon(group.type))}</div><div class="acolhimento-group-copy"><div class="acolhimento-group-title">${arrivalPill(group.type)}<strong>${esc(group.label)}</strong></div><p>${esc(namesAsSentence(group.names))}</p></div></div>`).join('') : `<div class="empty-state"><div class="icon-tile">${ICON('users')}</div><h3>Nenhum cadastro ainda</h3><p>Os visitantes cadastrados na recepção aparecerão aqui.</p></div>`;
+  const anunciados = (state.visitors || []).filter(visitor => visitor.announced);
+  const groups = visitorAnnouncementGroups(pending);
+  const suggestedMessage = buildVisitorAnnouncement(pending);
+  const totalPeople = pending.reduce((total, visitor) => total + getFamilyMembers(visitor).length, 0);
+  const groupMarkup = groups.length ? groups.map(group => `<div class="acolhimento-group-row"><div class="acolhimento-group-icon arrival-${arrivalTone(group.type)}">${ICON(arrivalIcon(group.type))}</div><div class="acolhimento-group-copy"><div class="acolhimento-group-title">${arrivalPill(group.type)}<strong>${esc(group.label)}</strong></div><p>${esc(namesAsSentence(group.names))}</p></div></div>`).join('') : `<div class="empty-state"><div class="icon-tile green">${ICON('check-circle')}</div><h3>Ninguém aguardando o anúncio</h3><p>Os nomes voltam para esta fila assim que a recepção registrar um visitante novo. O que já foi anunciado está logo abaixo, em "Já anunciados".</p></div>`;
+  const anunciadosMarkup = anunciados.length ? anunciados.slice(0, 8).map(visitor => {
+    const members = getFamilyMembers(visitor);
+    const nome = members.length > 1 ? (visitor.familyName || `${members.length} pessoas`) : visitor.name;
+    return `<div class="acolhimento-group-row"><div class="acolhimento-group-icon arrival-${arrivalTone(visitor.arrivalType || 'Sozinho')}">${ICON('check-circle')}</div><div class="acolhimento-group-copy"><div class="acolhimento-group-title">${arrivalPill(visitor.arrivalType || 'Sozinho')}<strong>${esc(nome)}</strong></div><p>Anunciado em ${esc(formatDateShort(visitor.date))} · continua na lista de Visitantes e nas estatísticas do mês</p></div></div>`;
+  }).join('') + (anunciados.length > 8 ? `<p class="field-note" style="padding:0 2px 4px;">e mais ${anunciados.length - 8} cadastro${anunciados.length - 8 === 1 ? '' : 's'} anunciado${anunciados.length - 8 === 1 ? '' : 's'} — a lista completa está em Visitantes</p>` : '') : '<p class="field-note">Nenhum cadastro marcado como anunciado nesta base ainda.</p>';
   return `
-    <section class="page-head"><div><span class="eyebrow">RECEPÇÃO · ACOLHIMENTO</span><h1>Acolhimento</h1><p>Uma visão simples para a equipe receber cada pessoa pelo nome e respeitar seus grupos.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="sync-church">${ICON('refresh')} Atualizar</button><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar mensagem</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
+    <section class="page-head"><div><span class="eyebrow">RECEPÇÃO · ACOLHIMENTO</span><h1>Acolhimento</h1><p>Em destaque, apenas quem ainda vai ser anunciado do altar. O pastor marca o anúncio e a pessoa sai da fila, entrando na contagem de já anunciados.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="sync-church">${ICON('refresh')} Atualizar</button>${pending.length ? `<button class="btn btn-secondary" data-action="mark-pulpit-announced">${ICON('check-circle')} Marcar como anunciados</button>` : ''}<button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar mensagem</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
     ${renderGreetingPanel()}
-    <section class="welcome-banner acolhimento-welcome"><div class="welcome-copy"><div class="welcome-icon">${ICON('heart')}</div><div><strong>Todos os cadastros da recepção chegam a esta aba.</strong><p>Famílias, casais, amigos e visitantes individuais ficam organizados para facilitar o cuidado e o anúncio.</p></div></div><span class="access-scope-badge">ACESSO DA RECEPÇÃO</span></section>
-    <div class="section-grid acolhimento-layout"><section class="panel acolhimento-message-panel"><div class="panel-header"><div class="panel-heading"><h2>Mensagem sugerida</h2><p>${pending.length ? `${pending.length} cadastro${pending.length === 1 ? '' : 's'} novo${pending.length === 1 ? '' : 's'} para anunciar` : 'Mensagem baseada nos cadastros mais recentes'}</p></div><span class="status-pill ${pending.length ? 'status-new' : 'status-integrated'}">${pending.length ? 'Pendente' : 'Em dia'}</span></div><div class="acolhimento-message-box"><span class="scope-label">PRÉVIA PARA A IGREJA</span><p>${esc(suggestedMessage.body)}</p></div><div class="acolhimento-panel-actions"><button class="btn btn-secondary" data-action="announce-visitors">${ICON('send')} Editar mensagem</button><button class="btn btn-quiet" data-view="pulpit">${ICON('expand')} Modo púlpito</button></div></section><section class="panel info-card acolhimento-summary"><div class="card-topline"><div><h3>Resumo da recepção</h3><p>Cadastros disponíveis para o acolhimento.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><div class="split-stat"><div><small>Pessoas</small><strong>${totalPeople}</strong></div><div><small>Grupos</small><strong>${groups.length}</strong></div><div><small>Novos</small><strong>${pending.length}</strong></div></div><button class="btn btn-secondary btn-full" style="margin-top:22px;" data-view="visitors">${ICON('users')} Ver cadastros</button></section></div>
-    <section class="panel acolhimento-groups-panel"><div class="panel-header"><div class="panel-heading"><h2>Visitantes por grupo</h2><p>Os nomes permanecem juntos para facilitar o entendimento dos pastores e da recepção.</p></div><span class="panel-link">${ICON('shield')} Igreja: ${esc(church.name)}</span></div><div class="acolhimento-group-list">${groupMarkup}</div></section>
+    <section class="welcome-banner acolhimento-welcome"><div class="welcome-copy"><div class="welcome-icon">${ICON('heart')}</div><div><strong>Esta aba mostra só quem ainda vai ser anunciado.</strong><p>Depois que o pastor marca o anúncio, o nome sai da fila e a pessoa entra na contagem de "Já anunciados" — sem sumir de lugar nenhum: continua em Visitantes e nos cartões do Início.</p></div></div><span class="access-scope-badge">ACESSO DA RECEPÇÃO</span></section>
+    <div class="section-grid acolhimento-layout"><section class="panel acolhimento-message-panel"><div class="panel-header"><div class="panel-heading"><h2>Mensagem sugerida</h2><p>${pending.length ? `${pending.length} cadastro${pending.length === 1 ? '' : 's'} novo${pending.length === 1 ? '' : 's'} para anunciar` : 'Nenhum cadastro aguardando o anúncio'}</p></div><span class="status-pill ${pending.length ? 'status-new' : 'status-integrated'}">${pending.length ? 'Pendente' : 'Em dia'}</span></div><div class="acolhimento-message-box"><span class="scope-label">${pending.length ? 'PRÉVIA PARA A IGREJA' : 'SEM PENDÊNCIAS'}</span><p>${esc(pending.length ? suggestedMessage.body : 'Assim que a portaria registrar um visitante novo, a mensagem de boas-vindas aparece pronta aqui.')}</p></div><div class="acolhimento-panel-actions">${pending.length ? `<button class="btn btn-secondary" data-action="announce-visitors">${ICON('send')} Editar mensagem</button>` : `<button class="btn btn-secondary" data-view="visitors">${ICON('users')} Ver cadastros</button>`}<button class="btn btn-quiet" data-view="pulpit">${ICON('expand')} Modo púlpito</button></div></section><section class="panel info-card acolhimento-summary"><div class="card-topline"><div><h3>Resumo da recepção</h3><p>Cadastros disponíveis para o acolhimento.</p></div><div class="icon-tile copper">${ICON('users')}</div></div><div class="split-stat"><div><small>Para anunciar</small><strong>${pending.length}</strong></div><div><small>Pessoas na fila</small><strong>${totalPeople}</strong></div><div><small>Já anunciados</small><strong>${anunciados.length}</strong></div></div><p class="field-note">${anunciados.length} de ${(state.visitors || []).length} cadastros da base já foram anunciados. Os dois grupos continuam contados no Início: anunciar não apaga ninguém.</p><button class="btn btn-secondary btn-full" style="margin-top:14px;" data-view="visitors">${ICON('users')} Ver cadastros</button></section></div>
+    <div class="section-grid acolhimento-layout"><section class="panel acolhimento-groups-panel"><div class="panel-header"><div class="panel-heading"><h2>Para anunciar, por grupo</h2><p>Só quem ainda não foi apresentado. Os nomes permanecem juntos para facilitar o entendimento dos pastores e da recepção.</p></div><span class="panel-link">${ICON('shield')} Igreja: ${esc(church.name)}</span></div><div class="acolhimento-group-list">${groupMarkup}</div></section><section class="panel acolhimento-groups-panel"><div class="panel-header"><div class="panel-heading"><h2>Já anunciados</h2><p>${anunciados.length ? `${anunciados.length} cadastro${anunciados.length === 1 ? '' : 's'} marcado${anunciados.length === 1 ? '' : 's'} pelo púlpito` : 'Nenhum anúncio marcado ainda'}</p></div><span class="panel-link">${ICON('check-circle')} Contados nas estatísticas</span></div><div class="acolhimento-group-list">${anunciadosMarkup}</div></section></div>
   `;
 }
 
@@ -1126,11 +1150,13 @@ function renderVisitors() {
   const returned = visitorCountByStatus('Retornou') + visitorCountByStatus('Integrado');
   const engajamento = engagementStats();
   const hasVisitors = engajamento.visitasTotal > 0;
-  const returnRate = hasVisitors ? `${engajamento.taxaRetorno}%` : '0%';
-  const returnTrend = `${engajamento.retornosMes} neste mês`;
+  const returnRate = hasVisitors ? `${engajamento.taxaRetorno}%` : '—';
+  const retornoRodape = hasVisitors
+    ? `${engajamento.retornosMes} retorno${engajamento.retornosMes === 1 ? '' : 's'} neste mês · ${trendText(engajamento.variacaoRetornos)}`
+    : 'ainda sem cadastros para comparar';
   return `
     <section class="page-head"><div><span class="eyebrow">RELACIONAMENTO</span><h1>Visitantes</h1><p>Receba, acompanhe e cuide de cada nova história que chega à ${esc(church.name)}.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="sync-church">${ICON('refresh')} Atualizar</button><button class="btn btn-secondary" data-action="announce-visitors">${ICON('megaphone')} Preparar anúncio</button><button class="btn btn-secondary" data-view="pulpit">${ICON('expand')} Modo púlpito</button><button class="btn btn-gold" data-action="new-visitor">${ICON('plus')} Novo visitante</button></div></section>
-    <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Novos para acompanhar</span><span class="stat-icon copper">${ICON('clipboard-check')}</span></div><div class="stat-number">${newCount}</div><div class="stat-bottom"><span>precisam de atenção</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Retornaram</span><span class="stat-icon green">${ICON('refresh')}</span></div><div class="stat-number">${returned}</div><div class="stat-bottom"><span class="stat-trend">${hasVisitors ? `${ICON('arrow-up-right')} 9,4%` : '—'}</span><span>neste mês</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Total no mês</span><span class="stat-icon gold">${ICON('users')}</span></div><div class="stat-number">${state.metrics.visits}</div><div class="stat-bottom"><span>cadastros realizados</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Taxa de retorno</span><span class="stat-icon dark">${ICON('check-circle')}</span></div><div class="stat-number">${returnRate}</div><div class="stat-bottom"><span class="stat-trend">${returnTrend}</span><span>vs. mês anterior</span></div></article></section>
+    <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Novos para acompanhar</span><span class="stat-icon copper">${ICON('clipboard-check')}</span></div><div class="stat-number">${newCount}</div><div class="stat-bottom"><span>precisam de atenção</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Retornaram</span><span class="stat-icon green">${ICON('refresh')}</span></div><div class="stat-number">${returned}</div><div class="stat-bottom"><span class="stat-trend">${trendShort(engajamento.variacaoRetornos)}</span><span>vs. mês anterior</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Total no mês</span><span class="stat-icon gold">${ICON('users')}</span></div><div class="stat-number">${state.metrics.visits}</div><div class="stat-bottom"><span>cadastros realizados</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Taxa de retorno</span><span class="stat-icon dark">${ICON('check-circle')}</span></div><div class="stat-number">${returnRate}</div><div class="stat-bottom"><span>${retornoRodape}</span></div></article></section>
     <section class="panel arrival-overview"><div class="panel-header"><div class="panel-heading"><h2>Como chegaram à ${esc(church.name)}</h2><p>Identificação rápida para o cuidado e o anúncio dos pastores.</p></div><span class="panel-link">${ICON('shield')} Informação da recepção</span></div><div class="arrival-grid"><div class="arrival-card arrival-alone"><div class="arrival-card-icon">${ICON('user-round')}</div><div><strong>${visitorCountByArrival('Sozinho')}</strong><span>Sozinho</span></div></div><div class="arrival-card arrival-friends"><div class="arrival-card-icon">${ICON('sparkle')}</div><div><strong>${visitorCountByArrival('Com amigos')}</strong><span>Com amigos</span></div></div><div class="arrival-card arrival-couple"><div class="arrival-card-icon">${ICON('heart')}</div><div><strong>${visitorCountByArrival('Em casal')}</strong><span>Em casal</span></div></div><div class="arrival-card arrival-family"><div class="arrival-card-icon">${ICON('users')}</div><div><strong>${visitorCountByArrival('Família')}</strong><span>Família</span></div></div></div></section>
     <section class="panel table-panel"><div class="panel-header"><div class="panel-heading"><h2>Todos os visitantes</h2><p>${state.visitors.length} registros recentes na área de trabalho</p></div><button class="btn btn-secondary" data-action="filter-help">${ICON('filter')} Filtros</button></div><div class="toolbar" style="padding: 0 21px;"><div class="toolbar-left"><div class="input-wrap">${ICON('search')}<input class="input" id="visitorSearch" type="search" placeholder="Buscar por nome, telefone ou bairro" autocomplete="off"></div></div><div class="toolbar-right"><select class="select" id="visitorArrival" aria-label="Filtrar como chegou"><option value="">Como chegou?</option><option value="Sozinho">Sozinho</option><option value="Com amigos">Com amigos</option><option value="Em casal">Em casal</option><option value="Família">Família</option></select><select class="select" id="visitorStatus" aria-label="Filtrar status"><option value="">Todos os status</option><option value="Novo">Novos</option><option value="Contatado">Contatados</option><option value="Retornou">Retornaram</option><option value="Integrado">Integrados</option></select></div></div><div class="table-scroll"><table><thead><tr><th>Visitante</th><th>Como veio</th><th>Data da visita</th><th>Contato</th><th>Status</th><th>Responsável</th><th></th></tr></thead><tbody id="visitorRows">${renderVisitorRows()}</tbody></table></div></section>
   `;
@@ -1177,9 +1203,13 @@ function renderPulpit() {
 }
 
 function renderCommunication() {
+  const baseMembros = activeMemberCount();
+  const baseVisitantes = (state.visitors || []).length;
+  const baseTotal = baseMembros + baseVisitantes;
+  const consentidos = (state.visitors || []).filter(visitor => visitor.communicationConsent || visitor.consent).length;
   return `
     <section class="page-head"><div><span class="eyebrow">CONEXÃO</span><h1>Comunicação</h1><p>Leve a palavra certa para as pessoas certas, no momento certo.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="channel-settings">${ICON('settings')} Canais</button><button class="btn btn-gold" data-action="new-announcement">${ICON('plus')} Novo aviso</button></div></section>
-    <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Avisos registrados</span><span class="stat-icon gold">${ICON('megaphone')}</span></div><div class="stat-number">${state.metrics.announcements}</div><div class="stat-bottom"><span class="stat-trend">${state.metrics.announcements ? `${state.metrics.announcements === 1 ? '1 aviso' : `${state.metrics.announcements} avisos`} na base` : '—'}</span><span>sem envio real nesta fase</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Leitura (sem envio)</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">0%</div><div class="stat-bottom"><span>envio ainda não configurado</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Pessoas na base</span><span class="stat-icon copper">${ICON('send')}</span></div><div class="stat-number">${state.metrics.reach}</div><div class="stat-bottom"><span>membros e visitantes</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Canais configurados</span><span class="stat-icon dark">${ICON('smartphone')}</span></div><div class="stat-number">0</div><div class="stat-bottom"><span>integração futura</span></div></article></section>
+    <section class="stat-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Avisos registrados</span><span class="stat-icon gold">${ICON('megaphone')}</span></div><div class="stat-number">${state.metrics.announcements}</div><div class="stat-bottom"><span class="stat-trend">${state.metrics.announcements ? `${state.metrics.announcements === 1 ? '1 aviso' : `${state.metrics.announcements} avisos`} na base` : '—'}</span><span>sem envio real nesta fase</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Leitura dos avisos</span><span class="stat-icon green">${ICON('check-circle')}</span></div><div class="stat-number">—</div><div class="stat-bottom"><span>a plataforma ainda não envia, então não há leitura a medir</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Pessoas na base</span><span class="stat-icon copper">${ICON('send')}</span></div><div class="stat-number">${esc(baseTotal)}</div><div class="stat-bottom"><span>${esc(baseMembros)} membro${baseMembros === 1 ? '' : 's'} · ${esc(baseVisitantes)} visitante${baseVisitantes === 1 ? '' : 's'}</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Com consentimento para contato</span><span class="stat-icon dark">${ICON('smartphone')}</span></div><div class="stat-number">${esc(consentidos)}</div><div class="stat-bottom"><span>${consentidos && baseVisitantes ? `${Math.round((consentidos / baseVisitantes) * 100)}% dos visitantes autorizaram` : 'nenhum visitante autorizou o envio ainda'}</span></div></article></section>
     <div class="section-grid"><section class="panel"><div class="panel-header"><div class="panel-heading"><h2>Últimos avisos</h2><p>Histórico de comunicações da igreja</p></div><button class="panel-link" data-action="new-announcement">Criar aviso ${ICON('plus')}</button></div><div class="announcement-list" style="padding: 0 22px 22px;">${state.announcements.map(renderAnnouncement).join('')}</div></section><section class="panel info-card"><div class="card-topline"><div><h3>Configuração por canal</h3><p>Os canais ficam registrados para uma futura integração de envio.</p></div><div class="icon-tile gold">${ICON('send')}</div></div><div class="split-stat"><div><small>Notificação push</small><strong>Não</strong></div><div><small>WhatsApp</small><strong>Não</strong></div><div><small>E-mail</small><strong>Não</strong></div></div><div class="mini-progress"><span style="width: 0%"></span></div><p class="field-note" style="margin-top: 12px;">A configuração fica salva, mas o envio real ainda não está habilitado.</p><button class="btn btn-secondary btn-full" style="margin-top: 19px;" data-action="channel-settings">${ICON('settings')} Configurar canais</button></section></div>
   `;
 }
@@ -1238,11 +1268,12 @@ function renderSettings() {
   pendingLogoImage = null;
   const church = getActiveChurch();
   const churchLogo = church.logoImage || '';
-  const churchPhone = church.phone || '(21) 00000-0000';
+  // número de enfeite dentro do campo virava dado real assim que o formulário fosse salvo
+  const churchPhone = church.phone || '';
   const churchPastors = church.pastors || '';
   const churchDescription = church.description || 'Um lugar para pertencer, crescer e viver a fé em comunidade.';
   const appearance = { ...DEFAULT_APPEARANCE, ...(church.appearance || {}) };
-  const publicSettings = { visible: true, headline: church.description || '', history: '', pastorsBio: '', address: church.city || '', hours: 'Domingos às 19h', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar', ...(church.publicSettings || {}) };
+  const publicSettings = { visible: true, headline: church.description || '', history: '', pastorsBio: '', address: church.city || '', hours: '', instagram: '', facebook: '', youtube: '', cta: 'Venha nos visitar', ...(church.publicSettings || {}) };
   const bot = { ...DEFAULT_BOT_SETTINGS, ...(publicSettings.bot || {}) };
   const organizationManagement = isPlatformAdmin() ? `<section class="settings-card saas-card" data-settings-panel="saas"><div class="saas-content"><div class="settings-card-header" style="border:0;padding-bottom:0;margin-bottom:0;"><div><h2>Pronto para outras igrejas</h2><p>A administração da plataforma gerencia organizações, planos e responsáveis.</p></div><div class="icon-tile gold">${ICON('crown')}</div></div><div class="plan-line"><span class="plan-badge">Administrador da plataforma</span><span>${state.churches.length} organização${state.churches.length === 1 ? '' : 'ões'} cadastrada${state.churches.length === 1 ? '' : 's'}</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;"><div><strong style="font-size:12px;">Área de organizações</strong><p class="field-note" style="margin-top:5px;">Cadastre novas igrejas, planos e responsáveis em um único painel.</p></div><button class="btn btn-primary" data-action="new-church">${ICON('plus')} Adicionar igreja</button></div></div></section><section class="settings-card" data-settings-panel="saas"><div class="settings-card-header"><div><h2>Igrejas cadastradas</h2><p>Organizações disponíveis nesta conta administradora.</p></div><span class="status-pill status-integrated">${state.churches.length} ativa${state.churches.length === 1 ? '' : 's'}</span></div><div class="tenant-list">${state.churches.map(ch => `<div class="tenant-row"><div class="tenant-logo">${esc(ch.initials || initials(ch.name))}</div><div class="tenant-copy"><strong>${esc(ch.name)}</strong><span>${esc(ch.city)} · ${esc(ch.members || 0)} pessoas alcançadas</span></div><span class="tenant-status">${esc(ch.status || 'Ativa')}</span><button class="table-action" data-action="switch-church" data-id="${esc(ch.id)}" aria-label="Abrir ${esc(ch.name)}">${ICON('chevron-right')}</button></div>`).join('')}</div></section>` : `<section class="settings-card pastor-scope-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Acesso da sua igreja</h2><p>Você está conectado como pastor e administra somente os dados desta organização.</p></div><div class="icon-tile copper">${ICON('shield')}</div></div><div class="pastor-scope-grid"><div><span class="scope-label">IGREJA ATIVA</span><strong>${esc(church.name)}</strong><p>${esc(church.city)} · identidade, visitantes e avisos desta igreja.</p></div><span class="access-scope-badge">PASTOR DA IGREJA</span></div><div class="scope-note"><span>${ICON('check-circle')}</span><p><strong>Você pode editar o nome e o logo</strong> desta igreja em “Identidade da igreja”. As outras igrejas e seus dados ficam protegidos e são administrados pelo administrador da plataforma.</p></div></section>`;
   const backupCard = `<section class="settings-card backup-settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Backup do banco de dados</h2><p>A proteção dos dados da igreja deve acontecer no PostgreSQL do Railway.</p></div><span class="backup-status"><span></span> GUIADO</span></div><div class="backup-summary"><div class="backup-summary-icon">${ICON('shield')}</div><div><strong>Nenhuma cópia de dados é mantida neste navegador</strong><p>O pacote inclui o procedimento de backup e restauração do PostgreSQL.</p></div><span class="backup-version-count">Railway</span></div><p class="field-note backup-note">Ative o backup automático e faça um teste de restauração seguindo <strong>docs/BACKUP-RESTAURACAO-POSTGRES.md</strong>. A plataforma não pede credenciais por este painel.</p></section>`;
@@ -1418,7 +1449,7 @@ function openModal(type, data = {}) {
   } else if (type === 'growth-goals') {
     modalTitle = 'Metas de crescimento';
     modalEyebrow = 'ACOMPANHAMENTO';
-    content = `<form data-form="growth"><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('sparkle')}</span><p>Defina objetivos possíveis para acompanhar visitantes, retornos e membros. As metas ficam salvas na igreja ativa.</p></div><div class="form-grid"><div class="form-field"><label for="goalVisitors">Visitantes no ciclo</label><input class="input" id="goalVisitors" name="visitors" type="number" min="0" value="${esc(state.growthGoals?.visitors || 0)}"></div><div class="form-field"><label for="goalReturns">Retornos no ciclo</label><input class="input" id="goalReturns" name="returns" type="number" min="0" value="${esc(state.growthGoals?.returns || 0)}"></div><div class="form-field full"><label for="goalMembers">Membros ativos</label><input class="input" id="goalMembers" name="members" type="number" min="0" value="${esc(state.growthGoals?.members || 0)}"></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar metas</button></div></form>`;
+    content = `<form data-form="growth"><div class="scope-note" style="margin:0 0 18px;"><span>${ICON('sparkle')}</span><p>Defina objetivos possíveis para acompanhar visitantes, retornos e membros. As metas ficam salvas na igreja ativa.</p></div><div class="form-grid"><div class="form-field"><label for="goalVisitors">Visitantes no ciclo</label><input class="input" id="goalVisitors" name="visitors" type="number" min="0" value="${esc((currentGrowthGoals() || {}).visitors ?? '')}" placeholder="sem meta"></div><div class="form-field"><label for="goalReturns">Retornos no ciclo</label><input class="input" id="goalReturns" name="returns" type="number" min="0" value="${esc((currentGrowthGoals() || {}).returns ?? '')}" placeholder="sem meta"></div><div class="form-field full"><label for="goalMembers">Membros ativos</label><input class="input" id="goalMembers" name="members" type="number" min="0" value="${esc((currentGrowthGoals() || {}).members ?? '')}" placeholder="sem meta"></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar metas</button></div></form>`;
   }
   title.textContent = modalTitle;
   eyebrow.textContent = modalEyebrow;
@@ -1793,8 +1824,11 @@ function prepareVisitorAnnouncement(id) {
 
 function announceNewVisitors() {
   const pending = pendingPulpitVisitors();
-  const visitors = pending.length ? pending : state.visitors.slice(0, 6);
-  openModal('announcement', { visitors });
+  if (!pending.length) {
+    showToast('Nenhum visitante aguardando o anúncio. A mensagem fica pronta quando a portaria cadastrar alguém.');
+    return;
+  }
+  openModal('announcement', { visitors: pending });
 }
 
 async function markPulpitAnnounced() {
@@ -1804,7 +1838,7 @@ async function markPulpitAnnounced() {
     await Promise.all(pending.map(visitor => apiRequest(`/api/church/visitors/${encodeURIComponent(visitor.id)}`, { method: 'PATCH', body: { announced: true } })));
     await loadRemoteChurchState(state.currentUser);
     render();
-    showToast(`${pending.length === 1 ? 'Visitante marcado' : 'Visitantes marcados'} como apresentados e salvo${pending.length === 1 ? '' : 's'} no banco.`);
+    showToast(`${pending.length === 1 ? 'Visitante marcado' : 'Visitantes marcados'} como apresentados e salvo${pending.length === 1 ? '' : 's'} no banco. ${pending.length === 1 ? 'Ele sai' : 'Eles saem'} da fila de anúncio e ${pending.length === 1 ? 'entra' : 'entram'} na contagem de já anunciados do Acolhimento.`);
   } catch (error) {
     showToast(`Não foi possível salvar a apresentação: ${error.message}`, 'error');
   }
@@ -1855,11 +1889,15 @@ async function toggleReceptionAccess(id) {
 async function deleteReceptionAccess(id) {
   const receptionUser = (state.receptionUsers || []).find(item => item.id === id);
   if (!receptionUser) return;
-  if (!window.confirm(`Excluir o acesso de ${receptionUser.name}? Os visitantes cadastrados por ele não serão apagados.`)) return;
+  if (!window.confirm(`Excluir o acesso de ${receptionUser.name}? Os cadastros feitos por essa pessoa não serão apagados — o nome dela sai apenas de "quem registrou".`)) return;
   try {
-    await apiRequest(`/api/church/reception-users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const resultado = await apiRequest(`/api/church/reception-users/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadRemoteChurchState(state.currentUser);
-    closeModal(); render(); showToast(`Acesso de ${receptionUser.name} excluído.`);
+    closeModal(); render();
+    const soltos = Number((resultado && resultado.detached && resultado.detached.visitors) || 0);
+    showToast(soltos
+      ? `Acesso de ${receptionUser.name} excluído. ${soltos} cadastro(s) de visitante continuam na base, sem o nome dela como autor.`
+      : `Acesso de ${receptionUser.name} excluído.`);
   } catch (error) {
     showToast(`Não foi possível excluir o acesso: ${error.message}`, 'error');
   }

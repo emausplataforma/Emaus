@@ -1,0 +1,130 @@
+EXCLUIR UM ACESSO DA RECEPÇÃO — O QUE ESTAVA QUEBRANDO E O QUE MUDOU
+pacote v16  ·  cache do aplicativo v85  ·  6 de outubro de 2026 (madrugada de terça)
+
+O QUE O SENHOR VIU
+------------------
+Painel ▸ Acesso ▸ Mariana Alves ▸ "Excluir acesso" ▸ OK. E 15 segundos depois:
+
+    "Não foi possível excluir o acesso: O serviço não respondeu a tempo.
+     Tente novamente em alguns segundos."
+
+Essa frase não é do site: ela está escrita no servidor (server.js, linha ~79). É o
+relógio de segurança que fecha a conexão quando uma rota fica sem responder. Ou
+seja, o pedido chegou no servidor, o servidor aceitou a tarefa e nunca devolveu
+nada. Por isso a tela demorava tanto e por isso o acesso continuava na lista.
+
+POR QUE ACONTECIA
+-----------------
+O cadastro de quem atende na portaria é uma linha na tabela "users". O PostgreSQL
+não deixa apagar uma linha que ainda é citada por outra tabela. E ela é citada,
+seis vezes:
+
+  visitors.created_by            ·  os visitantes que essa pessoa cadastrou
+  church_announcements.created_by ·  avisos registrados por ela
+  member_attendance.created_by   ·  presenças lançadas por ela
+  care_tasks.created_by          ·  acompanhamentos de cuidado abertos por ela
+  expenses.created_by            ·  lançamentos de despesa
+  audit_events.actor_id          ·  o histórico do que ela fez no sistema
+
+Nenhuma dessas seis colunas tem "ON DELETE SET NULL" (as outras três referências a
+usuário têm, e por isso nunca deram problema). O código antigo fazia só isto:
+
+  DELETE FROM users WHERE id = ... ; se der erro, azar.
+
+O banco recusava, a rota não tinha proteção nenhuma contra erro, a promessa ficava
+pendurada e o relógio de 15 segundos respondia no lugar dela. O botão não era mal
+instalado: faltava ao servidor desfazer os vínculos antes de apagar.
+
+O QUE MUDA AGORA (server.js)
+---------------------------
+A rota DELETE /api/church/reception-users/:userId passou a trabalhar em transação:
+
+1. localiza o acesso, desta igreja e com papel de recepção (senão: 404 honesto);
+2. desanexa, um por um, os registros das seis tabelas acima — tira só o nome de
+   "quem registrou", não apaga nenhum cadastro;
+3. apaga o acesso;
+4. grava na auditoria quem excluiu e quantos registros foram desanexados;
+5. COMMIT.
+
+E, se qualquer passo falhar: ROLLBACK (nada é perdido), resposta 500 com o motivo
+em português — nunca mais os 15 segundos de silêncio — e a conexão devolvida ao
+pool. Esse último ponto importa: uma conexão presa por rota que não responde,
+repetida algumas vezes, esgota o pool de 10 conexões e derruba o sistema inteiro
+para todas as igrejas, não só para a Bethesda.
+
+O painel (app.js) acompanhou:
+
+· a confirmação agora diz a verdade inteira: "os cadastros feitos por essa pessoa
+  não serão apagados — o nome dela sai apenas de 'quem registrou'";
+· depois de excluir, o aviso conta o que ficou:
+  "Acesso de Mariana Alves excluído. 12 cadastro(s) de visitante continuam na
+   base, sem o nome dela como autor."
+
+O QUE O SENHOR PRECISA FAZER
+----------------------------
+1. A rodada passada (v15 — seta, números reais, pastores no plural) JÁ ESTÁ NO AR:
+   conferido agora, o site publicado traz o cache emaus-shell-v84, o app.js dele não
+   tem nenhuma ocorrência de "stat-open" e os 6 arquivos batem byte a byte com o
+   repositório (commit 35f43bd6, 05/10 21:37). Este pacote é só a v16.
+2. São 4 arquivos para a raiz do repositório Emaus: server.js, app.js, index.html,
+   service-worker.js. Commit e push. (styles.css, recepcao.html e reception.js não
+   vão junto porque não mudaram nesta rodada — estão iguais aos que já estão no ar.)
+3. server.js é o arquivo do Railway. Se o serviço publica deste mesmo repositório, o
+   mesmo push resolve; se não publica, use o "railway up" do guia
+   COMO-REPUBLICAR-RAILWAY.txt. Sem esse passo o botão continua igual, porque a
+   correção mora no servidor.
+4. Nada mais no servidor: o server.js daqui era, antes da mudança, byte a byte o mesmo
+   que está publicado (md5 b4bd8abc7e52a2ba8032411d5ab0c075), e schema.sql,
+   package.json e railway.json continuam iguais aos do ar. Nenhuma coluna nova,
+   nenhuma migração, nenhum dado reescrito à mão.
+
+ENQUANTO O SERVIDOR NÃO FOR ATUALIZADO
+--------------------------------------
+Use "Bloquear acesso" no mesmo cartão. Isso já foi conferido no código: a rota de
+login (server.js:530) só aceita usuário com status 'active', então o acesso
+bloqueado perde a entrada na hora — a pessoa não consegue mais abrir a portaria,
+mesmo com a senha antiga. Ela continua listada (por isso bloquear não é excluir), e
+depois do update do servidor o senhor exclui de vez.
+
+COMO CONFERIR DEPOIS
+--------------------
+1. Painel ▸ Acesso ▸ escolha o acesso ▸ "Excluir acesso" ▸ OK — a resposta vem em
+   menos de um segundo, com o aviso de quantos cadastros ficaram na base.
+2. Lista de Acesso ▸ a pessoa sumiu.
+3. Acolhimento ▸ a lista de visitantes continua com todos os cadastros que ela fez,
+   inclusive o nome dela onde estava escrito "quem atendeu" (esse campo é texto
+   solto, fica como memória do culto).
+4. Configurações ▸ Atividade/auditoria ▸ aparece "acesso da recepção removido".
+5. Se algum dia der erro de novo, o aviso diz o motivo real, e não "não respondeu".
+
+COMO ISTO FOI TESTADO
+---------------------
+Arquivo novo: teste-excluir-acesso-recepcao.js (32 conferências). Ele não reescreve
+a lógica: pega a FUNÇÃO REAL da rota no server.js e a executa contra um banco falso
+que obedece às mesmas chaves estrangeiras do PostgreSQL, lendo do schema.sql quais
+tabelas prendem o cadastro de usuário. O que ele garante:
+
+· a rota nova responde uma vez, na hora, e apaga o acesso depois de desanexar as
+  seis tabelas (o aviso traz a contagem: 3 visitantes, 2 cuidados, 1 aviso, 1
+  auditoria no cenário do teste);
+· nenhum cadastro de visitante é perdido — os três do cenário continuam lá, com o
+  autor em branco;
+· o código ANTERIOR, rodando no mesmo banco falso, não responde nada e morre em
+  "23503 / visitors_created_by_fkey" — é exatamente o retrato do que o senhor viu;
+· se no futuro alguém criar uma tabela nova apontando para "users", a rota devolve
+  um erro claro com ROLLBACK, em vez de ficar pendurada;
+· id de outra igreja cai no 404 e nenhum DELETE é tentado antes de achar o cadastro;
+· o botão do painel chama o DELETE certo, avisa o que ficou e recarrega a lista.
+
+A bateria toda está em 327 conferências em 10 arquivos, todas passando. E o
+comparador função-a-função com o arquivo publicado foi apertado nesta rodada: ele
+não enxergava as funções "async" (foi assim que três mudanças antigas passaram
+desapercebidas pelo filtro). Agora enxerga — 166 funções conferidas no pacote,
+153 no ar, 10 alteradas, 13 novas, nenhuma fora das que as rodadas tocaram.
+
+O QUE NÃO FOI TOCADO
+--------------------
+Nenhuma outra rota do server.js mudou. O "Bloquear acesso", o "Editar acesso" e o
+"+ Cadastrar acesso" estão byte por byte como estão no ar. O campo "responsible"
+dos visitantes não virou chave estrangeira. E o restante dos arquivos é o que já
+veio da rodada v15 (sem seta nos cartões, números reais e "pastores" no plural).
