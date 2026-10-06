@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emaus-shell-v88-agenda-recorrencia-do-pastor';
+const CACHE_NAME = 'emaus-shell-v89-mais-de-uma-posicao-no-mes';
 const APP_SHELL = ['./', './index.html', './styles.css', './splash.css', './splash.js', './app.js', './api-config.js', './manifest.json', './recepcao.html', './reception.js', './admin.html', './admin.css', './admin.js', './emaus-admin-logo.png', './publica.html', './publica.css', './publica.js', './visita.html', './pagamento.html', './privacidade.html'];
 
 self.addEventListener('install', event => {

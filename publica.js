@@ -82,6 +82,18 @@ function ruleDeEvento(event) {
   if (typeof bruto === 'string') { try { return JSON.parse(bruto) || {}; } catch (error) { return {}; } }
   return typeof bruto === 'object' ? bruto : {};
 }
+// "repete todo mês" deixava o visitante sem saber que são dois domingos por mês: nas
+// séries marcadas por posição, a etiqueta cita as posições que o pastor escolheu. Os dias
+// feminine ("quarta") pedem "na 2ª", os outros "no 2º" — a concordância à toa soa errado.
+const DIAS_DA_SEMANA_CURTOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+function posicoesDaRegra(regra) {
+  const bruta = Array.isArray(regra.ordinais) && regra.ordinais.length ? regra.ordinais : [regra.ordinal];
+  return [...new Set(bruta.map(valor => Math.floor(Number(valor))).filter(valor => valor >= 1 && valor <= 5))].sort((a, b) => a - b);
+}
+function enumera(lista) {
+  if (lista.length <= 1) return String(lista[0] ?? '');
+  return `${lista.slice(0, -1).join(', ')} e ${lista[lista.length - 1]}`;
+}
 function rotuloRecorrencia(event) {
   const regra = ruleDeEvento(event);
   const tipo = String(regra.type || '');
@@ -89,7 +101,16 @@ function rotuloRecorrencia(event) {
     const semanas = Number(regra.intervaloSemanas || 1);
     return semanas > 1 ? `repete a cada ${semanas} semanas` : 'repete toda semana';
   }
-  if (tipo === 'monthly-date' || tipo === 'monthly-weekday') return 'repete todo mês';
+  if (tipo === 'monthly-weekday') {
+    const posicoes = posicoesDaRegra(regra);
+    if (!posicoes.length) return 'repete todo mês';
+    const dia = DIAS_DA_SEMANA_CURTOS[Number(regra.weekday)] || 'dia da semana';
+    const feminina = /a$/.test(dia);
+    const marcas = enumera(posicoes.map(posicao => `${posicao}${feminina ? 'ª' : 'º'}`));
+    return `repete ${feminina ? 'na' : 'no'} ${marcas} ${dia} do mês`;
+  }
+  if (tipo === 'monthly-date') return 'repete todo mês';
+  if (tipo === 'yearly-weekday' && posicoesDaRegra(regra).length > 1) return `repete ${posicoesDaRegra(regra).length} vezes por ano`;
   if (tipo === 'yearly-date' || tipo === 'yearly-weekday') return 'repete uma vez por ano';
   return '';
 }

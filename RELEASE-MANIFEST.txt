@@ -230,7 +230,7 @@ v18 — ACOLHIMENTO: EM DESTAQUE SÓ QUEM AINDA VAI SER ANUNCIADO  (PUBLICADA: c
   (114.795 B, sem o bloco RECEPTION_DETACH) contra o local 7bac044f3dd6a85316285677602c265c
   (117.149 B). Publicação conferida depois: os dois batem e o Pages serve o novo (abaixo).
 
-v19 — AGENDA COM RECORRÊNCIA DECIDIDA POR QUEM AGENDA  (EMBALADA, NÃO PUBLICADA)
+v19 — AGENDA COM RECORRÊNCIA DECIDIDA POR QUEM AGENDA  (PUBLICADA: o app.js/index.html/service-worker.js/publica.html no ar são byte a byte o que foi embalado — MD5 conferido em 06/10/2026)
   Zip: emaus-agenda-recorrente-v19.zip  (leva junto admin.js/admin.html/admin.css, já no ar
   desde a v18 e reconfirmados por MD5, e server.js da v16 — o único cujo processo ainda não
   pude confirmar publicado)
@@ -273,6 +273,61 @@ v19 — AGENDA COM RECORRÊNCIA DECIDIDA POR QUEM AGENDA  (EMBALADA, NÃO PUBLIC
   categoria Culto (server.js:306), então uma série semanal vira 12 lembretes no ano — hoje
   nada sai porque o envio externo está desligado na plataforma.
 
+v20 — MAIS DE UMA POSIÇÃO NO MÊS  (EMBALADA, NÃO PUBLICADA)
+  Zip: emaus-agenda-posicoes-multiplas-v20.zip  (cumulativo: leva admin.js/admin.html/admin.css
+  e server.js da v16, todos reconfirmados por cmp/md5 e não alterados nesta rodada)
+  Arquivos: app.js · index.html · service-worker.js · publica.js · publica.html
+  Cache: emaus-shell-v89-mais-de-uma-posicao-no-mes  (app.js?v=65, publica.js?v=61)
+  styles.css NÃO foi tocado — as caixas novas usam o container .event-quick-actions que já
+  existia (flex + wrap + empilha no celular), então os dois testes que comparam o CSS byte a
+  byte com o ar passaram sem mudar nada.
+  Pedido do pastor, com o modal aberto na tela: "Quero que coloque a possibilidade de mais de
+  uma posição no mês". O campo "Posição no mês" era um seletor de UMA opção (Primeiro…Quinto),
+  então "culto no 1º e no 3º domingo" só existia agendando duas séries separadas.
+  O que é agora: cinco caixas marcáveis ("Marque uma ou mais posições:"), valendo para as duas
+  repetições por dia da semana (mensal e anual), editáveis, com o padrão de antes (só a
+  primeira marcada) para quem não pediu nada. Cada posição marcada gera uma data por mês (ou
+  por ano), tudo entra numa lista só em ordem cronológica, nada nasce antes da data de início
+  e mês sem quinto domingo simplesmente não gera o quinto. Exemplo medido: início 05/10/2026,
+  1º e 3º domingo, até 31/12/2026 → 18/10 · 01/11 · 15/11 · 06/12 · 20/12 (5 datas — o 1º
+  domingo de outubro já tinha passado). Com 1º/3º/5º de out/26 a mar/27: 13 datas, não 18.
+  A prévia do formulário cita as posições ("Posições no mês: primeiro e terceiro (…)"), é
+  calculada pelo MESMO gerador que grava, e o estado da prévia é lido das caixas marcadas
+  (caminho do clique exercitado no teste, não só a chamada direta do gerador).
+  Sem nenhuma caixa marcada nada é gravado e a tela diz o motivo ("Escolha pelo menos uma
+  posição no mês para a repetição por dia da semana."); evento único não é barrado.
+  Regra gravada: recurrence_rule ganha "ordinais":[1,3] e mantém "ordinal":1 por
+  compatibilidade (quem só lia o campo antigo continua lendo o primeiro). until = última data
+  criada. Zero migração, zero rota nova — o JSONB já aceitava; o gerador aceita número OU
+  lista, então série antiga gravada com ordinal único continua funcionando e volta marcada
+  na edição.
+  Na agenda e na lista de próximos eventos a etiqueta cita as posições ("Culto · recorrente
+  (1º e 3º)"), com concordância de gênero no dia ("(2ª e 4ª)" para quarta). Na página pública
+  o rótulo vago "repete todo mês" virou "repete no 1º e 3º domingo do mês" (e "repete 2 vezes
+  por ano" para anual com duas posições); mensal por número de dia e as demais continuam como
+  estavam. Edição com "Aplicar à série inteira" refaz a série com as novas datas (PUT /series)
+  — testado com duas posições: 5 datas e a regra ordinais [1,3].
+  Verificação: teste-agenda-recorrencia.js foi de 61 para 114 conferências (+53) e passou a
+  executar o form de verdade (caixas → estado → prévia) e o publica.js recortado (seção 11);
+  duas expectativas minhas estavam erradas e foram corrigidas contra o que o gerador faz
+  ([1] a partir de 05/10 dá 2 datas, não 3; anual conta o mês da data de início, não novembro).
+  Dois defeitos de infraestrutura de teste apareceram e foram consertados no teste: interpolava
+  o array de posições direto no snippet (virava "1,3", ou seja, ordinal 1 + options 3) e o seed
+  do contexto não incluía as funções novas (ReferenceError). O allowlist de "funções tocadas de
+  propósito" de teste-saudacao-pulpito.js e de teste-pagina-pastores.js ganhou os nomes novos;
+  sem isso a comparação com o ar acusaria a rodada de mexer onde não devia. Bateria: 13
+  arquivos, 537 conferências, 0 falhas.
+  Consequências ditas ao pastor (não escondidas): cada posição é uma linha própria na agenda —
+  1º e 3º domingo são 24 linhas no ano, e quando o bot for ligado são 24 lembretes enfileirados
+  (server.js:306, categoria Culto); "quarta e sexta" continua sendo duas séries, porque posição
+  é dentro do MESMO dia da semana; não existe "todos os domingos, menos 15/11" — apaga-se a
+  ocorrência; e duas posições enchem o teto de 500 datas duas vezes mais rápido, com a prévia
+  avisando antes de gravar.
+  Detalhe da entrega: o print que o pastor mandou ainda mostrava o modal velho (com a nota
+  "até 31 de dezembro do ano atual" da v18). O MD5 do ar provou que a v19 já estava publicada,
+  então era o service worker do navegador servindo a casca velha — por isso o bump de cache
+  (v88 → v89) e um F5 bastam para ver os campos novos.
+
 PENDENCIA ABERTA
   1. Renomear o rótulo "Como veio? *" para "Com quem veio?" na tela da portaria
      (1 linha em recepcao.html + troca de cache + ZIP). Aguardando confirmação do pastor.
@@ -293,6 +348,12 @@ PENDENCIA ABERTA
   6. (v19) "Sempre" não existe: o teto é 500 datas por agendamento (o da rota de lote).
      Para uma série que se renova sozinha a cada ano seria preciso uma coluna própria de
      regra viva no banco, e isso não foi pedido nem feito.
+  7. (v20) A posição é escolha dentro de UM dia da semana. Para "domingo e quarta"
+     continuam sendo duas séries: a regra grava um weekday só. Unir dias na mesma série
+     pede mudança na regra e no gerador, e não foi pedido.
+  8. (v20) Nada na API sabe das posições: elas vivem no JSON recurrence_rule e só existem
+     como datas já materializadas. Uma série de 1º e 3º termina no "until" gravado — não se
+     renova sozinha no ano seguinte, e nenhum outro leitor (bot, iCal, exportação) vê a lista.
 
 REGISTRO ANTERIOR (v1.5, mantido por histórico)
   Emaús — expansão do Administrador central v1.5. Frontend admin.html/admin.js/admin.css

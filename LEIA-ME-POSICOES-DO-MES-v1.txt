@@ -1,0 +1,195 @@
+EMAÚS — MAIS DE UMA POSIÇÃO NO MÊS  (rodada v20)
+Arquivos: app.js · index.html · service-worker.js · publica.js · publica.html
+Cache: emaus-shell-v89-mais-de-uma-posicao-no-mes   (app.js?v=65, publica.js?v=61)
+Nenhuma migração de banco, nenhuma rota nova, nenhuma linha em styles.css.
+
+===============================================================================
+1) O QUE O PASTOR PEDIU
+===============================================================================
+"Quero que coloque a possibilidade de mais de uma posição no mês."
+
+Até agora o modal de agenda tinha um seletor de UMA opção só ("Posição no
+mês": Primeiro · Segundo · Terceiro · Quarto · Quinto). Quem quisesse culto no
+primeiro E no terceiro domingo tinha de agendar duas séries separadas.
+Isto é o que mudou: a posição deixou de ser escolha única e virou lista de
+caixas. O que for marcado gera data — cada caixa é um domingo (ou quarta, ou
+o dia que foi escolhido) por mês, todo mês, até o fim que o pastor definiu.
+
+===============================================================================
+2) O QUE MUDOU NA TELA DO AGENDAMENTO
+===============================================================================
+No modal "Novo evento" e no modal "Editar evento", o campo "Posição no mês"
+agora é:
+
+  Posição no mês
+  Marque uma ou mais posições:
+  [x] Primeiro   [ ] Segundo   [x] Terceiro   [ ] Quarto   [ ] Quinto (se existir)
+
+  Vale nas repetições pelo dia da semana — "primeiro e terceiro domingo" são
+  duas posições marcadas, e as duas datas entram na agenda.
+
+· As cinco caixas aparecem quando a repetição é "Mensal pelo dia da semana" ou
+  "Anual pelo dia da semana" (os dois modos que funcionam por posição).
+· Por padrão a primeira já vem marcada, exatamente como era antes — quem só
+  queria o primeiro domingo não vê nada diferente.
+· As opções do seletor de repetição ganharam o aviso: "Mensal pelo dia da
+  semana — uma ou mais posições (1º e 3º domingo de cada mês)".
+· Se nenhuma caixa for marcada, nada é gravado e a tela diz por quê:
+  "Escolha pelo menos uma posição no mês para a repetição por dia da semana."
+  Evento único (sem repetição) não é barrado por isso.
+· Na prévia, embaixo do próprio formulário, aparece a frase nova:
+  "Posições no mês: primeiro e terceiro (domingo do mês da data de início, e
+  dos meses seguintes)." Ela é calculada pelo MESMO gerador que grava — não é
+  texto decorativo.
+
+As caixas estão dentro de um container que já existia no CSS
+(.event-quick-actions), por isso o arquivo de estilos não foi tocado: nada de
+layout novo para conferir, e no celular as caixas empilham sozinhas.
+
+===============================================================================
+3) COMO A DATA É CALCULADA (e o que o gerador faz com mais de uma posição)
+===============================================================================
+Para cada mês (ou cada ano, no modo anual), o gerador procura uma data por
+posição marcada, todas no dia da semana escolhido, e joga tudo numa lista só
+em ordem cronológica. Consequências que valem a pena saber:
+
+· Nada é criado antes da data de início. Exemplo real, culto no 1º e no 3º
+  domingo, começando 05/10/2026 e terminando 31/12/2026:
+      18/10 · 01/11 · 15/11 · 06/12 · 20/12      (5 datas)
+  O primeiro domingo de outubro (04/10) já tinha passado quando a série abriu,
+  então entram novembro e dezembro apenas para a "primeira" posição.
+· Mês que não tem a posição não inventa data: onde só há quatro domingos, o
+  "quinto" não nasce. No exemplo testado (1º, 3º e 5º domingos de out/2026 a
+  mar/2027, seis meses) saem 13 datas, e não as 18 teóricas: outubro e
+  dezembro de 2026 e fevereiro e março de 2027 não têm quinto domingo, e o
+  1º domingo de outubro já tinha passado quando a série abriu.
+· Repetidas não contam duas vezes, e a ordem sempre sai certa: marcar
+  "3º, 1º, 1º" gera as mesmas duas datas de "1º e 3º".
+· O que já está na agenda com o mesmo nome e horário não é duplicado (regra da
+  rodada v19, continua valendo), e o teto de 500 datas por agendamento continua
+  valendo — com duas posições a série enche o limite duas vezes mais rápido, e
+  a prévia avisa antes de gravar.
+
+===============================================================================
+4) O QUE FICA GRAVADO
+===============================================================================
+A regra da série (coluna recurrence_rule, que já existia) passa a guardar:
+
+  {"type":"monthly-weekday","weekday":0,"ordinal":1,"ordinais":[1,3],
+   "intervaloSemanas":1,"totalOcorrencias":null,"ateData":"2026-12-31",
+   "until":"2026-12-20"}
+
+· "ordinais" é a lista marcada. "ordinal" continua sendo o primeiro deles, só
+  para não quebrar nada que leia o campo antigo (incluindo a página pública de
+  versões anteriores).
+· "until" é a última data realmente criada, não a data pedida.
+· Cada data continua sendo um registro próprio na agenda (foi assim desde a
+  v19). Não existe "uma linha que se desdobra".
+· Nenhuma coluna nova, nenhum SQL a rodar, nada a fazer no Railway: o JSONB já
+  aceitava a lista.
+
+===============================================================================
+5) EDITANDO UMA SÉRIE QUE JÁ EXISTE
+===============================================================================
+· Ao abrir "Editar evento" numa série de duas posições, as duas caixas voltam
+  marcadas (lidas de "ordinais"; se a série for antiga e só tiver "ordinal",
+  volta a posição dela).
+· Marcou/desmarcou posição e quer o mês inteiro ajustado: use a caixa "Aplicar
+  à série inteira" → a série é refeita pela rota PUT /series com as novas
+  datas (testado: refazer com 1º e 3º manda as 5 datas e grava ordinais [1,3]).
+· Sem a caixa, a mudança vale só para aquela ocorrência — é o jeito de abrir
+  mão de um domingo específico sem desmontar a série.
+· Editar a mão uma das datas continua funcionando, porque cada data é uma linha
+  própria.
+
+===============================================================================
+6) NA AGENDA E NA PÁGINA PÚBLICA
+===============================================================================
+· A etiqueta da série, na lista de próximos eventos e no calendário do mês,
+  cita as posições: "Culto · recorrente (1º e 3º)". Dia de nome feminino
+  concorda: "recorrente (2ª e 4ª)" para quarta-feira. Série sem posição no mês
+  (semanal, mensal por dia) fica só "recorrente", como antes.
+· Na página pública (a que o visitante abre), o rótulo da série deixou de ser
+  o vago "repete todo mês" e passou a dizer o que se repete:
+      monthly-weekday com 1º e 3º → "repete no 1º e 3º domingo do mês"
+      monthly-weekday de 2ª e 4ª  → "repete na 2ª e 4ª quarta do mês"
+      três posições              → "repete no 1º, 3º e 5º domingo do mês"
+      série antiga (uma posição)  → "repete na 2ª quarta do mês"
+      anual com duas posições     → "repete 2 vezes por ano"
+      mensal por número de dia    → "repete todo mês" (não mudou)
+  A página pública continua colapsando a série num cartão só, com a próxima
+  data — o visitante não recebe uma parede de cartões iguais.
+
+===============================================================================
+7) O QUE O PASTOR PRECISA SABER (consequências, não defeitos escondidos)
+===============================================================================
+· Cada posição é uma linha na agenda. "1º e 3º domingo" = 24 datas no ano.
+  Com o bot de lembrete ligado, cada linha enfileira UM aviso (server.js:306,
+  categoria Culto) — hoje nada sai porque o envio externo está desligado na
+  plataforma, mas é isso que vai acontecer quando for ligado.
+· "Quarta e sexta" não é uma posição: continua sendo duas séries, uma por dia
+  da semana. O que esta rodada entregou é "várias posições no MESMO dia".
+· Não existe "todo mês, menos 15/11": para excluir um domingo, apaga-se aquela
+  ocorrência (cada data é uma linha própria).
+· A série não se renova sozinha no ano seguinte: o alcance é o que foi
+  escolhido (31/12, N ocorrências ou uma data). Passou, é agendar de novo.
+
+===============================================================================
+8) O QUE FOI VERIFICADO
+===============================================================================
+Bateria completa: 13 arquivos de teste, 537 conferências, 0 falhas.
+· teste-agenda-recorrencia.js — 114 conferências (eram 61 na v19, +53 nesta),
+  executando o código real do painel dentro de uma máquina virtual: o gerador
+  de datas com 1, 2, 3 e 5 posições (mensal e anual), a leitura tolerante da
+  regra (número ou texto, fora da faixa 1–5 descartado, repetido desfeito), o
+  rótulo por extenso ("primeiro, segundo e quarto"), a regra gravada, a prévia
+  lida do formulário falso com as caixas marcadas (o caminho do clique, não só
+  o gerador), a gravação inteira via POST em lote e via PUT de série com duas
+  posições, a recusa quando nada é marcado (sem nenhuma chamada de rede), os
+  dois modais montados de verdade (as cinco caixas, o padrão marcado, o que
+  volta marcado na edição de série com duas posições e de série antiga com uma)
+  e o resultado na tela (etiquetas da agenda e da lista).
+· teste-pagina-pastores.js — o publica.js real recortado e executado, mais a
+  comparação função por função com o que está no ar: fora do que esta rodada
+  tocou, nada se moveu.
+· teste-saudacao-pulpito.js — o app.js inteiro comparado com o que está no ar:
+  as únicas diferenças são as funções desta rodada (lista atualizada no teste).
+· Testes que conferem styles.css byte a byte passaram sem tocar no arquivo.
+
+===============================================================================
+9) COMO PUBLICAR
+===============================================================================
+1. Copiar para a raiz do repositório emausplataforma/Emaus (branch main),
+   sobrescrevendo: app.js · index.html · service-worker.js · publica.js ·
+   publica.html
+2. Confira no commit: index.html diz app.js?v=65, publica.html diz
+   publica.js?v=61, service-worker.js diz emaus-shell-v89-mais-de-uma-posicao-no-mes.
+   É isso que força o navegador a largar a versão antiga.
+3. Não há nada a rodar no banco nem no Railway. server.js vai no zip por
+   cumulação (é o mesmo arquivo da v16, byte a byte — este pacote não o
+   alterou).
+4. Depois de publicar, no celular/navegador que já abriu o painel: um F5 (ou
+   fechar e abrir) carrega o modal novo. Enquanto o service worker não trocar,
+   a tela velha continua aparecendo — isso é cache, não falha da publicação.
+   Foi confirmado nesta rodada que a v19 está no ar (o app.js publicado é
+   idêntico, byte a byte, ao que foi testado); a tela antiga que ainda aparece
+   no navegador vem do cache do service worker.
+
+Nesta entrega, comparados ao que está no ar:
+  app.js 241.403 → 257.946 B · publica.js 7.992 → 10.839 B
+  index.html, service-worker.js e publica.html: só as linhas de cache/versão
+  styles.css, recepcao.html, reception.js, admin.js/html/css: idênticos à cópia de
+produção guardada em producao-atual/ (cmp) — esta rodada não os tocou
+
+===============================================================================
+10) O QUE NÃO FOI FEITO (para não virar surpresa depois)
+===============================================================================
+· Nenhum CSS novo e nenhuma tela nova: as caixas usam o container que já
+  existia. Se um dia a lista de posições crescer (ex.: "último domingo"), isso
+  pede linha nova no gerador — hoje a faixa é 1º a 5º, e "último" não é um
+  número.
+· Não existe "marcar tudo" nem pré-definição ("alterne 1º e 3º"). Cinco caixas,
+  o resto é conta do gerador.
+· A posição não viaja para o bot nem para o iCal: nenhum dos dois lê a regra
+  hoje (o lembrete é por linha da agenda, e um aviso com "1º e 3º" dentro do
+  texto da mensagem não foi pedido).
