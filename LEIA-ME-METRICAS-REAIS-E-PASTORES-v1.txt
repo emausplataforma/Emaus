@@ -1,0 +1,124 @@
+PAINEL — SEM SETA, SEM NÚMERO INVENTADO, E "PASTORES" QUANDO SÃO MAIS DE UM
+pacote v15  ·  cache do aplicativo v84  ·  5 de outubro de 2026
+
+1) A SETA POR CIMA DOS ÍCONES SAIU
+----------------------------------
+Cada cartão clicável do Início tinha um selo redondo com uma setinha (↗) colado no
+canto de cima, por cima do ícone. Era o span.stat-open. Ele saiu do HTML (função
+statCard) e saíram junto as duas regras de CSS que o desenhavam — não ficou estilo
+morto. O cartão continua clicável e continua abrindo os detalhes: o que mudou foi só
+o desenho. A setinha que aparecia antes da porcentagem, na linha de baixo do cartão,
+também saiu (ela mentia quando o número caía). Sumiu junto a variável `openIcon`
+que tinha sobrado dentro de `statCard` — não ficou código morto no arquivo.
+As setinhas que continuaram no arquivo são as dos LINKS ("Ver tudo", "Agenda", "Abrir
+modo púlpito") — essas não estão por cima de ícone nenhum. Se o senhor quiser essas
+fora também, é um `sed` e eu mando no mesmo dia.
+
+2) OS NÚMEROS AGORA VÊM DOS CADASTROS
+-------------------------------------
+O que estava chumbado no arquivo          ·  o que é agora
+  Visitantes este mês  +18,4%              ·  contagem das datas dos cadastros do mês
+  Retornos confirmados +6,2%               ·  cadastros com status "Retornou" ou
+                                             "Integrado"; ao lado, a taxa real
+                                             (retornos ÷ cadastros)
+  Alcance da comunidade +12,8%             ·  pessoas alcançadas = visitante + quem
+  (antes mostrava o "member_count"         ·  veio junto, sem contar nome repetido
+   da ficha da igreja)
+  Taxa de retorno 47,4% / variação 4,8%    ·  calculadas na hora
+  Avisos registrados +14,2%                ·  diz quantos avisos há na base e que
+                                             ainda não há envio real
+  Alcance por canal: push 92%,             ·  no lugar: quantas pessoas chegaram de
+  WhatsApp 78%, e-mail 54%                   cada jeito (sozinho, com amigos, em
+                                             casal, família), com a porcentagem
+                                             verdadeira sobre o total de cadastros
+  "BETHESDA" no topo do cartão de detalhe  ·  o nome da igreja ativa, em maiúsculas
+  cartão "este mês" mostrando 22, sendo que · o subtítulo "vs. mês anterior" agora é
+  a igreja inteira tinha 16 na base                "{visitasTotal} no total", e os dois
+                                                   números saem da mesma contagem — não
+                                                   existe mais o "22 de 16" da foto
+
+3) O GRÁFICO DE CRESCIMENTO
+---------------------------
+· 12 barras, uma por semana, de domingo a sábado, como diz o título.
+· Cada barra dourada = visitantes registrados naquela semana (pela data do cadastro).
+· A barra de cobre = retornos confirmados naquela mesma semana.
+· O eixo Y é calculado a partir da maior semana real (arredondado para múltiplo de 5,
+  mínimo 5). Não existe mais o "80 / 60 / 40 / 20 / 0" fixo.
+· Os rótulos de baixo saem das datas (05/10, 28/09…), não de "Jun 14 / Jul 26".
+· Passar o mouse na barra mostra a semana e as duas contagens.
+· Sem nenhum cadastro, o painel não desenha gráfico falso: aparece o aviso "Ainda não
+  há visitantes registrados — o gráfico aparece com as 12 últimas semanas assim que a
+  recepção cadastrar a primeira pessoa."
+· Comparação com o mês anterior: quando o mês anterior tem cadastro, mostra +8%, −3%,
+  0%. Quando não tem, diz "sem mês anterior para comparar". É por isso que no seu
+  painel, com 2 visitantes este mês, a variação aparece como 0% e não como +18,4%.
+
+4) MAIS DE UM PASTOR EM TODA A PLATAFORMA
+-----------------------------------------
+Três lugares servem para cadastrar os pastores, e os três aceitam vários nomes:
+  · Configurações ▸ Identidade da igreja ▸ "Pastores responsáveis"      (v13)
+  · Administrador ▸ Organizações ▸ Editar igreja ▸ "Pastores / liderança" (v14)
+  · Administrador ▸ Organizações ▸ "+ Adicionar igreja" ▸ "Pastor(es)
+    responsável(is)"                                                      (agora)
+Os três escrevem na mesma coluna (churches.pastors) e têm o mesmo jeito de escrever:
+um nome por linha — vírgula, "e" e "&" também separam — com teto de 6 nomes.
+
+Quando há dois nomes ou mais, a plataforma passa a tratar pelo plural:
+  · o rótulo no canto vira "Pastores da igreja";
+  · a saudação do Início chama os dois: "Boa noite, Pastores João da Silva e Maria da
+    Silva" (o "Pr."/"Pra." do cadastro é dispensado, porque o tratamento já diz);
+  · os textos que diziam "o pastor" passam a dizer "os pastores": "Você está conectado
+    como pastores desta igreja", "Aplica-se ao painel dos pastores e da equipe",
+    "Os pastores podem deixar a página invisível enquanto preparam as informações",
+    "Novo visitante para os pastores", "a senha atual nunca fica visível para os
+    pastores";
+  · na portaria, o recado depois de salvar vira "Os pastores já poderão visualizar
+    este cadastro no Acolhimento." (no HTML a frase parada é neutra — "A liderança
+    já poderá visualizar…" — e a página troca assim que sabe o cadastro da igreja).
+Com um nome só, tudo continua no singular, igualzinho a hoje. Igreja sem nada
+cadastrado não herda nome de outra igreja nenhuma.
+
+5) COMO PUBLICAR
+----------------
+Seis arquivos na RAIZ do repositório Emaus:
+
+  app.js
+  index.html
+  styles.css
+  recepcao.html
+  reception.js
+  service-worker.js
+
+Commit e push. O cache novo ("emaus-shell-v84-numeros-reais-pastores") faz os
+aparelhos descartarem a casca antiga. Nada no Railway: a API já devolve visitante por
+visitante com data, status, quem veio junto e tipo de chegada — era só o painel que
+não estava somando isso.
+
+6) COMO CONFERIR
+----------------
+1. Abra o Início com Ctrl+Shift+R uma vez.
+2. Os cartões têm de bater com a tela de Visitantes: se há 2 cadastros deste mês, o
+   cartão "Visitantes este mês" mostra 2 — e a variação mostra o que o mês anterior
+   realmente tem (ou "sem mês anterior para comparar").
+3. Marque um visitante como "Retornou" ▸ volte ao Início ▸ o cartão de retornos e a
+   taxa sobem na mesma hora, e a barra de cobre da semana daquela visita cresce.
+4. Nenhuma setinha aparece mais por cima dos ícones dos cartões.
+5. Se a igreja tem dois nomes em "Pastores responsáveis", o canto direito mostra
+   "Pastores da igreja" e o título da página chama os dois.
+
+O QUE NÃO FOI TOCADO
+--------------------
+publica.html, publica.js, publica.css (página da igreja), admin.html, admin.js,
+admin.css, splash.*, api-config.js, server.js e schema.sql estão exatamente como no
+ar. E dentro do app.js, nenhuma função de login, rede ou gravação mudou: o teste que
+roda a bateria compara função por função com o arquivo publicado e acusa qualquer
+função fora das que estas rodadas tocaram de propósito (9 arquivos de teste, 294
+conferências passando).
+A última seção do teste de números vai além de conferir texto: ela monta a tela
+inteira do Início chamando o `renderDashboard()` de verdade, com dois pastores na
+ficha e cadastros em outubro e setembro, e confere o HTML que sai daí — nenhum selo
+com seta, 12 grupos de barras, eixo Y 5/4/3/2/1/0, cartões 2 · 1 · 3, "— 3" no
+alcance, saudação "Boa noite, Pastores Evandro Silva e Simone Silva", "sem mês
+anterior para comparar" em vez de +18,4%, e o aviso honesto quando não há cadastro.
+Se alguém mexer no `engagementStats` ou no `statCard` e quebrar o painel, é esse
+teste que avisa.

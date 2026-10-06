@@ -182,8 +182,6 @@ kbd { margin-left: auto; padding: 2px 6px; border: 1px solid #e4e0d8; border-rad
 .stat-card-interactive { position: relative; cursor: pointer; transition: transform .2s, border-color .2s, box-shadow .2s; }
 .stat-card-interactive:hover { transform: translateY(-2px); border-color: #dec78e; box-shadow: 0 13px 30px rgba(24,23,20,.11); }
 .stat-card-interactive:focus-visible { outline: 3px solid rgba(215,168,75,.35); outline-offset: 2px; }
-.stat-open { position: absolute; top: 17px; right: 19px; display: grid; place-items: center; width: 21px; height: 21px; color: var(--muted-2); border-radius: 6px; background: var(--paper); }
-.stat-open .icon { width: 12px; height: 12px; }
 .stat-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .stat-label { color: var(--muted); font-size: 11px; font-weight: 600; }
 .stat-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: var(--copper); background: var(--copper-soft); }

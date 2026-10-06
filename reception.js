@@ -45,7 +45,7 @@ async function loadRemoteChurchData() {
   const church = churchPayload.church;
   if (church) {
     state.activeChurchId = church.id;
-    state.churches = [{ id: church.id, name: church.name, slug: church.slug || '', city: church.city, initials: initials(church.name), logoSymbol: initials(church.name).slice(0, 2), logoImage: church.logo_url || '' }];
+    state.churches = [{ id: church.id, name: church.name, slug: church.slug || '', city: church.city, initials: initials(church.name), logoSymbol: initials(church.name).slice(0, 2), logoImage: church.logo_url || '', pastors: church.pastors || '' }];
   }
   state.visitors = (visitorPayload.visitors || []).map(visitor => ({
     id: visitor.id, name: visitor.name, familyName: visitor.family_name || '', familyMembers: Array.isArray(visitor.family_members) ? visitor.family_members : [visitor.name], arrivalType: visitor.arrival_type || 'Sozinho', announced: Boolean(visitor.announced), phone: visitor.phone || '', date: String(visitor.visit_date || TODAY).slice(0, 10), service: visitor.service || 'Culto de Celebração', neighborhood: visitor.neighborhood || '', invitedBy: visitor.invited_by || '', status: visitor.status || 'Novo', responsible: visitor.responsible || 'Recepção', notes: visitor.notes || '', consent: Boolean(visitor.communication_consent), communicationConsent: Boolean(visitor.communication_consent), churchId: visitor.church_id
@@ -283,7 +283,8 @@ async function handleVisitorSubmit(event) {
       consentVersion: 'reception-v1'
     }});
     await loadRemoteChurchData();
-    document.querySelector('#successText').textContent = `${values.message}. O pastor já poderá visualizar este cadastro no Acolhimento.`;
+    document.querySelector('#successText').textContent = `${values.message}. ${pastorPhrase()}`;
+    document.querySelector('#successText').dataset.manual = '1';
     document.querySelector('#successMessage').classList.remove('hidden');
     form.reset();
     document.querySelector('#visitorDate').value = brasiliaToday();
@@ -337,7 +338,28 @@ async function init() {
   } else {
     showLoggedOutView();
   }
+  refreshPastoralWording();
   updatePreview();
+}
+
+// A recepção fala "pastor" ou "pastores" conforme o cadastro da igreja tiver um ou
+// mais nomes em "Pastores responsáveis". Nenhum nome de igreja é chumbado aqui.
+function pastoralNames() {
+  return String(getChurch()?.pastors || '')
+    .split(/\r?\n|;|,|\s+e\s+|\s*&\s*/)
+    .map(nome => nome.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+function pastoralIsPlural() { return pastoralNames().length > 1; }
+function pastorPhrase() {
+  return pastoralIsPlural()
+    ? 'Os pastores já poderão visualizar este cadastro no Acolhimento.'
+    : 'O pastor já poderá visualizar este cadastro no Acolhimento.';
+}
+function refreshPastoralWording() {
+  const alvo = document.querySelector('#successText');
+  if (alvo && !alvo.dataset.manual) alvo.textContent = pastorPhrase();
 }
 
 document.addEventListener('DOMContentLoaded', init);

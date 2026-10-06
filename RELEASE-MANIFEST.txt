@@ -1,54 +1,105 @@
 Emaús — registro da publicação
-Atualizado em 05/10/2026, 15:10 (Brasília). Nada neste arquivo contém senha, token,
+Atualizado em 05/10/2026, 21:29 (Brasília). Nada neste arquivo contém senha, token,
 DATABASE_URL, chave privada ou segredo de qualquer tipo.
 
 RELEASE EM PRODUÇÃO
-  Pacote ......... v13  (emaus-pagina-da-igreja-dois-pastores-v13.zip)
-  Commit ......... 26c44eaa em main ("Add files via upload", 05/10/2026 14:29)
-  Cache do app ... emaus-shell-v82-pagina-pastores   (service-worker.js)
+  Pacote ......... v14  (emaus-admin-muitos-pastores-v14.zip)
+  Commit ......... 69e904ea em main, 05/10/2026 15:12 (Brasília). O commit seguinte,
+                   404e956a (20:39), foi um novo "Add files via upload" com os mesmos
+                   arquivos: 0 arquivos alterados, 0 linhas de diferença.
+  Cache do app ... emaus-shell-v83-admin-muitos-pastores   (service-worker.js)
   Frontend ....... github.com/emausplataforma/Emaus  ->  emausplataforma.github.io/Emaus
-  API ............ emaus-production-2de0.up.railway.app  (não foi republicada nesta rodada)
+  API ............ emaus-production-2de0.up.railway.app  (não foi republicada: nada
+                   desta e da rodada anterior mexeu em server.js nem em schema.sql)
 
-O QUE ESTA RELEASE COLOCOU NO AR
-  1. Página pública da igreja lista mais de um pastor. "Pastores responsáveis" aceita
-     vários nomes (um por linha; vírgula, "e" e "&" também separam) e a página monta um
-     item por nome, na fonte de título, com ponto dourado. Máximo de 6 nomes por igreja.
-  2. O bloco dos pastores deixou de depender da biografia: antes ele só aparecia se
-     "Biografia dos pastores" estivesse preenchida, o que fazia o cadastro parecer
-     perdido. Título se ajusta: "Nosso pastor" / "Nossos pastores" / "Sobre os pastores".
-  3. Nome de uma igreja não aparece mais em outra: saíram do código os padrões
-     "Evandro e Simone" (fallback do painel), "Evandro & Simone" (placeholder da barra)
-     e "Pr. Evandro" (responsável chumbado ao marcar um visitante como contatado). As
-     iniciais do canto agora vêm de quem entrou.
-  4. Continua valendo das rodadas anteriores: data e saudação pelo horário de Brasília,
-     culto no cabeçalho da portaria, bloco "quem veio junto" abrindo por classificação,
-     telefone de quem veio junto guardado nas observações da visita.
+O QUE ESTÁ NO AR
+  Da v14 (admin):
+  1. Organizações ▸ Editar igreja ▸ "Pastores / liderança" deixou de ser linha única:
+     caixa de várias linhas, ocupando a linha inteira do formulário, com a instrução
+     "Mais de um pastor: escreva um nome por linha".
+  2. Organizações ▸ "+ Adicionar igreja" ▸ o campo "Responsável" virou
+     "Pastor(es) responsável(is)", também em várias linhas.
+  3. As duas gravações normalizam a quebra de linha do Windows (\r\n -> \n).
+  4. Nenhum CSS acrescentado: .form-grid .full e .field textarea já existiam no
+     admin.css. POST /api/admin/churches e PATCH /api/admin/churches/:id já gravavam
+     pastors como texto livre, e a coluna churches.pastors é TEXT.
+  Da v13 (igreja):
+  5. "Pastores responsáveis" no painel da igreja aceita um nome por linha (também
+     vírgula, "e" e "&"), e a página pública monta um item por pastor — na fonte de
+     título, com ponto dourado, até 6 nomes. Título se ajusta: "Nosso pastor" /
+     "Nossos pastores" / "Sobre os pastores".
+  6. O bloco dos pastores da página pública não depende mais da biografia para
+     aparecer; sem biografia não sobra parágrafo vazio.
+  7. Saíram do código os padrões de uma igreja só: "Evandro e Simone" (fallback do
+     painel), "Evandro & Simone" (placeholder da barra) e "Pr. Evandro" (responsável
+     chumbado ao marcar visitante como contatado). As iniciais do canto vêm de quem
+     entrou. Em Lideranças ▸ "+ Adicionar líder" continua dando para cadastrar ficha
+     separada de cada pastor, com telefone, gênero e grupo.
+  Dos pacotes anteriores: data e saudação pelo horário de Brasília, culto no cabeçalho
+  da portaria, bloco "quem veio junto" abrindo por classificação, telefone de quem veio
+  junto guardado nas observações da visita.
 
-ARQUIVOS DESTA RELEASE (raiz do repositório)
-  app.js · index.html · publica.html · publica.js · publica.css · service-worker.js
-  LEIA-ME-PAGINA-DA-IGREJA-PASTORES-v1.txt
+ONDE OS NOMES MORAM
+  Os dois campos (painel da igreja e administrador) escrevem na MESMA coluna,
+  churches.pastors, e a página pública lê dela. Não há lista do painel e lista do
+  administrador separadas.
 
-VERIFICADO DEPOIS DE PUBLICAR
-  Os 6 arquivos servidos pelo Pages têm o mesmo MD5 dos arquivos testados; os 20 itens da
-  casca respondem 200; o publica.js que está no ar, rodando contra a API real da Bethesda,
-  mostra "Nossos pastores" com "Evandro" e "Simone" e nenhum parágrafo vazio.
+ARQUIVOS DESTAS RELEASES (raiz do repositório)
+  v14: admin.js · admin.html · service-worker.js · LEIA-ME-ADMIN-MUITOS-PASTORES-v1.txt
+  v13: app.js · index.html · publica.html · publica.js · publica.css · service-worker.js
+       LEIA-ME-PAGINA-DA-IGREJA-PASTORES-v1.txt
 
-VOLTA ATRAS, SE PRECISAR
-  O commit anterior (72ac4c6e) tem a versão v81 inteira. Reverter os 6 arquivos dele já
-  desfaz esta rodada; banco de dados não foi tocado, então não há dado a restaurar.
+VERIFICADO DEPOIS DE PUBLICAR (05/10/2026, 20:41, Brasília)
+  Os 19 arquivos que a casca do aplicativo carrega foram comparados um por um, por MD5,
+  entre o Pages e esta bancada: 19 iguais, 0 divergentes. Cache publicado:
+  emaus-shell-v83-admin-muitos-pastores. O admin.js servido já traz
+  <textarea id="editChurchPastors" name="pastors" rows="2">. Rodando o publica.js
+  publicado contra a API real da Bethesda, a página mostra "Nossos pastores" com
+  "Evandro" e "Simone".
+  Testes desta bancada: 8 arquivos, 219 conferências, todos passando
+  (teste-admin-pastores.js executa renderChurchEditForm de verdade;
+  teste-pagina-pastores.js executa o publica.js de verdade).
 
-PRÓXIMO PACOTE (v14, em mãos, ainda não publicado)
-  Arquivos: admin.js · admin.html · service-worker.js · LEIA-ME-ADMIN-MUITOS-PASTORES-v1.txt
-  Cache: emaus-shell-v83-admin-muitos-pastores
-  O que traz: na área do administrador, "Pastores / liderança" (editar igreja) e
-  "Responsável" (cadastrar igreja) deixam de ser linha única e passam a aceitar
-  vários nomes, um por linha. O rótulo do cadastro vira "Pastor(es) responsável(is)".
-  As duas gravações normalizam \r\n. Nenhum CSS novo, nenhuma mudança na API, no
-  banco ou no Railway: a coluna churches.pastors já é TEXT e as rotas
-  /api/admin/churches (POST e PATCH) já gravavam o campo como texto livre.
-  Verificação: teste-admin-pastores.js, 24 conferências, montando a tela real com a
-  função renderChurchEditForm do arquivo; e o conjunto todo (8 arquivos de teste,
-  219 conferências) passa.
+VOLTA ATRAS
+  Desfazer a v14: reverter admin.js e admin.html para o commit 44f3713d (o cache volta
+  para v82 sozinho se o service-worker.js também for revertido). Desfazer as duas
+  rodadas: o commit 72ac4c6e tem a v81 inteira. Banco de dados não foi tocado em
+  nenhuma das duas, então não há dado a restaurar.
+
+PRÓXIMO PACOTE (v15, em mãos, ainda não publicado)
+  Arquivos: app.js · index.html · styles.css · recepcao.html · reception.js · service-worker.js
+            · LEIA-ME-METRICAS-REAIS-E-PASTORES-v1.txt
+  Cache: emaus-shell-v84-numeros-reais-pastores  (app.js?v=60, styles.css?v=60,
+  reception.js?v=60)
+  1. Saiu o selo com a seta (↗) que ficava por cima do ícone nos cartões do Início
+     (span.stat-open no statCard e as duas regras de CSS que o desenhavam). A setinha
+     antes da porcentagem da tendência também saiu, porque ela mentia quando o número caía.
+  2. Cartões e gráfico do Início calculados dos cadastros reais: visitantes do mês e do
+     mês anterior (pela data da visita), retornos confirmados (status "Retornou"/
+     "Integrado"), taxa de retorno, alcance por pessoa (visitante + quem veio junto, sem
+     repetir nome) e 12 barras semanais (domingo a sábado), com eixo Y derivado da maior
+     semana real e rótulos vindos das datas. Foram embora os números chumbados: +18,4%,
+     +6,2%, +12,8%, 47,4%, 4,8%, 14,2% e a série [38, 44, 41, ... 82]. Sem cadastro, o
+     painel mostra aviso em vez de gráfico inventado.
+  3. O rodapé dos cartões de detalhe dizia "BETHESDA" para qualquer igreja; agora usa o
+     nome da igreja ativa.
+  4. A plataforma entende quando há mais de um pastor: com dois nomes ou mais em
+     "Pastores responsáveis", o rótulo vira "Pastores da igreja", a saudação chama os
+     dois pelo nome (sem repetir Pr./Pra.), os textos que diziam "o pastor" vão para o
+     plural e a portaria avisa "Os pastores já poderão visualizar este cadastro…". Com
+     um nome só, nada muda; igreja sem cadastro não herda nome de outra.
+  5. O último lugar onde só cabia um pastor — o modal "+ Adicionar igreja" dentro do
+     painel — virou caixa de várias linhas ("Pastor(es) responsável(is)"). Os três
+     caminhos (painel da igreja v13, administrador v14 e este) escrevem na mesma coluna
+     churches.pastors, com um nome por linha, teto de 6 nomes e 
+ normalizado.
+  Nada no Railway e nada no banco: a API já devolve visitante por visitante com data,
+  status, família e tipo de chegada.
+  Verificação: teste-numeros-reais-e-pastores.js, 62 conferências rodando as funções
+  reais do painel com datas conhecidas. Bateria completa: 9 arquivos de teste, 282
+  conferências, todos passando. O teste da saudação agora compara o app.js função por
+  função com o arquivo publicado e acusa qualquer função fora das que estas rodadas
+  tocaram de propósito.
 
 PENDENCIA ABERTA
   Renomear o rótulo "Como veio? *" para "Com quem veio?" na tela da portaria
