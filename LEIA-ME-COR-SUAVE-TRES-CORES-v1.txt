@@ -1,0 +1,136 @@
+Emaús — rodada v22 · TRÊS CORES NA IDENTIDADE (E O FIM DA COR INVENTADA)
+Pacote: emaus-tres-cores-v22.zip  (cumulativo: já contém a v21 inteira — contraste)
+Cache do aplicativo: emaus-shell-v91-cor-suave-da-igreja
+Data: 06/10/2026 (Brasília)
+
+
+=========================================================================================
+1. O QUE O PASTOR DISSE
+=========================================================================================
+
+  "então. entrou uma cor meio que abacate, nada haver com as cores da plataforma.
+   tem como dar mais uma opção para os administradores das igrejas, ao invés de 2 cores
+   ser três"
+
+Duas coisas, e as duas foram feitas: a cor que apareceu do nada foi embora, e a
+igreja ganhou o direito de escolher uma terceira cor — com regra para ela não
+quebrar a legibilidade de novo.
+
+
+=========================================================================================
+2. DE ONDE VINHA O ABACATE (E POR QUE ELE MORREU)
+=========================================================================================
+
+Na rodada do contraste, para o texto ficar legível em cima da cor da marca, o painel
+passou a usar como fundo de marca uma MISTURA da cor principal com a cor de destaque.
+Fundo com uma cor só = tinta única legível nas duas pontas — foi o jeito de resolver o
+degradê preto→dourado. Mas a conta criou uma cor que ninguém cadastrou:
+
+  cor principal #0B0B0C + destaque #C08A3E  →  #5C4423  ← o "abacate"
+
+Isso aparecia no item ativo do menu, nos botões dourados, no selo e na prévia do logo.
+A mistura saiu: a cor de marca É a cor principal cadastrada, e o texto em cima dela é
+calculado contra essa cor exata.
+
+  igreja com primária #0B0B0C → fundo #0B0B0C com texto claro calculado → 18,91:1
+  paleta padrão da plataforma  → fundo #d7a84b (o dourado de sempre)     →  8,36:1
+
+Nenhuma outra cor nasce de mistura de duas cores cadastradas. O que ainda é derivado
+são tons da MESMA cor (mais claro / mais escuro), que é o que qualquer tema precisa.
+
+
+=========================================================================================
+3. A TERCEIRA COR: "COR SUAVE DOS FUNDOS"
+=========================================================================================
+
+Configurações ▸ Aparência da igreja ▸ terceiro campo, do lado das outras duas. Ela
+pinta o que é FUNDO, não o que é realce:
+
+  · as etiquetas e selinhos (tipo "Culto", "PASTOR DA IGREJA", "HOJE"),
+  · os avisos de cartão (o bloco de explicação em cada campo),
+  · o "hoje" do calendário,
+  · as faixas de repouso dos cartões e listas (--soft-flat / --soft-flat-2 / --soft-bg).
+
+Como funciona na tela:
+  · escolha a cor no quadradinho ou digite o código (#RRGGBB) — vale na hora, na prévia;
+  · a caixa "Usar tom automático das minhas cores" devolve o painel ao comportamento de
+    antes (o tom sai do cadastro e passa a ser derivado da cor principal). A nota embaixo
+    diz qual é esse tom hoje, em número;
+  · as Paletas rápidas agora mostram três bolinhas. A bolinha com contorno tracejado é a
+    paleta que não traz cor suave — as quatro prontas trazem, cada uma no seu tom.
+
+O que a cor escolhida NÃO faz: não pinta a barra lateral, não púlpito, não o painel
+inteiro, não muda as duas cores de sempre. É fundo suave, e só.
+
+
+=========================================================================================
+4. POR QUE ELA NÃO PODE QUEBRAR A LEGIBILIDADE DE NOVO
+=========================================================================================
+
+Duas redes, ambas medidas (não prometidas):
+
+  a) o tom é a SUA cor, só ajustada de CLARIDADE — a matiz preservada. No tema claro,
+     um verde fechado escolhido como suave vira #B1BA7A (mesma cor, mais clara) para o
+     texto escuro ter onde ficar; no tema escuro, o mesmo verde escurece até caber.
+     Se a cor escolhida já serve, ela volta ilesa: #7A1F2B no escuro continua #7A1F2B.
+  b) as tintas de texto são medidas CONTRA a cor suave escolhida: --muted, --muted-2,
+     --gold-ink e --copper-ink são re-ajustados toda vez que a cor muda.
+
+O teste de contraste agora roda sete configurações por tela (885 textos cada), e três
+delas são cores hostis de propósito:
+
+  igreja com cor suave #9BA653 (abacate saturado) no claro ..... 0 ilegíveis
+  igreja com cor suave #9BA653 no escuro ....................... 0 ilegíveis
+  igreja com cor suave #7A1F2B (vinho fechado) no claro ......... 0 ilegíveis
+
+E o teste novo da rodada, node teste-tres-cores-suaves.js, confere 32 pontos: o ajuste
+de claridade, a matiz preservada, as proporções medidas, --marca sem mistura, o campo na
+tela, a caixa de automático, o que é salvo e o que some do inline quando a cor é limpa.
+
+
+=========================================================================================
+5. O QUE NÃO FOI TOCADO
+=========================================================================================
+
+  · Banco de dados e servidor: nada. A terceira cor viaja dentro de publicSettings.appearance,
+    que o server.js já guarda inteiro — por isso nenhuma coluna, nenhuma rota, nenhum deploy
+    de backend é preciso. (Conferido no server.js: PUT /api/church/settings grava
+    public_settings = $7 com o objeto todo.)
+  · Administração da plataforma: sem campo novo, como combinado — a escolha fica no painel da
+    igreja. Quem administra a plataforma continua sem tocar nas cores de ninguém.
+  · Página pública: sem campo novo. Ela tem a própria folha e as duas cores de sempre.
+  · Agenda recorrente, posições do mês, portaria, modo púlpito: comportamento inalterado.
+
+
+=========================================================================================
+6. COMO APLICAR
+=========================================================================================
+
+  Substituir na raiz do repositório (github.com/emausplataforma/Emaus):
+    styles.css          app.js          index.html        service-worker.js
+    recepcao.html       admin.css       admin.html        publica.html      splash.css
+  (os quatro últimos vêm da v21, que está incluída aqui.)
+  Sem SQL, sem variável nova, sem reiniciar o backend. Depois do push, um
+  Ctrl+Shift+R em uma tela resolve — o cache emaus-shell-v91 cuida das outras.
+
+  Ferramentas que ficam na bancada (vão no zip para poderem rodar ao lado do projeto):
+    teste-contraste.js          node teste-contraste.js            (~60 s, sem navegador)
+    contraste-lib.js            o medidor de cascata
+    teste-tres-cores-suaves.js  node teste-tres-cores-suaves.js    (~0,4 s)
+  O teste de contraste lê também as folhas das páginas avulsas (publica.css, admin.css,
+  splash.css, os HTML). Onde faltar um deles a linha diz "(pulado: …)" e o resto continua
+  valendo — as quatro configurações do painel e as três da cor suave não dependem disso.
+
+
+=========================================================================================
+7. O QUE FICA sabido (limites desta rodada)
+=========================================================================================
+
+  · Se a cor escolhida for escura demais para o tema claro (ou clara demais para o escuro),
+    o painel a ajusta. O pastor pode achar "não é exatamente a cor que eu pus" — e é isso
+    mesmo: a alternativa seria texto ilegível, que foi a reclamação da rodada passada. A
+    matiz continua a mesma; só a claridade obedece ao tema.
+  · Texto em cima de FOTO de fundo e pseudo-elementos (:before/:after) continuam fora do
+    medidor — a cor suave não é aplicada neles.
+  · A cor suave é por igreja. Não há "cor suave diferente por tela" nem tema claro/escuro
+    com suaves separadas: a mesma escolha é ajustada para cada tema.

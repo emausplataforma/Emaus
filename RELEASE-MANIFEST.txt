@@ -1,5 +1,7 @@
 Emaús — registro da publicação
-Atualizado em 06/10/2026, 01:24 (Brasília) = 06/10 04:24 UTC (rodada v21 embalada). Correção de registro que
+Atualizado em 06/10/2026, 14:05 (Brasília) = 06/10 17:05 UTC (rodada v22 embalada).
+(Nota de bancada: o relógio deste ambiente não é contínuo entre os comandos — os carimbos
+acima foram lidos com TZ=America/Sao_Paulo em cada instante e valem para o instante dito.) Correção de registro que
 precisa ficar dita: os carimbos marcados como "Brasília" nas rodadas v16 (00:58), v17
 (01:20-01:35) e v18 (02:05) foram escritos com o relógio UTC desta bancada, que está 3 h
 à frente — naqueles mesmos instantes eram 21:58, 22:20-22:35 e 23:05 de 05/10 em Brasília.
@@ -87,8 +89,9 @@ VERIFICADO DEPOIS DE PUBLICAR (05/10/2026, 20:41, Brasília)
   teste-pagina-pastores.js executa o publica.js de verdade).
 
 EMBALADO E AINDA FORA DO AR
-  V20 (mais de uma posição no mês) e V21 (contraste legível em tudo) estão embaladas nesta
-  bancada e não foram publicadas. A última conferência do Pages foi feita em 06/10 ~23:5x
+  V20 (mais de uma posição no mês), V21 (contraste legível em tudo) e V22 (três cores na
+  identidade) estão embaladas nesta bancada e não foram publicadas. A v22 é cumulativa: leva
+  dentro a v21 inteira, então basta publicar a v22 para os dois trabalhos irem ao ar. A última conferência do Pages foi feita em 06/10 ~23:5x
   (Brasília) com furo de cache: o ar tinha a v19 — app.js md5 3c9aa2b93fc4a1082cdf496f4e5bbffd,
   app.js?v=64, cache emaus-shell-v88. Desde então nada foi enviado: estes números valem para
   aquele instante, não para agora. Antes de publicar a v21, conferir de novo (o app.js da v21
@@ -416,6 +419,53 @@ v21 — CONTRASTE LEGÍVEL EM TUDO  (EMBALADA, NÃO PUBLICADA)
   12:1 no escuro); e o DOM que o admin.js monta não entra no medidor de cascata.
   Banco: nada. Servidor: nada. Volta atrás: reverter os 10 arquivos deste pacote — nenhum
   dado é tocado, e o cache emaus-shell-v90 some ao reverter o service-worker.js.
+
+v22 — TRÊS CORES NA IDENTIDADE, E O FIM DA COR INVENTADA  (EMBALADA, NÃO PUBLICADA)
+  Zip: emaus-tres-cores-v22.zip  (cumulativo: traz a v21 dentro — mesma folha, mesmo app.js)
+  Arquivos: styles.css · app.js · index.html · service-worker.js (+ os cinco da v21: recepcao.html,
+  admin.css, admin.html, publica.html, splash.css) · teste-contraste.js · contraste-lib.js ·
+  teste-tres-cores-suaves.js
+  Cache: emaus-shell-v91-cor-suave-da-igreja  (styles.css?v=62, app.js?v=67)
+  Pedido: "então. entrou uma cor meio que abacate, nada haver com as cores da plataforma. tem
+  como dar mais uma opção para os administradores das igrejas, ao invés de 2 cores ser três".
+  Diagnóstico do abacate, e é culpa da rodada passada: para ter UMA tinta legível sobre a marca,
+  v21 trocou o degradê por um fundo sólido — mas o sólido era MIXAGEM da primária com o acento
+  (#0B0B0C + #C08A3E → #5C4423). Cor que ninguém cadastrou. Agora --marca É a cor principal da
+  igreja e a tinta vem calculada contra ela: Bethesda → #0B0B0C com 18,91:1; paleta padrão da
+  plataforma → #d7a84b (o dourado de sempre) com 8,36:1. Nenhuma cor nasce de mistura de duas
+  cores cadastradas; derivado continua sendo só tom da mesma cor (mais claro / mais escuro).
+  A terceira cor (escolhida com o pastor: papel = FUNDOS SUAVES; onde = SÓ no painel do pastor):
+  "Cor suave dos fundos" em Configurações ▸ Aparência da igreja, com --gold-soft, --copper-soft,
+  --soft-flat, --soft-flat-2 e --soft-bg saindo dela — etiquetas, avisos, o "hoje" do calendário
+  e as faixas de repouso. A caixa "Usar tom automático das minhas cores" grava vazio e devolve o
+  comportamento anterior; a nota embaixo diz o tom de hoje em número; as paletas rápidas ganharam
+  a terceira bolinha (tracejada = sem cor suave), e as quatro prontas vêm com tom.
+  Rede de segurança, medida: a cor escolhida tem a CLARIDADE ajustada ao tema (matiz preservada —
+  #9BA653 no claro vira #B1BA7A; #7A1F2B no escuro volta ilesa) e as tintas de texto
+  (--muted, --muted-2, --gold-ink, --copper-ink) são re-medidas CONTRA a cor suave.
+  Testes: teste-tres-cores-suaves.js é novo (32 conferências — funções puras executadas de
+  verdade, fiação conferida no texto exato do app.js). teste-contraste.js passou de 4 para 7
+  configurações por tela: as três novas são a igreja com cor suave hostil (abacate saturado no
+  claro e no escuro, vinho fechado no claro) — 885 textos medidos por configuração, 0 ilegíveis
+  nas sete. Bateria: 15 arquivos, 591 conferências, 0 falhas.
+  Manutenção de teste feita no caminho: (a) o rótulo do campo novo não pode ter "palavra (" —
+    o fecho que monta o vm lia suave ( do rótulo "Cor suave (fundos)" como chamada de função e
+    puxava um fragmento de 1 linha para dentro do código; o teste novo cobra o rótulo sem
+    parêntese para ninguém reintroduzir isso;
+  (b) "a saudação do painel chama os dois pastores pelo nome" estava com a SAUDAÇÃO chumbada no
+    texto esperado ("Boa noite") e passou a aceitar as três palavras — a hora do ambiente é que
+    muda, não o app;
+  (c) as duas conferências "em styles.css só mudaram linhas de tinta" passaram a aceitar também
+    as regras do bloco de aparência (.color-control, .palette-*, .tint-auto, .form-field), que é
+    onde esta rodada plantou o campo novo — o resto da folha continua proibido de mudar.
+  Também: teste-contraste.js passou a PULAR com aviso a página avulsa cujo arquivo não está na
+  pasta (em uma cópia sem publica.css ele morria com ENOENT e a pessoa ficava sem nenhum
+  número); as quatro configurações do painel e as três da cor suave seguem medindo do mesmo
+  jeito. Conferido rodando o teste dentro de um diretório limpo com só os arquivos do zip.
+  Banco/servidor: nada. A cor viaja em publicSettings.appearance e o server.js grava o objeto
+  inteiro (PUT /api/church/settings → public_settings = $7, conferido no arquivo).
+  Volta atrás: reverter os 9 arquivos deste pacote. Nenhum dado é tocado; limpar a cor suave na
+  própria tela (marcando o automático) também desfaz o efeito sem rollback.
 
 REGISTRO ANTERIOR (v1.5, mantido por histórico)
   Emaús — expansão do Administrador central v1.5. Frontend admin.html/admin.js/admin.css

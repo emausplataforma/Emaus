@@ -14,16 +14,16 @@ const TODAY = brasiliaToday();
   // Ultima vez que o painel leu o banco da igreja (usado para nao sobrepor requisicoes).
   let lastChurchSyncAt = 0;
   let churchSyncInFlight = null;
-const DEFAULT_APPEARANCE = { theme: 'light', font: 'editorial', primary: '#d7a84b', accent: '#b86f45' };
+const DEFAULT_APPEARANCE = { theme: 'light', font: 'editorial', primary: '#d7a84b', accent: '#b86f45', tint: '' };
 const DEFAULT_BOT_SETTINGS = { enabled: true, provider: 'zapster', channel: 'WhatsApp', senderMode: 'platform_shared', senderLabelMode: 'church_only', timezone: 'America/Sao_Paulo', visitorSequence: 'once_ever', visitorFirstTime: '22:30', visitorSecondTime: '17:00', cultReminderTime: '17:00', youtubeUrl: '', visitorFirstTemplate: 'Olá, {name}! Foi uma alegria receber você na {church_name}. Conheça nossa igreja: {public_url}', visitorSecondTemplate: 'Olá, {name}! Aqui está um vídeo sobre a {church_name}: {youtube_url}\n\nVocê deseja continuar recebendo convites para festividades e informações da igreja?\nResponda SIM para continuar ou NÃO para parar.' };
 const API_BASE = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
 const CHURCH_TOKEN_KEY = 'emaus-church-token';
 const CHURCH_USER_KEY = 'emaus-church-user';
 const PALETTES = {
-  batesda: { label: 'Dourado & cobre', primary: '#d7a84b', accent: '#b86f45' },
-  oceano: { label: 'Oceano & areia', primary: '#5b8396', accent: '#c88955' },
-  olive: { label: 'Oliva & bronze', primary: '#9b9b5a', accent: '#8b623d' },
-  vinho: { label: 'Vinho & dourado', primary: '#b35d62', accent: '#d19a4e' }
+  batesda: { label: 'Dourado & cobre', primary: '#d7a84b', accent: '#b86f45', tint: '#fbf1de' },
+  oceano: { label: 'Oceano & areia', primary: '#5b8396', accent: '#c88955', tint: '#e9f1f4' },
+  olive: { label: 'Oliva & bronze', primary: '#9b9b5a', accent: '#8b623d', tint: '#f1f2e0' },
+  vinho: { label: 'Vinho & dourado', primary: '#b35d62', accent: '#d19a4e', tint: '#f8ecee' }
 };
 
 const GROWTH_STRATEGY = [
@@ -637,13 +637,32 @@ function corLegivel(cor, fundo, minimo = 4.6) {
   }
   return alvo;
 }
-function aplicarTintasDeMarca(root, primary, accent, resolved) {
+// O pastor escolhe a cor; o painel só mexe na CLARIDADE dela até virar fundo de verdade:
+// no claro o tom sobe, no escuro desce, e a matiz continua a mesma. Sem isso, um vermelho
+// fechado escolhido como "cor suave" viraria parede ilegível — e a reclamação da vez foi
+// justamente "entrou uma cor que não tem nada a ver": mistura de duas cores cadastradas.
+function tomSuaveAutomatico(primary, resolved) {
+  return resolved === 'dark' ? mixHex(primary, '#181817', .68) : mixHex(primary, '#ffffff', .86);
+}
+function suaveDaIgreja(cor, resolved) {
+  const base = resolved === 'dark' ? '#181817' : '#ffffff';
+  const alvo = resolved === 'dark' ? 0.1 : 0.45;
+  let suave = cor;
+  for (let i = 0; i < 26; i += 1) {
+    const lum = luminanciaDe(suave);
+    if (resolved === 'dark' ? lum <= alvo : lum >= alvo) break;
+    suave = mixHex(suave, base, .08);
+  }
+  return suave;
+}
+function aplicarTintasDeMarca(root, primary, accent, resolved, suave) {
   const escuro = resolved === 'dark';
   // as mesmas cores da ficha que applyAppearance já usa para os fundos "soft" — é sobre
   // elas que o texto miúdo cai, então é contra elas que a tinta tem de ser medida
   const goldSoft = escuro ? mixHex(primary, '#181817', .68) : mixHex(primary, '#ffffff', .86);
   const copperSoft = escuro ? mixHex(accent, '#181817', .67) : mixHex(accent, '#ffffff', .87);
-  const fundos = escuro ? ['#242320', '#2a2925', goldSoft, copperSoft] : ['#ffffff', '#f5f3ef', goldSoft, copperSoft];
+  const suaveUsada = suave || goldSoft;
+  const fundos = (escuro ? ['#242320', '#2a2925', goldSoft, copperSoft] : ['#ffffff', '#f5f3ef', goldSoft, copperSoft]).concat(suave ? [suaveUsada] : []);
   // no claro o fundo que aperta é o mais ESCURO; no escuro, o mais CLARO
   const exigente = fundos.reduce((atual, candidato) => (escuro
     ? luminanciaDe(candidato) > luminanciaDe(atual)
@@ -651,7 +670,7 @@ function aplicarTintasDeMarca(root, primary, accent, resolved) {
   const barra = '#6a552d';            // barra lateral e tela do púlpito: dourado sobre escuro, nos dois temas
   const ouro = escuro ? mixHex(primary, '#ffffff', .58) : primary;
   const cobre = escuro ? mixHex(accent, '#ffffff', .46) : accent;
-  const marca = mixHex(primary, accent, .45);
+  const marca = primary;   // a cor da marca é a cor da igreja, não uma mistura dela com o acento
   root.style.setProperty('--marca', marca);
   root.style.setProperty('--on-accent', tintaSobre(marca));
   root.style.setProperty('--gold-ink', corLegivel(ouro, exigente));
@@ -674,9 +693,26 @@ function applyAppearance() {
   root.dataset.themePreference = preference;
   root.style.setProperty('--gold', primary);
   root.style.setProperty('--gold-2', mixHex(primary, '#ffffff', .22));
-  root.style.setProperty('--gold-soft', resolved === 'dark' ? mixHex(primary, '#181817', .68) : mixHex(primary, '#ffffff', .86));
+  // terceira cor da igreja (opcional): é o FUNDO SUAVE — etiquetas, avisos, o "hoje" do
+  // calendário e as faixas de repouso. Sem ela, o tom continua derivado das duas cores.
+  const tintCadastrada = normalizeHex(appearance.tint, '');
+  const suave = tintCadastrada ? suaveDaIgreja(tintCadastrada, resolved) : '';
+  const baseDoTema = resolved === 'dark' ? '#181817' : '#ffffff';
+  const goldSoftAutomatico = tomSuaveAutomatico(primary, resolved);
+  root.style.setProperty('--gold-soft', suave || goldSoftAutomatico);
   root.style.setProperty('--copper', accent);
-  root.style.setProperty('--copper-soft', resolved === 'dark' ? mixHex(accent, '#181817', .67) : mixHex(accent, '#ffffff', .87));
+  root.style.setProperty('--copper-soft', suave || (resolved === 'dark' ? mixHex(accent, '#181817', .67) : mixHex(accent, '#ffffff', .87)));
+  if (suave) {
+    // as faixas de repouso entram na MESMA matiz escolhida, só em degraus de claridade —
+    // nunca uma quarta cor inventada
+    const degrau1 = mixHex(suave, baseDoTema, .45);
+    const degrau2 = mixHex(suave, baseDoTema, .72);
+    root.style.setProperty('--soft-flat', degrau1);
+    root.style.setProperty('--soft-flat-2', degrau2);
+    root.style.setProperty('--soft-bg', `linear-gradient(135deg, ${mixHex(suave, baseDoTema, .2)}, ${mixHex(suave, baseDoTema, .55)})`);
+  } else if (typeof root.style.removeProperty === 'function') {
+    ['--soft-flat', '--soft-flat-2', '--soft-bg'].forEach(prop => root.style.removeProperty(prop));
+  }
   const fontMap = {
     editorial: { sans: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', display: 'Georgia, "Times New Roman", serif' },
     modern: { sans: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', display: 'Inter, ui-sans-serif, system-ui, sans-serif' },
@@ -684,7 +720,7 @@ function applyAppearance() {
     clean: { sans: 'Arial, Helvetica, sans-serif', display: 'Arial, Helvetica, sans-serif' }
   };
   const fonts = fontMap[appearance.font] || fontMap.editorial;
-  aplicarTintasDeMarca(root, primary, accent, resolved);
+  aplicarTintasDeMarca(root, primary, accent, resolved, suave);
   root.style.setProperty('--font-sans', fonts.sans);
   root.style.setProperty('--font-display', fonts.display);
 }
@@ -697,12 +733,23 @@ function applyAppearanceFromControls() {
     theme: $('#appearanceTheme')?.value || church.appearance?.theme || DEFAULT_APPEARANCE.theme,
     font: $('#appearanceFont')?.value || church.appearance?.font || DEFAULT_APPEARANCE.font,
     primary: normalizeHex($('#appearancePrimary')?.value, church.appearance?.primary || DEFAULT_APPEARANCE.primary),
-    accent: normalizeHex($('#appearanceAccent')?.value, church.appearance?.accent || DEFAULT_APPEARANCE.accent)
+    accent: normalizeHex($('#appearanceAccent')?.value, church.appearance?.accent || DEFAULT_APPEARANCE.accent),
+    tint: $('#appearanceTintAuto')?.checked ? '' : normalizeHex($('#appearanceTint')?.value, church.appearance?.tint || DEFAULT_APPEARANCE.tint || '')
   };
   const primaryText = $('[data-color-text="appearancePrimary"]');
   const accentText = $('[data-color-text="appearanceAccent"]');
   if (primaryText) primaryText.value = church.appearance.primary.toUpperCase();
   if (accentText) accentText.value = church.appearance.accent.toUpperCase();
+  const tintText = $('[data-color-text=\"appearanceTint\"]');
+  const tintInput = $('#appearanceTint');
+  const tintAuto = $('#appearanceTintAuto');
+  if (tintInput && tintAuto) tintInput.disabled = tintAuto.checked;
+  if (tintText) tintText.value = church.appearance.tint ? church.appearance.tint.toUpperCase() : (tintAuto?.checked ? tomSuaveAutomatico(church.appearance.primary, document.documentElement.dataset.theme).toUpperCase() : '');
+  if ($('#appearanceTintNote')) {
+    $('#appearanceTintNote').textContent = church.appearance.tint
+      ? 'A cor escolhida vale para etiquetas, avisos e faixas de repouso.'
+      : `Sem cor escolhida: tom automático ${tomSuaveAutomatico(church.appearance.primary, document.documentElement.dataset.theme).toUpperCase()} (derivado da sua cor principal).`;
+  }
   applyAppearance();
   saveState('Aparência atualizada localmente');
   if (churchAuthReady && sessionStorage.getItem(CHURCH_TOKEN_KEY)) queueAppearanceSave();
@@ -743,6 +790,8 @@ function applyPalette(key) {
   if (!palette) return;
   if ($('#appearancePrimary')) $('#appearancePrimary').value = palette.primary;
   if ($('#appearanceAccent')) $('#appearanceAccent').value = palette.accent;
+  if ($('#appearanceTint')) $('#appearanceTint').value = palette.tint || '#ffffff';
+  if ($('#appearanceTintAuto')) $('#appearanceTintAuto').checked = !palette.tint;
   applyAppearanceFromControls();
   showToast(`Paleta “${palette.label}” aplicada nesta igreja.`);
 }
@@ -1365,7 +1414,7 @@ function renderSettings() {
     <section class="page-head"><div><span class="eyebrow">ÁREA ADMINISTRATIVA</span><h1>Configurações</h1><p>Personalize a experiência da ${esc(church.name)} e prepare sua igreja para crescer.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="open-public-page">${ICON('external')} Ver página pública</button><button class="btn btn-gold" data-action="save-settings">${ICON('check')} Salvar alterações</button></div></section>
     <div class="settings-layout"><aside class="settings-nav"><button class="active" data-settings-section="organization">${ICON('building')} Igreja</button><button data-settings-section="public">${ICON('external')} Página pública</button><button data-settings-section="notifications">${ICON('bell')} Notificações</button><button data-settings-section="team">${ICON('users')} Equipe e acesso</button>${isPlatformAdmin() ? `<button data-settings-section="saas">${ICON('crown')} Plataforma SaaS</button>` : ''}</aside><div class="settings-panels">
       <section class="settings-card" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Identidade da igreja</h2><p>O pastor ou administrador desta igreja pode editar estas informações.</p></div><div style="display:flex;align-items:center;gap:9px;"><span class="access-scope-badge">${isPlatformAdmin() ? 'ADMIN DA PLATAFORMA' : 'PASTOR DA IGREJA'}</span><div class="icon-tile gold">${ICON('building')}</div></div></div><form data-form="organization"><div class="logo-editor"><div class="logo-preview" id="logoPreview"><span id="settingsLogoSymbol" ${churchLogo ? 'hidden' : ''}>${esc(churchLogoText(church))}</span><img id="settingsLogoImage" src="${esc(churchLogo)}" alt="Logo atual da igreja" ${churchLogo ? '' : 'hidden'}></div><div class="logo-editor-copy"><div class="form-field"><label for="churchLogoSymbol">Símbolo ou iniciais</label><input class="input" id="churchLogoSymbol" name="logoSymbol" maxlength="2" value="${esc(churchLogoText(church))}" placeholder="Ex.: B"></div><div class="file-upload-field"><label class="file-label" for="churchLogoFile">${ICON('download')} Enviar imagem do logo</label><input id="churchLogoFile" name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="file-input"></div><button type="button" class="btn btn-quiet logo-remove" data-action="remove-logo">Usar somente o símbolo de texto</button><p class="field-note">O logo escolhido aparece ao lado de “Início” e da lupa.</p></div></div><div class="form-grid"><div class="form-field"><label for="churchName">Nome da igreja</label><input class="input" id="churchName" name="churchName" value="${esc(church.name)}"></div><div class="form-field"><label for="churchCity">Cidade e estado</label><input class="input" id="churchCity" name="churchCity" value="${esc(church.city)}"></div><div class="form-field full"><label for="pastorName">Pastores responsáveis</label><textarea class="textarea" id="pastorName" name="pastorName" rows="2" placeholder="Um nome por linha. Ex.:\nJoão da Silva\nMaria da Silva">${esc(churchPastors)}</textarea><p class="field-note">Escreva um nome por linha (ou separe por vírgula). Os nomes aparecem na página da igreja mesmo sem biografia.</p></div><div class="form-field"><label for="churchPhone">Telefone principal</label><input class="input" id="churchPhone" name="churchPhone" type="tel" value="${esc(churchPhone)}" placeholder="(21) 99999-9999"></div><div class="form-field full"><label for="churchDescription">Mensagem de boas-vindas</label><textarea class="textarea" id="churchDescription" name="churchDescription" rows="3">${esc(churchDescription)}</textarea><p class="field-note">A identidade visual da ${esc(church.name)} usa fundo preto/chumbo com dourado e cobre.</p></div></div></form></section>
-      <section class="settings-card appearance-settings" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Aparência da igreja</h2><p>O pastor pode personalizar o visual desta igreja sem afetar outras organizações.</p></div><div class="icon-tile gold">${ICON('sparkle')}</div></div><div class="form-grid"><div class="form-field"><label for="appearanceTheme">Tema</label><select class="select" id="appearanceTheme" data-appearance-control><option value="light" ${appearance.theme === 'light' ? 'selected' : ''}>Claro</option><option value="dark" ${appearance.theme === 'dark' ? 'selected' : ''}>Escuro</option><option value="auto" ${appearance.theme === 'auto' ? 'selected' : ''}>Automático</option></select><p class="field-note">Aplica-se ao painel ${pastorWord('do pastor', 'dos pastores')} e da equipe.</p></div><div class="form-field"><label for="appearanceFont">Fonte principal</label><select class="select" id="appearanceFont" data-appearance-control><option value="editorial" ${appearance.font === 'editorial' ? 'selected' : ''}>Editorial</option><option value="modern" ${appearance.font === 'modern' ? 'selected' : ''}>Moderna</option><option value="classic" ${appearance.font === 'classic' ? 'selected' : ''}>Clássica</option><option value="clean" ${appearance.font === 'clean' ? 'selected' : ''}>Limpa</option></select><p class="field-note">Escolha uma personalidade para a sua igreja.</p></div><div class="form-field"><label for="appearancePrimary">Cor principal</label><div class="color-control"><input type="color" id="appearancePrimary" value="${esc(appearance.primary)}" data-appearance-control><input class="input color-value" value="${esc(appearance.primary.toUpperCase())}" data-color-text="appearancePrimary" maxlength="7" aria-label="Código da cor principal"></div></div><div class="form-field"><label for="appearanceAccent">Cor de destaque</label><div class="color-control"><input type="color" id="appearanceAccent" value="${esc(appearance.accent)}" data-appearance-control><input class="input color-value" value="${esc(appearance.accent.toUpperCase())}" data-color-text="appearanceAccent" maxlength="7" aria-label="Código da cor de destaque"></div></div></div><div class="palette-block"><div><label>Paletas rápidas</label><p class="field-note">Comece por uma combinação e ajuste as cores se quiser.</p></div><div class="palette-list">${Object.entries(PALETTES).map(([key, palette]) => `<button type="button" class="palette-swatch" data-action="apply-palette" data-palette="${key}" title="${esc(palette.label)}"><span style="background:${palette.primary}"></span><i style="background:${palette.accent}"></i><small>${esc(palette.label)}</small></button>`).join('')}</div></div><div class="appearance-preview"><div class="preview-copy"><span class="eyebrow">PRÉVIA</span><strong>Assim a ${esc(church.name)} aparece para sua equipe</strong><p>As mudanças são aplicadas imediatamente e ficam salvas nesta igreja.</p></div><div class="preview-chip">${ICON('check')} Personalizado</div></div></section>
+      <section class="settings-card appearance-settings" data-settings-panel="organization"><div class="settings-card-header"><div><h2>Aparência da igreja</h2><p>O pastor pode personalizar o visual desta igreja sem afetar outras organizações.</p></div><div class="icon-tile gold">${ICON('sparkle')}</div></div><div class="form-grid"><div class="form-field"><label for="appearanceTheme">Tema</label><select class="select" id="appearanceTheme" data-appearance-control><option value="light" ${appearance.theme === 'light' ? 'selected' : ''}>Claro</option><option value="dark" ${appearance.theme === 'dark' ? 'selected' : ''}>Escuro</option><option value="auto" ${appearance.theme === 'auto' ? 'selected' : ''}>Automático</option></select><p class="field-note">Aplica-se ao painel ${pastorWord('do pastor', 'dos pastores')} e da equipe.</p></div><div class="form-field"><label for="appearanceFont">Fonte principal</label><select class="select" id="appearanceFont" data-appearance-control><option value="editorial" ${appearance.font === 'editorial' ? 'selected' : ''}>Editorial</option><option value="modern" ${appearance.font === 'modern' ? 'selected' : ''}>Moderna</option><option value="classic" ${appearance.font === 'classic' ? 'selected' : ''}>Clássica</option><option value="clean" ${appearance.font === 'clean' ? 'selected' : ''}>Limpa</option></select><p class="field-note">Escolha uma personalidade para a sua igreja.</p></div><div class="form-field"><label for="appearancePrimary">Cor principal</label><div class="color-control"><input type="color" id="appearancePrimary" value="${esc(appearance.primary)}" data-appearance-control><input class="input color-value" value="${esc(appearance.primary.toUpperCase())}" data-color-text="appearancePrimary" maxlength="7" aria-label="Código da cor principal"></div></div><div class="form-field"><label for="appearanceAccent">Cor de destaque</label><div class="color-control"><input type="color" id="appearanceAccent" value="${esc(appearance.accent)}" data-appearance-control><input class="input color-value" value="${esc(appearance.accent.toUpperCase())}" data-color-text="appearanceAccent" maxlength="7" aria-label="Código da cor de destaque"></div></div><div class="form-field"><label for="appearanceTint">Cor suave dos fundos</label><div class="color-control"><input type="color" id="appearanceTint" value="${esc(appearance.tint || '#ffffff')}" data-appearance-control ${appearance.tint ? '' : 'disabled'}><input class="input color-value" value="${esc(String(appearance.tint || '').toUpperCase())}" data-color-text="appearanceTint" maxlength="7" aria-label="Código da cor suave" placeholder="${appearance.tint ? '' : '#RRGGBB'}"></div><label class="tint-auto"><input type="checkbox" id="appearanceTintAuto" data-appearance-control ${appearance.tint ? '' : 'checked'}> Usar tom automático das minhas cores</label><p class="field-note" id="appearanceTintNote">${appearance.tint ? 'A cor escolhida vale para etiquetas, avisos e faixas de repouso do painel.' : 'Tom automático ' + esc(tomSuaveAutomatico(appearance.primary, appearance.theme === 'dark' ? 'dark' : 'light').toUpperCase()) + ', derivado da sua cor principal.'}</p></div></div><div class="palette-block"><div><label>Paletas rápidas</label><p class="field-note">Comece por uma combinação e ajuste as três cores se quiser.</p></div><div class="palette-list">${Object.entries(PALETTES).map(([key, palette]) => `<button type="button" class="palette-swatch" data-action="apply-palette" data-palette="${key}" title="${esc(palette.label)}"><span style="background:${palette.primary}"></span><i style="background:${palette.accent}"></i>${palette.tint ? `<u style="background:${palette.tint}"></u>` : '<u class="vazia"></u>'}<small>${esc(palette.label)}</small></button>`).join('')}</div></div><div class="appearance-preview"><div class="preview-copy"><span class="eyebrow">PRÉVIA</span><strong>Assim a ${esc(church.name)} aparece para sua equipe</strong><p>As mudanças são aplicadas imediatamente e ficam salvas nesta igreja.</p></div><div class="preview-chip">${ICON('check')} Personalizado</div></div></section>
       ${profileCard}
       ${securityCard}
       ${backupCard}
@@ -2495,6 +2544,7 @@ function init() {
     }
     if (event.target.id === 'churchLogoFile') handleLogoFile(event.target.files?.[0]);
     if (event.target.matches('[data-appearance-control]')) {
+      if (event.target.id === 'appearanceTint' && event.target.type === 'color') { const auto = $('#appearanceTintAuto'); if (auto) auto.checked = false; }
       if (event.target.type === 'color') {
         const text = $(`[data-color-text="${event.target.id}"]`);
         if (text) text.value = event.target.value.toUpperCase();
@@ -2510,6 +2560,7 @@ function init() {
       } else {
         if (colorInput) colorInput.value = valid;
         event.target.value = valid.toUpperCase();
+        if (event.target.dataset.colorText === 'appearanceTint') { const auto = $('#appearanceTintAuto'); if (auto) { auto.checked = false; if (colorInput) colorInput.disabled = false; } }
         applyAppearanceFromControls();
       }
     }

@@ -545,14 +545,19 @@ tbody tr:hover td { background: var(--soft-flat-2); }
 .color-control { display: flex; align-items: center; gap: 8px; }
 .color-control input[type="color"] { width: 39px; height: 39px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
 .color-control .color-value { flex: 1; min-width: 0; text-transform: uppercase; }
+.color-control input[type="color"]:disabled { opacity: .45; cursor: not-allowed; }
+.tint-auto { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: var(--muted); font-size: 10px; font-weight: 650; cursor: pointer; }
+.tint-auto input { width: 15px; height: 15px; margin: 0; accent-color: var(--gold); cursor: pointer; }
 .palette-block { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f0ede7; }
 .palette-block > div:first-child label { display: block; color: var(--muted); font-size: 10px; font-weight: 700; }
 .palette-block > div:first-child .field-note { margin-top: 5px; max-width: 220px; }
 .palette-list { display: flex; align-items: flex-start; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .palette-swatch { min-width: 66px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 6px 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft-white); color: var(--muted); }
 .palette-swatch:hover { border-color: #d9c99f; background: var(--gold-soft); }
-.palette-swatch > span, .palette-swatch > i { width: 19px; height: 19px; display: inline-block; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(20,20,20,.08); }
-.palette-swatch > i { margin-left: -9px; }
+.palette-swatch > span, .palette-swatch > i, .palette-swatch > u { width: 19px; height: 19px; display: inline-block; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(20,20,20,.08); }
+.palette-swatch > i, .palette-swatch > u { margin-left: -9px; }
+/* a terceira bolinha só existe se a paleta trouxer cor suave: sem cor, ela é um contorno */
+.palette-swatch > u.vazia { background: transparent; border-style: dashed; border-color: var(--line); }
 .palette-swatch small { max-width: 64px; overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
 .appearance-preview { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(110deg, var(--gold-soft), var(--copper-soft)); }
 .preview-copy strong { display: block; margin-top: 5px; color: var(--ink); font-size: 11px; }

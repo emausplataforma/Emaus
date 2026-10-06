@@ -181,18 +181,23 @@ function renderizar(nomeFuncao, estado, opcoes = {}) {
 }
 
 
-// Quatro leituras por tela: a FOLHA sozinha (o que aparece se o JS de aparência não rodar)
+// Sete leituras por tela: a FOLHA sozinha (o que aparece se o JS de aparência não rodar)
 // e a cor EFETIVA da igreja, nos dois temas — applyAppearance é quem decide --gold/--copper
 // (--gold-soft, --copper-soft) a partir da ficha da igreja, então o contraste real depende
 // dela: uma igreja com acento claro tem de continuar legível.
-function varsDaIgreja(tema) {
+function varsDaIgreja(tema, tint) {
   const definido = {};
-  igrejas[0] = { ...igrejas[0], appearance: { theme: tema, font: 'editorial', primary: '#0B0B0C', accent: '#C08A3E' } };
+  const appearance = { theme: tema, font: 'editorial', primary: '#0B0B0C', accent: '#C08A3E' };
+  // a terceira cor que a igreja pode cadastrar: dois casos hostis de propósito — um verde
+  // abacate saturado (a reclamação da vez) e um vinho fechado no tema CLARO, onde o tom
+  // precisa ser clareado sozinho para o texto escuro continuar em cima
+  if (tint !== undefined) appearance.tint = tint;
+  igrejas[0] = { ...igrejas[0], appearance };
   renderizar('applyAppearance', estado, {
     captura: definido,
     sementes: ['DEFAULT_APPEARANCE', 'mixHex', 'normalizeHex', 'churchAppearance', 'isPlatformAdmin'],
   });
-  igrejas[0] = { ...igrejas[0], appearance: { theme: 'dark', font: 'editorial', primary: '#0B0B0C', accent: '#C08A3E' } };
+  igrejas[0] = { ...igrejas[0], appearance: { theme: 'dark', font: 'editorial', primary: '#0B0B0C', accent: '#C08A3E', ...(tint !== undefined ? { tint } : {}) } };
   return definido;
 }
 
@@ -201,6 +206,9 @@ const CONFIGS = [
   { nome: 'folha no escuro', tema: 'dark', vars: {} },
   { nome: 'igreja no claro', tema: '', vars: null },
   { nome: 'igreja no escuro', tema: 'dark', vars: null },
+  { nome: 'igreja com cor suave #9BA653 (claro)', tema: '', vars: null, tint: '#9BA653' },
+  { nome: 'igreja com cor suave #9BA653 (escuro)', tema: 'dark', vars: null, tint: '#9BA653' },
+  { nome: 'igreja com cor suave #7A1F2B (claro)', tema: '', vars: null, tint: '#7A1F2B' },
 ];
 
 const agrupar = lista => {
@@ -260,7 +268,7 @@ const casca = (() => {
 
 let medidosTotal = 0;
 for (const config of CONFIGS) {
-  const vars = config.vars === null ? varsDaIgreja(config.tema === 'dark' ? 'dark' : 'light') : config.vars;
+  const vars = config.vars === null ? varsDaIgreja(config.tema === 'dark' ? 'dark' : 'light', config.tint) : config.vars;
   if (process.env.CONTRASTE_VARS) console.log('  vars[' + config.nome + '] = ' + JSON.stringify(vars));
   const todos = [];
   let medidos = 0;
@@ -288,7 +296,7 @@ const { regras } = regrasDe(css);
 const pares = auditarParesDeFolha(css);
 const familiasFolha = agrupar(pares);
 check(pares.length === 0, 'nenhuma regra da folha chumba texto claro sobre fundo claro (ou escuro sobre escuro)',
-  familiasFolha.length ? familiasFolha.slice(0, 12).map(fa => `${fa.qtd}\u00d7  ${fa.chave}   exemplos: ${[...fa.exemplos].slice(0, 3).join(' / ')}`).join('\n          ') : 'nenhum');
+  familiasFolha.length ? familiasFolha.slice(0, 12).map(fa => `${fa.qtd}×  ${fa.chave}   exemplos: ${[...fa.exemplos].slice(0, 3).join(' / ')}`).join('\n          ') : 'nenhum');
 
 
 // ----- 4) as páginas que não são o painel: portaria, página pública, Administração, splash
@@ -300,17 +308,20 @@ console.log('\n===== 4) portaria, página pública, Administração e splash ===
 const OUTRAS = ['splash.css', 'publica.css', 'admin.css', 'recepcao.html', 'index.html', 'publica.html', 'admin.html'];
 let outrasFalhas = 0;
 for (const arquivo of OUTRAS) {
+  // as páginas avulsas são opcionais onde o teste roda (nem todo canto tem publica.css): sem
+  // o arquivo a linha diz que pulou, em vez de o contrato inteiro morrer com ENOENT
+  if (!fs.existsSync(__dirname + '/' + arquivo)) { console.log('  (pulado: ' + arquivo + ' não está ao lado do teste)'); continue; }
   const bruto = fs.readFileSync(__dirname + '/' + arquivo, 'utf8');
   const folha = arquivo.endsWith('.html')
     ? (bruto.match(/<style>[\s\S]*?<\/style>/g) || []).map(bloco => bloco.replace(/<\/?style>/g, '')).join('\n')
     : bruto;
   const familias = agrupar(auditarParesDeFolha(folha));
   if (familias.length) outrasFalhas++;
-  if (familias.length) console.log('          ' + familias.map(fa => `${fa.qtd}\u00d7  ${fa.pior.toFixed(2)}   ${fa.chave}`).join('\n          '));
+  if (familias.length) console.log('          ' + familias.map(fa => `${fa.qtd}×  ${fa.pior.toFixed(2)}   ${fa.chave}`).join('\n          '));
   const detalhe = familias.length
-    ? familias.map(fa => `${fa.qtd}\u00d7  pior ${fa.pior.toFixed(2)}   ${fa.chave}   exemplos: ${[...fa.exemplos].slice(0, 3).join(' / ')}`).join('\n          ')
+    ? familias.map(fa => `${fa.qtd}×  pior ${fa.pior.toFixed(2)}   ${fa.chave}   exemplos: ${[...fa.exemplos].slice(0, 3).join(' / ')}`).join('\n          ')
     : 'nenhum';
-  console.log((familias.length ? '  FALHA ' : '  OK    ') + `${arquivo}: nenhum texto chumbado sem contraste  \u2192  ${detalhe}`);
+  console.log((familias.length ? '  FALHA ' : '  OK    ') + `${arquivo}: nenhum texto chumbado sem contraste  →  ${detalhe}`);
 }
 
 // E além da varredura chumbo-a-chumbo, as duas páginas auto-suficientes vão pelo medidor de
@@ -321,6 +332,7 @@ const PAGES = [
 ];
 let paginasFalhas = 0;
 for (const pagina of PAGES) {
+  if (!fs.existsSync(__dirname + '/' + pagina.html) || !pagina.css.every(nome => fs.existsSync(__dirname + '/' + nome))) { console.log('  (pulado: ' + pagina.html + ' e sua folha não estão ao lado do teste)'); continue; }
   const bruto = fs.readFileSync(__dirname + '/' + pagina.html, 'utf8');
   const embutido = (bruto.match(/<style>[\s\S]*?<\/style>/g) || []).map(bloco => bloco.replace(/<\/?style>/g, '')).join('\n');
   const css = pagina.css.map(nome => fs.readFileSync(__dirname + '/' + nome, 'utf8')).join('\n') + '\n' + embutido;
@@ -331,9 +343,9 @@ for (const pagina of PAGES) {
   const familias = agrupar(resultado.ofensores);
   paginasFalhas += familias.length ? 1 : 0;
   const detalhe = familias.length
-    ? familias.map(fa => `${fa.qtd}\u00d7  pior ${fa.pior.toFixed(2)}   ${fa.chave}   exemplos: ${[...fa.exemplos].slice(0, 3).join(' / ')}`).join('\n          ')
+    ? familias.map(fa => `${fa.qtd}×  pior ${fa.pior.toFixed(2)}   ${fa.chave}   exemplos: ${[...fa.exemplos].slice(0, 3).join(' / ')}`).join('\n          ')
     : `nenhum dos ${resultado.medidos}`;
-  console.log((familias.length ? '  FALHA ' : '  OK    ') + `${pagina.rotulo}: texto da pr\u00e1gina medido na cascata  \u2192  ${detalhe}`);
+  console.log((familias.length ? '  FALHA ' : '  OK    ') + `${pagina.rotulo}: texto da prágina medido na cascata  →  ${detalhe}`);
 }
 
 
@@ -345,6 +357,7 @@ console.log('\n===== 5) tintas neutras × superfícies de cada folha avulsa ====
 const NEUTRAS = { 'admin.css': ['--ink', '--muted', '--muted-2'], 'recepcao.html': ['--ink', '--muted', '--muted-2'], 'publica.css': ['--ink', '--muted'] };
 let tintasFalhas = 0;
 for (const [arquivo, chaves] of Object.entries(NEUTRAS)) {
+  if (!fs.existsSync(__dirname + '/' + arquivo)) { console.log('  (pulado: ' + arquivo + ' não está ao lado do teste)'); continue; }
   const bruto = fs.readFileSync(__dirname + '/' + arquivo, 'utf8');
   const folha = arquivo.endsWith('.html')
     ? (bruto.match(/<style>[\s\S]*?<\/style>/g) || []).map(bloco => bloco.replace(/<\/?style>/g, '')).join('\n')
