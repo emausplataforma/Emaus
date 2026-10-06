@@ -6,7 +6,7 @@
   --line: #3f3a32;
   --ink: #f5f1e9;
   --muted: #aaa298;
-  --muted-2: #817970;
+  --muted-2: #a8a29a;   /* #817970 nas etiquetas de 8-9px dava 3,7:1 sobre a carta */
   --gold: #d7a84b;
   --gold-2: #e8c477;
   --copper: #b86f45;

@@ -1,0 +1,176 @@
+Emaús — rodada v21 · CONTRASTE LEGÍVEL EM TUDO
+Pacote: emaus-contraste-legivel-v21.zip
+Cache do aplicativo: emaus-shell-v90-contraste-legivel-em-tudo
+Data: 06/10/2026 (Brasília)
+
+
+=========================================================================================
+1. O QUE O PASTOR RECLAMOU
+=========================================================================================
+
+  "quero que resolva todos os problemas de contrastes pois não dá para enxergar direito"
+
+com a tela Início do tema escuro na mão. O problema não era uma tela: era o produto. O
+medidor que esta rodada deixou montada (item 5) bateu, nos arquivos que estavam no ar,
+estes números — textos abaixo do mínimo de contraste (4,5:1 para texto comum, 3:1 para
+título grande), contados em 882 trechos de texto reais por configuração:
+
+  painel com a folha padrão, tema claro ....  168 textos ilegíveis  (76 famílias) · pior 1,76:1
+  painel com a folha padrão, tema escuro ...  128 textos ilegíveis  (56 famílias) · pior 1,01:1
+  painel da igreja (cores cadastradas), claro 213 textos ilegíveis  (83 famílias) · pior 1,08:1
+  painel da igreja (cores cadastradas), escuro 154 textos ilegíveis  (52 famílias) · pior 1,07:1
+
+1,01:1 é texto da mesma cor do fundo: sumido. Não era "cansa um pouco a vista" — era
+gente lendo print. Na tela do Início em particular: o parágrafo de cada atividade, a
+etiqueta do canal, o "hoje" do calendário, o eixo Y do gráfico, o cabeçalho da tabela e
+os dias apagados do mês anterior.
+
+Hoje, com o mesmo medidor nos arquivos deste pacote: 0 ilegíveis nas quatro
+configurações, 0 pares chumbados na varredura da folha inteira e as páginas avulsas
+(portaria, pública, Administração, splash) também em 0.
+
+
+=========================================================================================
+2. O QUE FOI FEITO — TRÊS COISAS, NÃO UMA LISTA DE RETOQUES
+=========================================================================================
+
+2.1 TODA TINTA PASSOU A SER TOKEN (styles.css)
+  Sumiram da folha os cinzas e beges escritos à mão. O que havia de texto com cor chumbada
+  hoje lê var(--muted), var(--muted-2), var(--on-ink), var(--ink-hover), var(--gold-ink),
+  var(--copper-ink), var(--on-accent), var(--dot-bg)/var(--dot-ink), var(--brand-ink…).
+  Cada token tem par no bloco :root[data-theme="dark"], com valor medido (não "olho"):
+  --muted fica #656360 no claro (4,96:1) e #c2bcb2 no escuro (6,84:1); --muted-2,
+  #6b6862 (5,90:1) e #a8a29a (4,89:1); --copper-ink #9c5228 (4,77:1) e #e8a374 (5,33:1);
+  --gold-ink #7a5a15 (5,27:1) e #f2cd7c (7,73:1).
+
+2.2 O TEXTO SOBRE A MARCA DA IGREJA AGORA É DERIVADO, NÃO CHUMBADOS (app.js)
+  Este era o buraco mais feio e ele não aparecia no tema padrão: quem cadastra primária
+  escura (a igreja de exemplo tem #0B0B0C) recebia botão dourado com letra escura em cima
+  de degradê preto→dourado — 1,14:1 — e o "B" do selo com 1,79:1. Quem cadastrasse cor
+  média no lugar da escura recebia o contrário: branco sobre bege.
+  Agora applyAppearance calcula, na hora de montar a aparência da igreja:
+    --marca ..... uma cor de marca SÓLIDA (mistura da primária com o acento)
+    --on-accent . a tinta do texto que fica legível SOBRE essa cor (escolhida por
+                  luminância e depois ajustada até passar em 4,5:1)
+    --gold-ink / --copper-ink / --muted / --muted-2 ..... medidas contra a superfície
+                  mais exigente que a própria igreja cria (o "gold-soft" e o
+                  "copper-soft" derivados dela)
+    --brand-ink / --brand-ink-soft / --brand-ink-muted .. a tinta das áreas que são
+                  escuras nos DOIS temas (barra lateral e tela do púlpito) — essas não
+                  acompanham a inversão do tema, por isso têm tokens próprios.
+  Consequência que o pastor vai notar no visual: onde havia degradê de marca ATRÁS de
+  texto (item ativo do menu, botões dourados, selo "B", prévia do logo) agora há uma cor
+  de marca sólida. Motivo, dito sem rodeio: num degradê que vai do quase-preto ao dourado
+  CLARO não existe uma única tinta que seja legível nas duas pontas — era esse o beco.
+  O degradê continua onde não tem texto (o anel do selo, o halo da prévia).
+
+2.3 AS PÁGINAS AVULSAS FORAM NO MESMO CRITÉRIO
+  portaria (recepcao.html) ... --muted-2 era #8d867d: as etiquetas "Culto ou evento" e o
+                               rodapé ficavam em 3,7–4,4:1 sobre a carta escura. Agora
+                               #a49c8f (4,9 a 5,8:1).
+  splash (splash.css) ........ o subtítulo de 10px do carregamento (#a9a095) ficava em
+                               4,0:1 em cima do halo dourado. Agora #c3bbae (5,5:1 no
+                               pior ponto, 7,2:1 no resto). É o mesmo splash das três
+                               páginas, então a portaria e a pública herdam a correção.
+  Administração (admin.css) .. --muted-2 era #817970; as 13 etiquetas de 8–9px (th,
+                               .muted-inline, .sidebar-note, .chart-labels span,
+                               .activity-item time, .audit-item code…) davam 3,7:1 sobre
+                               a carta e 4,4:1 sobre o fundo. Agora #a8a29a (6,2 a 7,5:1).
+  página pública ............ nenhuma queixa no medidor (43 textos).
+
+
+=========================================================================================
+3. O QUE NINGUÉM VAI PRECISAR AJUSTAR
+=========================================================================================
+
+  · Nada no banco, nada no servidor, nada na API. É folha de estilo + o trecho de
+    aparência do app.js.
+  · Quem usa as cores padrão da plataforma vê o painel praticamente igual: os valores dos
+    tokens no tema claro foram escolhidos batendo os contrastes, não "de cabeça".
+  · Quem tem cor cadastrada (Configurações ▸ Identidade) ganha a legibilidade sem
+    precisar mexer em cor nenhuma: a tinta é calculada a partir do que já está lá.
+  · Nenhuma igreja herda marca ou nome de outra: a derivação parte sempre das cores da
+    própria igreja, e só entra em ação se a igreja tem cores próprias.
+  · O seletor de tema, o modo púlpito e a prévia de identidade continuam funcionando do
+    mesmo jeito; a prévia é que agora mostra a cor sólida que o painel vai usar.
+
+
+=========================================================================================
+4. CONSEQUÊNCIAS HONESTAS DESTA RODADA
+=========================================================================================
+
+  · Botão dourado, selo e item ativo do menu perderam o degradê (item 2.2). É decisão
+    consciente: sem isso não há garantia possível de legibilidade para toda cor de igreja.
+    Quem quiser o brilho de volta, o caminho é tinta por metade do degradê — e aí o
+    navegador precisaria de duas cores de texto num elemento só, que não existe.
+  · Onde o texto fica em cima de foto (a capa da página pública usa imagem de fundo com
+    véu), o medidor não enxerga a foto: ele compõe o véu sobre o fundo da página. Ou seja,
+    a foto clara continua podendo atrapalhar, e isso não está coberto por teste nenhum —
+    depende da imagem escolhida. O mesmo vale para pseudo-elementos (:before/:after), que
+    ficam fora de propósito: o CSS deles não é cascata do elemento.
+  · Estados :hover/:focus não são medidos na cascata (só no varredor de folha, onde são
+    ignorados). O --ink-hover do botão escuro foi validado à mão: #171614 sobre #d7a84b =
+    4,6:1 no claro e #ded9cf sobre #171614 = 12:1 no escuro.
+  · A Administração é medida por varredura da folha + conferência das tintas neutras contra
+    as superfícies que o próprio CSS cria; o DOM montado pelo admin.js não entra no
+    medidor (ele não devolve HTML pronto para auditar). Se aparecer linha ilegível lá, é
+    um caso pontual — as três variáveis que quase todo texto miúdo herda já estão
+    garantidas em todas as sete superfícies da folha.
+  · Tema escuro não foi convertido em "tema de verdade" para recepção e página pública:
+    as duas já são escuras por natureza. Não há botão de tema nelas.
+
+
+=========================================================================================
+5. COMO ISSO FOI MEDIDO — E COMO CONTINUA SENDO
+=========================================================================================
+
+  Rode:  node teste-contraste.js          (sem servidor, sem navegador, ~31 s)
+
+  Cinco seções, todas com contrato permanente (é isto que impede a volta do problema):
+    1) as 9 telas montam com o código real de app.js, sem função quebrada;
+    2) o contraste de CADA texto é medido na cascata de verdade — folha + variáveis do
+       tema + variáveis da igreja, com fundo de gradiente e rgba compostos sobre o que
+       está atrás — nas 4 combinações: folha/igreja × claro/escuro (882 textos por
+       configuração);
+    3) varredura da folha inteira (1081 regras), que pega o que não está nas telas
+       montadas, agrupando por família de par (cor ← fundo) para a queixa ser legível;
+    4) portaria, pública, Administração e splash: varredura chumbo-a-chumbo + o medidor
+       de cascata no HTML real dos arquivos;
+    5) as tintas neutras de cada folha avulsa contra todas as superfícies que ela mesma
+       cria.
+
+  Três correções de método que esta rodada precisou fazer no próprio medidor para ele
+  não enganar ninguém (e que valem como aviso para quem for mexer na folha):
+    · pop cego em </tag> sem par desmontava a árvore e denunciava a sidebar com 1,03:1
+      onde o navegador mostra branco sobre marrom;
+    · regras de pseudo-elemento (:after do calendário) eram atribuídas ao elemento pai e
+      inventavam um 2,87:1 que não existe na tela;
+    · background com várias camadas (radial-gradient(…), var(--paper)) agora respeita o
+      empilhamento real em vez de jogar o halo decorativo da página na média de fundo de
+      tudo — era isso que fazia o rodapé da portaria parecer ilegível quando não é.
+  E uma que o medidor encontrou no app, não nele: a folha da página pública começa com
+  @import de fonte, e o parser de CSS perdia o ":root { … }" inteiro que vinha logo
+  depois — a folha estava sem nenhuma variável para o medidor. Corrigido no parser
+  (contraste-lib.js), e aí apareceram os casos reais.
+
+
+=========================================================================================
+6. COMO APLICAR
+=========================================================================================
+
+  Substituir, na raiz do repositório emausplataforma.github.io/Emaus:
+    styles.css          (tinta em token, sem degradê atrás de texto de marca)
+    app.js              (derivação de tinta em applyAppearance)
+    index.html          (styles.css?v=61, app.js?v=66, splash.css?v=1)
+    recepcao.html       (--muted-2 legível, splash.css?v=1)
+    admin.css           (--muted-2 legível)
+    admin.html          (admin.css?v=61)
+    publica.html        (splash.css?v=1)
+    splash.css          (subtítulo legível)
+    service-worker.js   (cache emaus-shell-v90-contraste-legivel-em-tudo)
+  Sem SQL, sem variável de ambiente, sem reinício do backend. Depois do push, um
+  Ctrl+Shift+R em uma tela resolve; o cache novo cuida das outras.
+
+  Arquivos de teste e ferramentas que ficam na bancada (não são publicados):
+    teste-contraste.js  contrato permanente de contraste (as 5 seções acima)
+    contraste-lib.js    o medidor (cascata + varredura de folha + composição de gradiente)

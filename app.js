@@ -599,6 +599,69 @@ function mixHex(first, second, secondWeight = .5) {
   const channel = key => Math.round(a[key] * (1 - weight) + b[key] * weight).toString(16).padStart(2, '0');
   return `#${channel('r')}${channel('g')}${channel('b')}`;
 }
+// ── tinta legível sobre a cor da igreja ────────────────────────────────────────────
+// A cor da marca vem da ficha de cada igreja, então o CSS não pode chumbar a tinta que
+// vai por cima dela: com uma primária quase-preta, o item de menu ativo ficava preto com
+// texto preto (1.09:1). Estas funções escurecem ou clareiam a tinta até ela passar no
+// mínimo de contraste da WCAG sobre o fundo em que ela realmente cai.
+function luminanciaDe(corHex) {
+  const { r, g, b } = hexToRgb(corHex);
+  const canal = valor => { const c = valor / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
+}
+function contrasteEntre(uma, outra) {
+  const a = luminanciaDe(uma); const b = luminanciaDe(outra);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+// tinta para escrever SOBRE um preenchimento da marca (botão dourado, item de menu ativo):
+// parte do escuro em fundo claro e do branco em fundo escuro e força até ficar legível
+function tintaSobre(fundo, minimo = 4.5) {
+  const escura = '#1a1408'; const clara = '#fffaf0';
+  const inicial = luminanciaDe(fundo) > 0.35 ? escura : clara;
+  if (contrasteEntre(inicial, fundo) >= minimo) return inicial;
+  const oposta = inicial === escura ? '#000000' : '#ffffff';
+  for (let passo = 1; passo <= 24; passo += 1) {
+    const teste = mixHex(inicial, oposta, passo / 24);
+    if (contrasteEntre(teste, fundo) >= minimo) return teste;
+  }
+  return oposta;
+}
+// tinta QUE É a cor da igreja (rótulo dourado, link de cobre), ajustada só o necessário
+// para ler sobre o fundo dado — a identidade se mantém, o contraste também
+function corLegivel(cor, fundo, minimo = 4.6) {
+  if (contrasteEntre(cor, fundo) >= minimo) return cor;
+  const alvo = luminanciaDe(fundo) > 0.35 ? '#000000' : '#ffffff';
+  for (let passo = 1; passo <= 24; passo += 1) {
+    const teste = mixHex(cor, alvo, passo / 24);
+    if (contrasteEntre(teste, fundo) >= minimo) return teste;
+  }
+  return alvo;
+}
+function aplicarTintasDeMarca(root, primary, accent, resolved) {
+  const escuro = resolved === 'dark';
+  // as mesmas cores da ficha que applyAppearance já usa para os fundos "soft" — é sobre
+  // elas que o texto miúdo cai, então é contra elas que a tinta tem de ser medida
+  const goldSoft = escuro ? mixHex(primary, '#181817', .68) : mixHex(primary, '#ffffff', .86);
+  const copperSoft = escuro ? mixHex(accent, '#181817', .67) : mixHex(accent, '#ffffff', .87);
+  const fundos = escuro ? ['#242320', '#2a2925', goldSoft, copperSoft] : ['#ffffff', '#f5f3ef', goldSoft, copperSoft];
+  // no claro o fundo que aperta é o mais ESCURO; no escuro, o mais CLARO
+  const exigente = fundos.reduce((atual, candidato) => (escuro
+    ? luminanciaDe(candidato) > luminanciaDe(atual)
+    : luminanciaDe(candidato) < luminanciaDe(atual)) ? candidato : atual);
+  const barra = '#6a552d';            // barra lateral e tela do púlpito: dourado sobre escuro, nos dois temas
+  const ouro = escuro ? mixHex(primary, '#ffffff', .58) : primary;
+  const cobre = escuro ? mixHex(accent, '#ffffff', .46) : accent;
+  const marca = mixHex(primary, accent, .45);
+  root.style.setProperty('--marca', marca);
+  root.style.setProperty('--on-accent', tintaSobre(marca));
+  root.style.setProperty('--gold-ink', corLegivel(ouro, exigente));
+  root.style.setProperty('--copper-ink', corLegivel(cobre, exigente));
+  root.style.setProperty('--muted', corLegivel(escuro ? '#c2bcb2' : '#656360', exigente));
+  root.style.setProperty('--muted-2', corLegivel(escuro ? '#a8a29a' : '#6b6862', exigente));
+  root.style.setProperty('--brand-ink', corLegivel(mixHex(primary, '#ffffff', .8), barra, 5));
+  root.style.setProperty('--brand-ink-soft', corLegivel(mixHex(primary, '#f5f3ef', .84), barra, 5));
+  root.style.setProperty('--brand-ink-muted', corLegivel(mixHex(accent, '#f5f3ef', .8), barra, 4.8));
+}
 function applyAppearance() {
   const church = getActiveChurch();
   const appearance = { ...DEFAULT_APPEARANCE, ...(church?.appearance || {}) };
@@ -621,6 +684,7 @@ function applyAppearance() {
     clean: { sans: 'Arial, Helvetica, sans-serif', display: 'Arial, Helvetica, sans-serif' }
   };
   const fonts = fontMap[appearance.font] || fontMap.editorial;
+  aplicarTintasDeMarca(root, primary, accent, resolved);
   root.style.setProperty('--font-sans', fonts.sans);
   root.style.setProperty('--font-display', fonts.display);
 }

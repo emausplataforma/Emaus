@@ -1,5 +1,5 @@
 Emaús — registro da publicação
-Atualizado em 06/10/2026, 00:20 (Brasília) = 06/10 03:20 UTC. Correção de registro que
+Atualizado em 06/10/2026, 01:24 (Brasília) = 06/10 04:24 UTC (rodada v21 embalada). Correção de registro que
 precisa ficar dita: os carimbos marcados como "Brasília" nas rodadas v16 (00:58), v17
 (01:20-01:35) e v18 (02:05) foram escritos com o relógio UTC desta bancada, que está 3 h
 à frente — naqueles mesmos instantes eram 21:58, 22:20-22:35 e 23:05 de 05/10 em Brasília.
@@ -85,6 +85,14 @@ VERIFICADO DEPOIS DE PUBLICAR (05/10/2026, 20:41, Brasília)
   Testes desta bancada: 8 arquivos, 219 conferências, todos passando
   (teste-admin-pastores.js executa renderChurchEditForm de verdade;
   teste-pagina-pastores.js executa o publica.js de verdade).
+
+EMBALADO E AINDA FORA DO AR
+  V20 (mais de uma posição no mês) e V21 (contraste legível em tudo) estão embaladas nesta
+  bancada e não foram publicadas. A última conferência do Pages foi feita em 06/10 ~23:5x
+  (Brasília) com furo de cache: o ar tinha a v19 — app.js md5 3c9aa2b93fc4a1082cdf496f4e5bbffd,
+  app.js?v=64, cache emaus-shell-v88. Desde então nada foi enviado: estes números valem para
+  aquele instante, não para agora. Antes de publicar a v21, conferir de novo (o app.js da v21
+  é outro) e lembrar que v21 não toca server.js nem o banco.
 
 VOLTA ATRAS
   Desfazer a v14: reverter admin.js e admin.html para o commit 44f3713d (o cache volta
@@ -354,6 +362,60 @@ PENDENCIA ABERTA
   8. (v20) Nada na API sabe das posições: elas vivem no JSON recurrence_rule e só existem
      como datas já materializadas. Uma série de 1º e 3º termina no "until" gravado — não se
      renova sozinha no ano seguinte, e nenhum outro leitor (bot, iCal, exportação) vê a lista.
+
+v21 — CONTRASTE LEGÍVEL EM TUDO  (EMBALADA, NÃO PUBLICADA)
+  Zip: emaus-contraste-legivel-v21.zip
+  Arquivos: styles.css · app.js · index.html · recepcao.html · admin.css · admin.html ·
+  publica.html · splash.css · service-worker.js. Fora da lista, e é o que prova o escopo:
+  reception.js, publica.js, admin.js, api-config.js, splash.js e server.js — nenhum
+  comportamento, nenhuma tela, nenhum dado mudou; só cor.
+  Cache: emaus-shell-v90-contraste-legivel-em-tudo  (styles.css?v=61, app.js?v=66,
+  admin.css?v=61, splash.css?v=1 — o splash não tinha número de versão e foi preciso pôr:
+  cache-first segurava o arquivo velho e a correção do subtítulo não chegaria a ninguém)
+  Pedido: "quero que resolva todos os problemas de contrastes pois não dá para enxergar
+  direito", com a tela Início em tema escuro printada. Escopo combinado: TODOS os textos
+  ilegíveis do produto — as 9 telas do painel, a portaria, a página pública e a
+  Administração — nos dois temas, e não só o card do print.
+  O que o medidor achava nos arquivos que estão no ar (882 textos por configuração):
+  folha/claro 168 ilegíveis em 76 famílias (pior 1,76:1) · folha/escuro 128 em 56 (1,01:1)
+  · igreja/claro 213 em 83 (1,08:1) · igreja/escuro 154 em 52 (1,07:1). Hoje: 0 nas quatro.
+  Como: (1) sumiram da folha os cinzas chumbados — tudo passou a token com par no bloco
+  escuro, cada valor validado por número (não por olho); (2) applyAppearance (app.js) passou a
+  DERIVAR a tinta do texto das cores cadastradas da igreja — --marca, --on-accent,
+  --gold-ink, --copper-ink, --muted, --muted-2 e as três tintas da barra lateral/tela do
+  púlpito (--brand-ink*), medidas contra a superfície mais exigente que a própria igreja
+  cria; (3) portaria (--muted-2 #8d867d → #a49c8f), Administração (#817970 → #a8a29a) e
+  splash (#a9a095 → #c3bbae) corrigidos nas folhas delas.
+  Decisão de visual que precisa estar dita: texto que fica SOBRE a cor da marca perdeu o
+  degradê (item ativo do menu, botões dourados, selo "B", prévia do logo) e passou a cor
+  sólida derivada --marca. Motivo: num degradê que vai do quase-preto ao dourado claro não
+  existe UMA tinta legível nas duas pontas — com a igreja de exemplo (primária #0B0B0C) isso
+  dava 1,14:1 no botão e 1,79:1 no selo. O degradê ficou só onde não há texto.
+  Contrato permanente: teste-contraste.js, cinco seções — as 9 telas montam com o código
+  real; cada texto medido na cascata (folha + vars do tema + vars da igreja, gradiente e rgba
+  compostos sobre o ancestral) nas 4 combinações; varredura das 1081 regras da folha; as
+  páginas avulsas (portaria/pública/Admin/splash) na varredura e no medidor de cascata com o
+  HTML real dos arquivos; e as tintas neutras de cada folha avulsa contra todas as
+  superfícies que ela mesma cria. Roda em ~31 s, sem navegador.
+  Três defeitos de MÉTODO que este trabalho precisou consertar no medidor (senão ele
+  denuncia o que não existe e esconde o que existe): pop cego em </tag> sem par desmontava a
+  árvore (a sidebar saía com 1,03:1 onde o navegador mostra branco sobre marrom); regras de
+  pseudo-elemento eram atribuídas ao elemento pai (o "2,87:1" do calendário era inventado); e
+  background de várias camadas (radial-gradient(…), var(--paper)) ignorava o empilhamento
+  real, jogando o halo decorativo da página no fundo de todo elemento. O medidor também achou
+  um defeito no app, não nele: o parser de CSS perdia o ":root { … }" da página pública
+  porque a folha começa com @import — a folha inteira estava sem variável para o auditor.
+  Verificação: bateria desta bancada 14 arquivos · 555 conferências · 0 falhas. Dois testes
+  que comparavam o CSS com o ar "só no ponto do selo" passaram a cobrar a FORMA da mudança
+  (em styles.css só mudaram linhas de tinta — nenhuma linha de layout ou conteúdo foi
+  tocada), porque a allowlist antiga era narrativa da rodada v18; o teste da saudação ganhou
+  na allowlist as seis funções de topo que a derivação de tinta acrescentou.
+  O que fica de fora, declarado: pseudo-elementos e texto em cima de FOTO de fundo (capa da
+  página pública) não são medidos — depende da imagem escolhida; estados :hover/:focus só
+  são vistos na varredura de folha (o --ink-hover foi validado à mão: 4,6:1 no claro,
+  12:1 no escuro); e o DOM que o admin.js monta não entra no medidor de cascata.
+  Banco: nada. Servidor: nada. Volta atrás: reverter os 10 arquivos deste pacote — nenhum
+  dado é tocado, e o cache emaus-shell-v90 some ao reverter o service-worker.js.
 
 REGISTRO ANTERIOR (v1.5, mantido por histórico)
   Emaús — expansão do Administrador central v1.5. Frontend admin.html/admin.js/admin.css
