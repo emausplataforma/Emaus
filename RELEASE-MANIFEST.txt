@@ -1,4 +1,14 @@
 Emaús — registro da publicação
+Atualizado em 06/10/2026, 16:24 (Brasília). Rodada v26 EMBALADA, NÃO PUBLICADA:
+emaus-admin-seguranca-v26.zip · cache emaus-shell-v95-admin-seguranca
+(admin.css?v=63, admin.js?v=62). 2FA TOTP real (start/confirm/disable + login
+com ticket) e ping PostgreSQL (SELECT NOW() / server_version) no cartão de
+Configurações. A v25 comercial (desconto, teste, gráfico 12 meses) segue no
+mesmo zip. GitHub Pages e Railway continuam no que já estava no ar (v22 da
+igreja / v18 da API). Nada neste parágrafo contém senha, token ou DATABASE_URL.
+
+----
+Emaús — registro da publicação
 Atualizado em 06/10/2026, 17:40 (Brasília) = 06/10 20:40 UTC (rodada v25 embalada). Correção de registro que
 precisa ficar dita: os carimbos marcados como "Brasília" nas rodadas v16 (00:58), v17
 (01:20-01:35) e v18 (02:05) foram escritos com o relógio UTC desta bancada, que está 3 h

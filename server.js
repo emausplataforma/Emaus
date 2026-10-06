@@ -121,7 +121,125 @@ function registerLoginFailure(email) {
   if (now - current.firstAt > 15 * 60 * 1000) loginAttempts.set(key, { count: 1, firstAt: now });
   else loginAttempts.set(key, { count: current.count + 1, firstAt: current.firstAt });
 }
+
 function clearLoginFailures(email) { loginAttempts.delete(String(email || '').toLowerCase()); }
+
+const TOTP_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Encode(buffer) {
+  let bits = 0;
+  let value = 0;
+  let output = '';
+  for (const byte of buffer) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += TOTP_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) output += TOTP_ALPHABET[(value << (5 - bits)) & 31];
+  return output;
+}
+
+function base32Decode(text) {
+  const clean = String(text || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+  let bits = 0;
+  let value = 0;
+  const out = [];
+  for (const char of clean) {
+    const idx = TOTP_ALPHABET.indexOf(char);
+    if (idx < 0) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+
+function generateTotpSecret() {
+  return base32Encode(crypto.randomBytes(20));
+}
+
+function hotp(secret, counter) {
+  const key = base32Decode(secret);
+  const buf = Buffer.alloc(8);
+  buf.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+  buf.writeUInt32BE(counter >>> 0, 4);
+  const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  const code = ((hmac[offset] & 0x7f) << 24 | hmac[offset + 1] << 16 | hmac[offset + 2] << 8 | hmac[offset + 3]) % 1000000;
+  return String(code).padStart(6, '0');
+}
+
+function totpAt(secret, ms = Date.now(), step = 30) {
+  return hotp(secret, Math.floor(ms / 1000 / step));
+}
+
+function verifyTotp(secret, code) {
+  const trimmed = String(code || '').replace(/\s/g, '');
+  if (!/^\d{6}$/.test(trimmed) || !secret) return false;
+  const now = Date.now();
+  return [-1, 0, 1].some(delta => totpAt(secret, now + delta * 30000) === trimmed);
+}
+
+function twoFactorKey() {
+  return crypto.createHash('sha256').update(`emaus-2fa:${JWT_SECRET}`).digest();
+}
+
+function encryptTotpSecret(plain) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', twoFactorKey(), iv);
+  const enc = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString('base64');
+}
+
+function decryptTotpSecret(blob) {
+  const buf = Buffer.from(String(blob || ''), 'base64');
+  if (buf.length < 29) throw new Error('segredo 2FA ilegível');
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const enc = buf.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', twoFactorKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+}
+
+function formatTotpSecret(secret) {
+  return String(secret || '').replace(/(.{4})/g, '$1 ').trim();
+}
+
+function generateRecoveryCodes() {
+  return Array.from({ length: 8 }, () => {
+    const raw = crypto.randomBytes(4).toString('hex');
+    return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+  });
+}
+
+async function consumeRecoveryCode(user, code) {
+  const normalized = String(code || '').trim().toLowerCase().replace(/\s/g, '');
+  if (!normalized) return false;
+  const hashes = Array.isArray(user.two_factor_recovery_code_hashes) ? [...user.two_factor_recovery_code_hashes] : [];
+  for (let i = 0; i < hashes.length; i += 1) {
+    if (await bcrypt.compare(normalized, hashes[i])) {
+      hashes.splice(i, 1);
+      await query('UPDATE users SET two_factor_recovery_code_hashes = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(hashes), user.id]);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function pingDatabase() {
+  const started = Date.now();
+  const row = (await query("SELECT NOW() AS now, current_setting('server_version') AS version")).rows[0];
+  return { ok: true, at: row.now, version: row.version, roundtripMs: Date.now() - started };
+}
+
 
 function slugify(value = '') {
   return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `igreja-${Date.now()}`;
@@ -600,8 +718,36 @@ app.post('/api/auth/login', async (req, res) => {
     if (user) await audit(user, 'login_failed', { reason: 'invalid_credentials' }, user.church_id);
     return res.status(401).json({ error: 'Login ou senha inválidos.' });
   }
+  if (user.two_factor_enabled) {
+    const ticket = jwt.sign({ sub: user.id, purpose: '2fa-login', email: user.email }, JWT_SECRET, { expiresIn: '5m' });
+    return res.json({ requiresTwoFactor: true, ticket, user: { name: user.name, email: user.email } });
+  }
   clearLoginFailures(email);
   await audit(user, 'login');
+  res.json({ token: signUser(user), user: safeUser(user) });
+});
+
+app.post('/api/auth/login/2fa', async (req, res) => {
+  const ticket = String(req.body.ticket || '');
+  const code = String(req.body.code || req.body.totp || '');
+  let claims;
+  try { claims = jwt.verify(ticket, JWT_SECRET); } catch (error) {
+    return res.status(401).json({ error: 'O código expirou. Entre com e-mail e senha de novo.' });
+  }
+  if (claims.purpose !== '2fa-login' || !claims.sub) return res.status(401).json({ error: 'Pedido de verificação inválido.' });
+  if (loginRateLimit(claims.email || claims.sub)) return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos.' });
+  const user = (await query('SELECT * FROM users WHERE id = $1 AND status = $2', [claims.sub, 'active'])).rows[0];
+  if (!user || !user.two_factor_enabled) return res.status(401).json({ error: 'A verificação em dois fatores não está ativa.' });
+  let ok = false;
+  try { ok = verifyTotp(decryptTotpSecret(user.two_factor_secret_ciphertext), code); } catch (error) { ok = false; }
+  if (!ok) ok = await consumeRecoveryCode(user, code);
+  if (!ok) {
+    registerLoginFailure(claims.email || user.email);
+    await audit(user, 'login_failed', { reason: 'invalid_2fa' }, user.church_id);
+    return res.status(401).json({ error: 'Código inválido. Use o autenticador ou um código de recuperação.' });
+  }
+  clearLoginFailures(user.email);
+  await audit(user, 'login', { twoFactor: true }, user.church_id);
   res.json({ token: signUser(user), user: safeUser(user) });
 });
 
@@ -610,7 +756,57 @@ app.get('/api/me', auth(), async (req, res) => {
 });
 
 app.get('/api/me/security', auth(), async (req, res) => {
-  res.json({ twoFactor: { enabled: Boolean(req.user.two_factor_enabled), prepared: true, enforced: false, activation: 'guided' } });
+  const twoFactor = {
+    enabled: Boolean(req.user.two_factor_enabled),
+    confirmedAt: req.user.two_factor_confirmed_at || null,
+    recoveryRemaining: Array.isArray(req.user.two_factor_recovery_code_hashes) ? req.user.two_factor_recovery_code_hashes.length : 0
+  };
+  let database = null;
+  if (req.user.role === 'platform_admin') {
+    try { database = await pingDatabase(); }
+    catch (error) { database = { ok: false }; }
+  }
+  res.json({ twoFactor, database });
+});
+
+app.post('/api/me/security/2fa/start', auth(), async (req, res) => {
+  if (req.user.two_factor_enabled) return res.status(400).json({ error: 'A autenticação em dois fatores já está ativa.' });
+  const secret = generateTotpSecret();
+  const ticket = jwt.sign({ sub: req.user.id, purpose: '2fa-setup', secret }, JWT_SECRET, { expiresIn: '10m' });
+  const otpauth = `otpauth://totp/Emaus:${encodeURIComponent(req.user.email)}?secret=${secret}&issuer=Emaus&algorithm=SHA1&digits=6&period=30`;
+  await audit(req.user, 'two_factor_started', {}, req.user.church_id);
+  res.json({ ticket, secret, manualKey: formatTotpSecret(secret), otpauth });
+});
+
+app.post('/api/me/security/2fa/confirm', auth(), async (req, res) => {
+  const ticket = String(req.body.ticket || '');
+  const code = String(req.body.code || '');
+  let claims;
+  try { claims = jwt.verify(ticket, JWT_SECRET); } catch (error) {
+    return res.status(400).json({ error: 'O pedido de ativação expirou. Comece de novo.' });
+  }
+  if (claims.purpose !== '2fa-setup' || claims.sub !== req.user.id || !claims.secret) {
+    return res.status(400).json({ error: 'Pedido de ativação inválido.' });
+  }
+  if (!verifyTotp(claims.secret, code)) return res.status(400).json({ error: 'Código inválido. Confira o autenticador e tente de novo.' });
+  const recovery = generateRecoveryCodes();
+  const hashes = [];
+  for (const item of recovery) hashes.push(await bcrypt.hash(item.toLowerCase(), 8));
+  await query(`UPDATE users SET two_factor_enabled = TRUE, two_factor_secret_ciphertext = $1, two_factor_confirmed_at = NOW(), two_factor_recovery_code_hashes = $2, updated_at = NOW() WHERE id = $3`, [encryptTotpSecret(claims.secret), JSON.stringify(hashes), req.user.id]);
+  await audit(req.user, 'two_factor_enabled', {}, req.user.church_id);
+  res.json({ enabled: true, recoveryCodes: recovery });
+});
+
+app.post('/api/me/security/2fa/disable', auth(), async (req, res) => {
+  if (!req.user.two_factor_enabled) return res.status(400).json({ error: 'A autenticação em dois fatores não está ativa.' });
+  const code = String(req.body.code || '');
+  let ok = false;
+  try { ok = verifyTotp(decryptTotpSecret(req.user.two_factor_secret_ciphertext), code); } catch (error) { ok = false; }
+  if (!ok) ok = await consumeRecoveryCode(req.user, code);
+  if (!ok) return res.status(401).json({ error: 'Código inválido. Use o autenticador ou um código de recuperação.' });
+  await query(`UPDATE users SET two_factor_enabled = FALSE, two_factor_secret_ciphertext = '', two_factor_confirmed_at = NULL, two_factor_recovery_code_hashes = '[]'::jsonb, updated_at = NOW() WHERE id = $1`, [req.user.id]);
+  await audit(req.user, 'two_factor_disabled', {}, req.user.church_id);
+  res.json({ enabled: false });
 });
 
 app.patch('/api/me/profile', auth(), async (req, res) => {

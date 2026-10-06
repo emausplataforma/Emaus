@@ -1,0 +1,145 @@
+Emaús — rodada v26 · ADMINISTRADOR: 2FA DE VERDADE E POSTGRESQL CONECTADO
+Pacote: emaus-admin-seguranca-v26.zip
+Cache do aplicativo: emaus-shell-v95-admin-seguranca
+admin.css?v=63 · admin.js?v=62
+Data: 06/10/2026 (Brasília)
+
+NÃO publicado. Não vai para GitHub nem Railway até você pedir.
+
+
+=========================================================================================
+1. O QUE VOCÊ PEDIU
+=========================================================================================
+
+  “Acertar as coisas que aparece errado ou pendente.”
+
+Na tela Configurações e segurança estavam dois selos que não eram o estado real:
+
+  · Autenticação em dois fatores → “PREPARADA PARA ATIVAÇÃO GUIADA”
+  · Backup PostgreSQL            → “NÃO VERIFICADO”
+
+Os dois fingiam. Esta rodada troca os dois por coisa que a API faz de verdade.
+
+
+=========================================================================================
+2. AUTENTICAÇÃO EM DOIS FATORES
+=========================================================================================
+
+  Configurações e segurança ▸ cartão 2FA
+
+    · Desligada  → botão Ativar
+    · A API gera uma chave TOTP (SHA-1, 6 dígitos, janela de 30 s ± 1)
+    · Você cadastra a chave no autenticador (Google Authenticator, Authy…)
+    · Confirma o código de 6 dígitos → 2FA Ativa
+    · Aparecem 8 códigos de recuperação, uma vez só. Guarde. Cada um vale uma vez.
+    · Para desligar: o código do autenticador (ou um de recuperação)
+
+  O segredo NÃO fica em texto no banco: AES-256-GCM, chave derivada de JWT_SECRET.
+  A chave da tela some depois de confirmar. Não tem como a interface “preparar”
+  o 2FA sem você confirmar o código.
+
+  Login do administrador, quando o 2FA está ativo:
+
+    1. e-mail + senha
+    2. a API devolve um ticket de 5 minutos (ainda sem token)
+    3. aparece o campo “Código 2FA ou de recuperação”
+    4. só então entra
+
+  Rotas novas (server.js — precisa ir para o Railway quando você mandar publicar):
+
+    POST /api/auth/login/2fa
+    POST /api/me/security/2fa/start
+    POST /api/me/security/2fa/confirm
+    POST /api/me/security/2fa/disable
+    GET  /api/me/security   → { twoFactor, database }
+
+
+=========================================================================================
+3. POSTGRESQL — CONECTADO DE VERDADE
+=========================================================================================
+
+  O cartão deixou de se chamar “Backup PostgreSQL”. Backup do provedor a tela
+  não vê, e não vamos inventar snapshot da Railway.
+
+  O que ela faz: SELECT NOW() e a versão do servidor.
+
+    · Conectado  → versão (ex.: 16.4) e o tempo da ida-e-volta em ms
+    · Indisponível → a API não alcançou o banco neste instante
+    · Verificar agora → ping de novo
+
+  O mesmo selo aparece no resumo da Visão geral, no lugar da linha
+  “Backup PostgreSQL / Não verificado”.
+
+
+=========================================================================================
+4. O QUE NÃO MUDOU
+=========================================================================================
+
+  · Teste grátis, desconto %/R$, dias promocionais, gráfico de 12 meses (v25)
+  · Vários pastores por igreja (v14)
+  · Painel da igreja, portaria, página pública — intocados nesta rodada
+    (só o nome do cache do service worker, para o aparelho não ficar no JS velho)
+  · Nenhuma igreja herda marca de outra
+
+
+=========================================================================================
+5. COMO CONFERIR (sem olhar e achar que está certo)
+=========================================================================================
+
+  Na pasta deste zip:
+
+    node teste-admin-seguranca.js
+    node teste-admin-comercial.js
+    node teste-admin-pastores.js
+
+  A bateria inteira (teste-*.js) passou com 0 falha nesta bancada.
+
+  O teste de segurança:
+    · gera um segredo TOTP, confere o código da janela atual, rejeita 000000
+    · cifra e decifra o segredo (ida e volta iguais)
+    · monta a tela Desligada / Ativa / Aguardando confirmação / Conectado
+    · garante que “Preparada para ativação guiada”, “Backup PostgreSQL” e
+      “Não verificado” saíram do admin.js
+
+
+=========================================================================================
+6. ARQUIVOS DESTE PACOTE
+=========================================================================================
+
+  admin.js
+  admin.html
+  admin.css
+  server.js
+  schema.sql
+  billing-mercadopago.js
+  service-worker.js
+  teste-admin-seguranca.js
+  teste-admin-comercial.js
+  teste-admin-pastores.js
+  LEIA-ME-ADMIN-SEGURANCA-v1.txt
+  LEIA-ME-ADMIN-COMERCIAL-v1.txt
+  RELEASE-MANIFEST.txt
+  styles.css · app.js · index.html · recepcao.html · splash.css
+    (iguais à v25; vão no zip para o cache novo não deixar o aparelho
+     com casca velha)
+
+
+=========================================================================================
+7. PUBLICAR — SÓ QUANDO VOCÊ PEDIR
+=========================================================================================
+
+  Esta rodada NÃO foi para o GitHub Pages nem para o Railway.
+
+  Quando for:
+
+    1. GitHub Pages  → admin.html, admin.js, admin.css, service-worker.js
+                       (e a casca: index.html, app.js, styles.css, recepcao.html,
+                       splash.css, se for o pacote inteiro)
+    2. Railway       → server.js e schema.sql
+                       (sem o server.js novo o botão Ativar quebra:
+                       a tela chama rotas que o ar ainda não tem)
+    3. No aparelho   → Ctrl+Shift+R (ou fechar a aba) para pegar o cache v95.
+                       Rede primeiro: o JS velho não deve ficar preso.
+
+  Até lá, a tela no ar continua com “preparada” e “não verificado”.
+  É o ar que está velho, não este zip.

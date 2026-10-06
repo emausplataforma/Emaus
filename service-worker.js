@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emaus-shell-v94-admin-comercial';
+const CACHE_NAME = 'emaus-shell-v95-admin-seguranca';
 const APP_SHELL = ['./', './index.html', './styles.css', './splash.css', './splash.js', './app.js', './api-config.js', './manifest.json', './recepcao.html', './reception.js', './admin.html', './admin.css', './admin.js', './emaus-admin-logo.png', './publica.html', './publica.css', './publica.js', './visita.html', './pagamento.html', './privacidade.html'];
 
 self.addEventListener('install', event => {

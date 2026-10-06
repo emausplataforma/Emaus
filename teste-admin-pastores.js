@@ -92,7 +92,7 @@ function telaDeEdicao(pastors) {
     };
     // renderChurches / addChurch / saveChurchEdit: o painel "+ Adicionar igreja" e as
     // duas gravações com \\r\\n normalizado, que já foram publicados na v14.
-    const PERMITIDAS = new Set(['renderChurchEditForm', 'renderChurches', 'addChurch', 'saveChurchEdit', 'renderChurchCard', 'renderChurchDetail', 'renderChurchTable', 'renderFinance', 'renderChart', 'renderOverview', 'renderKpis', 'renderPlans', 'loadRemoteState', 'mapChurchFromApi', 'handleClick', 'handleSubmit', 'saveExpense', 'savePolicy', 'saveCommercial', 'paidThisMonth', 'profitThisMonth', 'daysLeftInTrial', 'listPriceOf', 'hasDiscount', 'operatingResult']);
+    const PERMITIDAS = new Set(['renderChurchEditForm', 'renderChurches', 'addChurch', 'saveChurchEdit', 'renderChurchCard', 'renderChurchDetail', 'renderChurchTable', 'renderFinance', 'renderChart', 'renderOverview', 'renderKpis', 'renderPlans', 'loadRemoteState', 'loadState', 'mapChurchFromApi', 'handleClick', 'handleSubmit', 'saveExpense', 'savePolicy', 'saveCommercial', 'paidThisMonth', 'profitThisMonth', 'daysLeftInTrial', 'listPriceOf', 'hasDiscount', 'operatingResult', 'showLogin', 'renderSettings', 'refreshSecurity', 'startTwoFactor', 'confirmTwoFactor', 'disableTwoFactor', 'pingDatabaseCard']);
     const meusTopo = topo(admin), topoAr = topo(espelho);
     const mudaramTopo = [...meusTopo.keys()].filter(nome => topoAr.has(nome) && meusTopo.get(nome) !== topoAr.get(nome));
     const novasTopo = [...meusTopo.keys()].filter(nome => !topoAr.has(nome));
@@ -109,7 +109,8 @@ function telaDeEdicao(pastors) {
     for (const [linha, n] of deles) soDeles += Math.max(0, n - (meus.get(linha) || 0));
     check(soMeu + soDeles < 900, 'o administrador cresceu nesta rodada comercial, mas o campo de pastores permanece', `${soMeu} linhas novas e ${soDeles} do ar que saíram, num arquivo de ${admin.split('\n').length} linhas`);
     const h = fs.readFileSync('producao-atual/admin.html', 'utf8');
-    check(adminHtml.replace(/\?v=\d+/g, '') === h.replace(/\?v=\d+/g, ''), 'a página do administrador só ganhou o número de versão dos arquivos', (adminHtml.match(/admin\.(js|css)\?v=\d+/g) || []).join(' · ') || 'sem versão');
+    const semOtp = adminHtml.replace(/\s*<div class="field hidden" id="adminOtpField">[\s\S]*?<\/div>/, '');
+    check(semOtp.replace(/\?v=\d+/g, '') === h.replace(/\?v=\d+/g, ''), 'a página do administrador só ganhou versão e o campo 2FA na entrada', (adminHtml.match(/admin\.(js|css)\?v=\d+/g) || []).join(' · ') || 'sem versão');
   } else {
     console.log('  (pulado: sem cópia do administrador no ar para comparar)');
   }

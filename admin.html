@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111110">
   <meta name="description" content="Emaús — administração da plataforma e das igrejas.">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="admin.css?v=62">
+  <link rel="stylesheet" href="admin.css?v=63">
   <title>Administrador · Emaús</title>
 </head>
 <body>
@@ -22,6 +22,7 @@
       <form class="auth-form" id="adminLoginForm">
         <div class="field"><label for="adminEmail">Login do administrador</label><input id="adminEmail" name="email" type="email" autocomplete="username" placeholder="admin@emaus.com.br" required></div>
         <div class="field"><label for="adminPassword">Senha</label><input id="adminPassword" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required></div>
+        <div class="field hidden" id="adminOtpField"><label for="adminOtp">Código 2FA ou de recuperação</label><input id="adminOtp" name="otp" inputmode="text" autocomplete="one-time-code" placeholder="000000"></div>
         <button class="btn btn-gold" type="submit">Entrar no administrador</button>
         <p class="auth-error hidden" id="adminLoginError"></p>
       </form>
@@ -59,6 +60,6 @@
 
   <div class="toast hidden" id="adminToast"></div>
   <script src="api-config.js"></script>
-  <script src="admin.js?v=61"></script>
+  <script src="admin.js?v=62"></script>
 </body>
 </html>

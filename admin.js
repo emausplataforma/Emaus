@@ -22,6 +22,9 @@ let churchFilter = 'all';
 let filterTimer = null;
 const detailCache = new Map();
 let state = loadState();
+let twoFactorSetup = null;
+let recoveryCodesOnce = null;
+let loginTicket = null;
 
 async function apiRequest(path, options = {}) {
   if (!API_BASE) throw new Error('A URL da API da Emaús não foi configurada.');
@@ -191,7 +194,8 @@ function loadState() {
     audit: [],
     support: [],
     leads: [],
-    security: null
+    security: null,
+    database: null
   };
 }
 
@@ -204,7 +208,7 @@ async function loadRemoteState() {
     optionalApi('/api/audit', { events: [] }),
     optionalApi('/api/admin/support', { requests: [] }),
     optionalApi('/api/admin/leads', { leads: [] }),
-    optionalApi('/api/me/security', { twoFactor: null }),
+    optionalApi('/api/me/security', { twoFactor: null, database: null }),
     optionalApi('/api/admin/policy', { policy: { trialDays: 30 } })
   ]);
 
@@ -223,6 +227,7 @@ async function loadRemoteState() {
   state.support = Array.isArray(supportPayload.requests) ? supportPayload.requests : [];
   state.leads = Array.isArray(leadsPayload.leads) ? leadsPayload.leads : [];
   state.security = securityPayload.twoFactor || null;
+  state.database = securityPayload.database || null;
 
   const transactions = (financePayload.expenses || []).map(item => ({
     id: item.id,
@@ -265,6 +270,11 @@ function isLoggedIn() {
 }
 
 function showLogin() {
+  loginTicket = null;
+  const otpField = document.querySelector('#adminOtpField');
+  const otpInput = document.querySelector('#adminOtp');
+  if (otpField) otpField.classList.add('hidden');
+  if (otpInput) { otpInput.value = ''; otpInput.required = false; }
   document.querySelector('#adminLoginView').classList.remove('hidden');
   document.querySelector('#adminAppView').classList.add('hidden');
 }
@@ -367,7 +377,7 @@ function renderOverview() {
   return `<section class="page-head"><div><span class="eyebrow">CENTRAL DO ADMINISTRADOR</span><h1>Visão geral</h1><p>Organizações, planos, status de assinatura, suporte e segurança da plataforma Emaús.</p></div><div class="page-actions"><button class="btn" data-admin-view="finance">Ver finanças</button><button class="btn btn-gold" data-admin-view="churches">Gerenciar igrejas</button></div></section>
   ${renderPolicyBanner()}
   ${renderKpis()}
-  <div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>Recebido e gastos</h2><p>Últimos 12 meses · só o que está no banco (pagamentos aprovados e gastos lançados).</p></div><div class="legend"><span><i></i>Recebido</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Resumo operacional</h2><p>Sem conciliação fictícia ou números de demonstração.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Recebido neste mês</span><strong>${moneyOrUnavailable(paidThisMonth())}</strong></div><div class="summary-row"><span>Mensalidade cadastrada (previsto)</span><strong>${moneyOrUnavailable(revenue)}</strong></div><div class="summary-row"><span>Gastos registrados no mês</span><strong class="negative">${moneyOrUnavailable(expense)}</strong></div><div class="summary-row"><span>Lucro do mês</span><strong class="positive">${moneyOrUnavailable(profitThisMonth())}</strong></div><div class="summary-row"><span>Contas bloqueadas</span><strong>${countOrUnavailable(blocked)}</strong></div><div class="summary-row"><span>Backup PostgreSQL</span><strong>Não verificado</strong></div></div></div></section></div>
+  <div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>Recebido e gastos</h2><p>Últimos 12 meses · só o que está no banco (pagamentos aprovados e gastos lançados).</p></div><div class="legend"><span><i></i>Recebido</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Resumo operacional</h2><p>Sem conciliação fictícia ou números de demonstração.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Recebido neste mês</span><strong>${moneyOrUnavailable(paidThisMonth())}</strong></div><div class="summary-row"><span>Mensalidade cadastrada (previsto)</span><strong>${moneyOrUnavailable(revenue)}</strong></div><div class="summary-row"><span>Gastos registrados no mês</span><strong class="negative">${moneyOrUnavailable(expense)}</strong></div><div class="summary-row"><span>Lucro do mês</span><strong class="positive">${moneyOrUnavailable(profitThisMonth())}</strong></div><div class="summary-row"><span>Contas bloqueadas</span><strong>${countOrUnavailable(blocked)}</strong></div><div class="summary-row"><span>PostgreSQL</span><strong>${state.database && state.database.ok ? `Conectado · ${esc(state.database.version || '')}`.trim() : (state.database ? 'Indisponível' : 'Não consultado')}</strong></div></div></div></section></div>
   <section class="panel church-card-section"><div class="panel-head"><div><h2>Igrejas da plataforma</h2><p>Cartões resumidos por organização, com acesso aos detalhes e ações administrativas.</p></div><button class="btn btn-small" data-admin-view="churches">Ver todas</button></div><div class="panel-body">${renderChurchCards(recent)}</div></section>${renderPipelineSummary()}`;
 }
 
@@ -513,9 +523,41 @@ function renderSupportRequest(request) {
 
 function renderSettings() {
   const security = state.security;
-  const twoFactorText = security?.enabled ? 'Ativa' : security?.prepared ? 'Preparada para ativação guiada' : 'Indisponível';
+  const database = state.database;
+  const enabled = Boolean(security?.enabled);
+  const twoFactorText = enabled ? 'Ativa' : twoFactorSetup ? 'Aguardando confirmação' : 'Desligada';
+  const twoFactorStatus = enabled ? 'active' : twoFactorSetup ? 'pending' : 'pending';
+  const remaining = Number(security?.recoveryRemaining || 0);
+  const dbOk = Boolean(database && database.ok);
+  const dbTried = database !== null && database !== undefined;
+  const dbText = dbOk ? 'Conectado' : dbTried ? 'Indisponível' : 'Não consultado';
+  const dbStatus = dbOk ? 'active' : 'blocked';
+  const recoveryBlock = recoveryCodesOnce && recoveryCodesOnce.length ? `<section class="panel recovery-panel"><div class="panel-head"><div><h2>Códigos de recuperação</h2><p>Guarde agora. Eles não voltam a aparecer. Cada um só vale uma vez.</p></div><button class="table-btn" type="button" data-admin-action="dismiss-recovery">Já anotei</button></div><div class="panel-body"><ol class="recovery-codes">${recoveryCodesOnce.map(code => `<li><code>${esc(code)}</code></li>`).join('')}</ol></div></section>` : '';
+  let twoFactorBody = '';
+  if (enabled) {
+    twoFactorBody = `<p>Confirmada em ${esc(formatDateTime(security.confirmedAt))}. Restam ${number(remaining)} código${remaining === 1 ? '' : 's'} de recuperação.</p>
+      <form class="setting-form" data-admin-form="two-factor-disable">
+        <label class="field"><span>Código do autenticador ou de recuperação</span><input name="code" inputmode="text" autocomplete="one-time-code" placeholder="000000" required></label>
+        <button class="table-btn" type="submit">Desativar</button>
+      </form>`;
+  } else if (twoFactorSetup) {
+    twoFactorBody = `<p>Cadastre esta chave no autenticador (Google Authenticator, Authy) e confirme o código de 6 dígitos. A chave some depois de ativar.</p>
+      <p class="secret-key">${esc(twoFactorSetup.manualKey || twoFactorSetup.secret || '')}</p>
+      <p class="otpauth-uri"><code>${esc(twoFactorSetup.otpauth || '')}</code></p>
+      <form class="setting-form" data-admin-form="two-factor-confirm">
+        <label class="field"><span>Código de 6 dígitos</span><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" required></label>
+        <div class="setting-form-actions"><button class="table-btn gold" type="submit">Confirmar e ativar</button><button class="table-btn" type="button" data-admin-action="two-factor-cancel">Cancelar</button></div>
+      </form>`;
+  } else {
+    twoFactorBody = `<p>O login deste administrador passa a pedir um código de 6 dígitos, além da senha. A chave fica cifrada no banco e não é exibida de novo.</p>
+      <button class="table-btn gold" type="button" data-admin-action="two-factor-start">Ativar</button>`;
+  }
+  const dbBody = dbOk
+    ? `<p>PostgreSQL ${esc(database.version || '')} respondeu em ${number(database.roundtripMs)} ms · ${esc(formatDateTime(database.at))}. Isto confirma a conexão agora; não substitui o backup do provedor.</p>`
+    : `<p>${dbTried ? 'A API não alcançou o banco neste instante.' : 'Ainda não houve consulta.'} O selo só muda depois de um ping real (SELECT NOW()). Não inventamos snapshot de backup.</p>`;
   return `<section class="page-head"><div><span class="eyebrow">CONTROLE CENTRAL</span><h1>Configurações e segurança</h1><p>Visão segura das integrações administrativas. Credenciais e segredos não são exibidos nesta interface.</p></div></section>
-  <div class="settings-grid"><article class="setting-card"><span class="setting-icon">2F</span><div><h2>Autenticação em dois fatores</h2><p>${esc(twoFactorText)}. A ativação completa deve ser concluída pelo fluxo seguro da API.</p></div><span class="status ${security?.enabled ? 'active' : 'pending'}">${esc(twoFactorText)}</span></article><article class="setting-card"><span class="setting-icon">◎</span><div><h2>Isolamento multi-igreja</h2><p>Cada consulta administrativa usa o identificador da igreja; detalhes, fila, consentimentos e auditoria permanecem vinculados à organização.</p></div><span class="status active">Ativo</span></article><article class="setting-card"><span class="setting-icon">DB</span><div><h2>Backup PostgreSQL</h2><p>O estado do backup não é inventado pela interface. Verifique o provedor e a política operacional antes de considerar o backup confirmado.</p></div><span class="status pending">Não verificado</span></article><article class="setting-card"><span class="setting-icon">API</span><div><h2>API da Emaús</h2><p>O administrador usa somente a API Railway configurada no frontend. Não há envio direto do navegador para provedores de mensagens.</p></div><span class="status active">Conectada</span></article></div>
+  ${recoveryBlock}
+  <div class="settings-grid"><article class="setting-card ${twoFactorSetup || enabled ? 'span-2' : ''}"><span class="setting-icon">2F</span><div><h2>Autenticação em dois fatores</h2>${twoFactorBody}</div><span class="status ${twoFactorStatus}">${esc(twoFactorText)}</span></article><article class="setting-card"><span class="setting-icon">◎</span><div><h2>Isolamento multi-igreja</h2><p>Cada consulta administrativa usa o identificador da igreja; detalhes, fila, consentimentos e auditoria permanecem vinculados à organização.</p></div><span class="status active">Ativo</span></article><article class="setting-card"><span class="setting-icon">DB</span><div><h2>PostgreSQL</h2>${dbBody}<button class="table-btn" type="button" data-admin-action="ping-database">Verificar agora</button></div><span class="status ${dbStatus}">${esc(dbText)}</span></article><article class="setting-card"><span class="setting-icon">API</span><div><h2>API da Emaús</h2><p>O administrador usa somente a API Railway configurada no frontend. Não há envio direto do navegador para provedores de mensagens.</p></div><span class="status active">Conectada</span></article></div>
   <section class="panel audit-panel"><div class="panel-head"><div><h2>Auditoria administrativa</h2><p>Histórico real retornado pela API, sem credenciais ou tokens.</p></div><span class="status active">${number(state.audit.length)} eventos</span></div><div class="panel-body"><div class="audit-list">${state.audit.length ? state.audit.map(event => `<div class="audit-item"><span class="activity-dot"></span><div><strong>${esc(event.action || 'Evento')}</strong><small>Igreja: ${esc(event.church_id || 'plataforma')} · ${formatDateTime(event.created_at)}</small></div><code>${esc(JSON.stringify(event.payload || {}))}</code></div>`).join('') : '<div class="empty">Nenhum evento de auditoria retornado.</div>'}</div></div></section>`;
 }
 
@@ -766,6 +808,72 @@ function handleChange(event) {
   }
 }
 
+async function refreshSecurity() {
+  const payload = await optionalApi('/api/me/security', { twoFactor: null, database: null });
+  state.security = payload.twoFactor || null;
+  state.database = payload.database || null;
+}
+
+async function startTwoFactor() {
+  try {
+    twoFactorSetup = await apiRequest('/api/me/security/2fa/start', { method: 'POST', body: {} });
+    recoveryCodesOnce = null;
+    render();
+    toast('Abra o autenticador e confirme o código de 6 dígitos.');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function confirmTwoFactor(form) {
+  const data = new FormData(form);
+  const code = String(data.get('code') || '').trim();
+  if (!twoFactorSetup || !twoFactorSetup.ticket) {
+    toast('Comece a ativação de novo.');
+    return;
+  }
+  try {
+    const payload = await apiRequest('/api/me/security/2fa/confirm', { method: 'POST', body: { ticket: twoFactorSetup.ticket, code } });
+    twoFactorSetup = null;
+    recoveryCodesOnce = Array.isArray(payload.recoveryCodes) ? payload.recoveryCodes : [];
+    await refreshSecurity();
+    render();
+    toast('Autenticação em dois fatores ativa. Guarde os códigos de recuperação.');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function disableTwoFactor(form) {
+  const data = new FormData(form);
+  const code = String(data.get('code') || '').trim();
+  if (!code) {
+    toast('Informe o código do autenticador ou um código de recuperação.');
+    return;
+  }
+  if (!window.confirm('Desativar a autenticação em dois fatores deste administrador?')) return;
+  try {
+    await apiRequest('/api/me/security/2fa/disable', { method: 'POST', body: { code } });
+    twoFactorSetup = null;
+    recoveryCodesOnce = null;
+    await refreshSecurity();
+    render();
+    toast('Autenticação em dois fatores desativada.');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function pingDatabaseCard() {
+  try {
+    await refreshSecurity();
+    render();
+    toast(state.database && state.database.ok ? 'PostgreSQL respondeu agora.' : 'O banco não respondeu.');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
 function handleClick(event) {
   const nav = event.target.closest('[data-admin-view]');
   if (nav) { event.preventDefault(); setView(nav.dataset.adminView); return; }
@@ -784,7 +892,11 @@ function handleClick(event) {
   if (type === 'focus-expense') { document.querySelector('#expenseDescription')?.focus(); return; }
   if (type === 'support-status') { updateSupportStatus(action.dataset.id, action.dataset.status); return; }
   if (type === 'clear-discount') { saveCommercial({ id: action.dataset.id }, 'clear-discount'); return; }
-  if (type === 'end-trial') { saveCommercial({ id: action.dataset.id }, 'end-trial'); }
+  if (type === 'end-trial') { saveCommercial({ id: action.dataset.id }, 'end-trial'); return; }
+  if (type === 'two-factor-start') { startTwoFactor(); return; }
+  if (type === 'two-factor-cancel') { twoFactorSetup = null; render(); return; }
+  if (type === 'dismiss-recovery') { recoveryCodesOnce = null; render(); return; }
+  if (type === 'ping-database') { pingDatabaseCard(); }
 }
 
 async function handleSubmit(event) {
@@ -803,6 +915,7 @@ async function handleSubmit(event) {
     const data = new FormData(form);
     const email = String(data.get('email') || '').trim().toLowerCase();
     const password = String(data.get('password') || '');
+    const otp = String(data.get('otp') || '').trim();
     const error = document.querySelector('#adminLoginError');
     const button = form.querySelector('button[type="submit"]');
     if (!email || !password) {
@@ -810,10 +923,32 @@ async function handleSubmit(event) {
       error.classList.remove('hidden');
       return;
     }
+    if (loginTicket && !otp) {
+      error.textContent = 'Digite o código do autenticador ou um código de recuperação.';
+      error.classList.remove('hidden');
+      return;
+    }
     button.disabled = true;
     button.textContent = 'Conectando...';
     try {
-      const payload = await apiRequest('/api/auth/login', { method: 'POST', body: { email, password } });
+      let payload;
+      if (loginTicket) {
+        payload = await apiRequest('/api/auth/login/2fa', { method: 'POST', body: { ticket: loginTicket, code: otp } });
+      } else {
+        payload = await apiRequest('/api/auth/login', { method: 'POST', body: { email, password } });
+        if (payload.requiresTwoFactor && payload.ticket) {
+          loginTicket = payload.ticket;
+          const field = document.querySelector('#adminOtpField');
+          const input = document.querySelector('#adminOtp');
+          if (field) field.classList.remove('hidden');
+          if (input) { input.required = true; input.focus(); }
+          error.textContent = 'Digite o código do autenticador (ou um código de recuperação).';
+          error.classList.remove('hidden');
+          return;
+        }
+      }
+      if (!payload.token) throw new Error('A API não devolveu o acesso.');
+      loginTicket = null;
       sessionStorage.setItem(ADMIN_TOKEN_KEY, payload.token);
       sessionStorage.setItem(ADMIN_USER_KEY, JSON.stringify(payload.user || {}));
       await loadRemoteState();
@@ -822,6 +957,13 @@ async function handleSubmit(event) {
     } catch (loginError) {
       sessionStorage.removeItem(ADMIN_TOKEN_KEY);
       sessionStorage.removeItem(ADMIN_USER_KEY);
+      if (/expirou/i.test(loginError.message || '')) {
+        loginTicket = null;
+        const field = document.querySelector('#adminOtpField');
+        const input = document.querySelector('#adminOtp');
+        if (field) field.classList.add('hidden');
+        if (input) { input.value = ''; input.required = false; }
+      }
       error.textContent = loginError.message || 'Não foi possível conectar à API da Emaús.';
       error.classList.remove('hidden');
     } finally {
@@ -830,6 +972,8 @@ async function handleSubmit(event) {
     }
     return;
   }
+  if (type === 'two-factor-confirm') { await confirmTwoFactor(form); return; }
+  if (type === 'two-factor-disable') { await disableTwoFactor(form); return; }
   if (type === 'church') await addChurch(form);
   if (type === 'edit-church') await saveChurchEdit(form);
   if (type === 'plans') await savePlans(form);

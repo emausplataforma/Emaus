@@ -103,7 +103,7 @@ check(/Recebido:/.test(htmlChart) && /Gastos:/.test(htmlChart), 'cada barra diz 
 check(!/18,4%|12,8%|47,4%/.test(admin), 'nenhum percentual de demonstração no administrador');
 
 console.log('\n===== 6) cache da área administrativa =====');
-check(/admin\.css\?v=62/.test(html) && /admin\.js\?v=61/.test(html), 'a página chama os arquivos com versão nova', (html.match(/admin\.(js|css)\?v=\d+/g) || []).join(' · '));
+check(/admin\.css\?v=63/.test(html) && /admin\.js\?v=62/.test(html), 'a página chama os arquivos com versão nova', (html.match(/admin\.(js|css)\?v=\d+/g) || []).join(' · '));
 
 console.log(`\n${falhas ? 'FALHA' : '  OK    '} ${falhas ? falhas + ' falha(s)' : 'todas as conferências'} — comercial do administrador`);
 if (falhas) process.exitCode = 1;
