@@ -152,6 +152,9 @@ function mapChurchFromApi(church) {
     nextDue: church.trial_ends_at ? formatDate(church.trial_ends_at) : '—',
     founderPriceFreeze: Boolean(church.founder_price_freeze),
     founderPlanPrice: church.founder_plan_price_cents === null || church.founder_plan_price_cents === undefined ? null : Number(church.founder_plan_price_cents) / 100,
+    discountPercent: Number(church.discount_percent || 0),
+    discountCents: Number(church.discount_cents || 0),
+    discountNote: church.discount_note || '',
     slug: church.slug,
     createdAt: church.created_at,
     updatedAt: church.updated_at
@@ -193,7 +196,7 @@ function loadState() {
 }
 
 async function loadRemoteState() {
-  const [summaryPayload, churchPayload, plansPayload, financePayload, auditPayload, supportPayload, leadsPayload, securityPayload] = await Promise.all([
+  const [summaryPayload, churchPayload, plansPayload, financePayload, auditPayload, supportPayload, leadsPayload, securityPayload, policyPayload] = await Promise.all([
     apiRequest('/api/admin/summary'),
     apiRequest('/api/admin/churches'),
     apiRequest('/api/admin/plans'),
@@ -201,13 +204,16 @@ async function loadRemoteState() {
     optionalApi('/api/audit', { events: [] }),
     optionalApi('/api/admin/support', { requests: [] }),
     optionalApi('/api/admin/leads', { leads: [] }),
-    optionalApi('/api/me/security', { twoFactor: null })
+    optionalApi('/api/me/security', { twoFactor: null }),
+    optionalApi('/api/admin/policy', { policy: { trialDays: 30 } })
   ]);
 
   state.summary = {
     churches: summaryPayload.churches || {},
     monthlyRevenue: summaryPayload.monthlyRevenue === undefined ? null : Number(summaryPayload.monthlyRevenue),
     monthlyExpenses: summaryPayload.monthlyExpenses === undefined ? null : Number(summaryPayload.monthlyExpenses),
+    paidThisMonth: summaryPayload.paidThisMonth === undefined ? null : Number(summaryPayload.paidThisMonth),
+    profitThisMonth: summaryPayload.profitThisMonth === undefined ? null : Number(summaryPayload.profitThisMonth),
     activePeople: summaryPayload.activePeople === undefined ? null : Number(summaryPayload.activePeople)
   };
   state.platformPlans = (plansPayload.plans || []).map(mapPlanFromApi);
@@ -225,13 +231,20 @@ async function loadRemoteState() {
     amount: item.amount === undefined ? (item.amount_cents === undefined ? null : Number(item.amount_cents) / 100) : Number(item.amount),
     date: item.expense_date ? formatDate(`${item.expense_date}T12:00:00`) : formatDateTime(item.created_at)
   }));
+  const apiMonths = Array.isArray(financePayload.months) ? financePayload.months : [];
   const revenue = state.summary.monthlyRevenue;
   const expense = state.summary.monthlyExpenses;
   state.platformFinance = {
-    months: revenue === null && expense === null ? [] : [{ label: currentMonthLabel(), income: revenue, expense }],
+    months: apiMonths.length ? apiMonths.map(month => ({
+      key: month.key,
+      label: month.label,
+      income: month.income === undefined || month.income === null ? 0 : Number(month.income),
+      expense: month.expense === undefined || month.expense === null ? 0 : Number(month.expense),
+      profit: month.profit === undefined || month.profit === null ? Number(month.income || 0) - Number(month.expense || 0) : Number(month.profit)
+    })) : (revenue === null && expense === null ? [] : [{ label: currentMonthLabel(), income: revenue, expense, profit: (revenue || 0) - (expense || 0) }]),
     transactions
   };
-  state.platformPolicy = clone(EMPTY_POLICY);
+  state.platformPolicy = { trialDays: Number(policyPayload.policy?.trialDays) || 30 };
   render();
 }
 
@@ -280,6 +293,33 @@ function operatingResult() {
   return revenue === null || expense === null ? null : revenue - expense;
 }
 
+function paidThisMonth() {
+  return state.summary && state.summary.paidThisMonth !== null && state.summary.paidThisMonth !== undefined ? state.summary.paidThisMonth : null;
+}
+
+function profitThisMonth() {
+  if (state.summary && state.summary.profitThisMonth !== null && state.summary.profitThisMonth !== undefined) return state.summary.profitThisMonth;
+  const paid = paidThisMonth();
+  const expense = currentExpenses();
+  return paid === null || expense === null ? null : paid - expense;
+}
+
+function daysLeftInTrial(church) {
+  if (!church?.trialEndsAt) return null;
+  const ends = new Date(church.trialEndsAt).getTime();
+  if (Number.isNaN(ends)) return null;
+  return Math.ceil((ends - Date.now()) / 86400000);
+}
+
+function listPriceOf(church) {
+  const plan = getPlan(church.plan);
+  return plan ? Number(plan.price) : null;
+}
+
+function hasDiscount(church) {
+  return Number(church.discountPercent || 0) > 0 || Number(church.discountCents || 0) > 0;
+}
+
 function monthMax() {
   const values = state.platformFinance.months.flatMap(month => [Number(month.income || 0), Number(month.expense || 0)]).filter(Number.isFinite);
   return Math.max(...values, 1);
@@ -293,8 +333,8 @@ function renderKpis() {
   const result = operatingResult();
   return `<div class="kpi-grid">
     <article class="kpi-card"><span class="kpi-icon">◈</span><small>Igrejas ativas</small><strong>${countOrUnavailable(active)}</strong><span>${countOrUnavailable(total)} organizações no banco</span></article>
-    <article class="kpi-card copper"><span class="kpi-icon">R$</span><small>Receita mensal prevista</small><strong>${moneyOrUnavailable(recurringRevenue())}</strong><span>valor cadastrado para igrejas ativas</span></article>
-    <article class="kpi-card green"><span class="kpi-icon">↑</span><small>Resultado operacional</small><strong>${moneyOrUnavailable(result)}</strong><span>receita menos gastos do mês</span></article>
+    <article class="kpi-card copper"><span class="kpi-icon">R$</span><small>Recebido neste mês</small><strong>${moneyOrUnavailable(paidThisMonth())}</strong><span>pagamentos aprovados · previsto ${moneyOrUnavailable(recurringRevenue())}</span></article>
+    <article class="kpi-card green"><span class="kpi-icon">↑</span><small>Lucro do mês</small><strong>${moneyOrUnavailable(profitThisMonth())}</strong><span>recebido menos gastos registrados</span></article>
     <article class="kpi-card blue"><span class="kpi-icon">◎</span><small>Pessoas ativas</small><strong>${countOrUnavailable(people)}</strong><span>somatório retornado pela API</span></article>
   </div>`;
 }
@@ -303,7 +343,7 @@ function renderChart() {
   const months = state.platformFinance.months;
   if (!months.length || months.every(month => month.income === null && month.expense === null)) return '<div class="empty">Histórico financeiro mensal indisponível. Os valores aparecem somente quando registrados no banco.</div>';
   const max = monthMax();
-  return `<div class="chart">${months.map(month => `<div class="chart-column"><div class="chart-bars"><i class="chart-bar" style="height:${month.income === null ? 4 : Math.max(4, Number(month.income || 0) / max * 100)}%" title="Receita: ${esc(moneyOrUnavailable(month.income))}"></i><i class="chart-bar expense" style="height:${month.expense === null ? 4 : Math.max(4, Number(month.expense || 0) / max * 100)}%" title="Gastos: ${esc(moneyOrUnavailable(month.expense))}"></i></div></div>`).join('')}</div><div class="chart-labels">${months.map(month => `<span>${esc(month.label)}</span>`).join('')}</div>`;
+  return `<div class="chart chart-wide">${months.map(month => `<div class="chart-column"><div class="chart-bars"><i class="chart-bar" style="height:${Math.max(4, Number(month.income || 0) / max * 100)}%" title="Recebido: ${esc(money(month.income || 0))}"></i><i class="chart-bar expense" style="height:${Math.max(4, Number(month.expense || 0) / max * 100)}%" title="Gastos: ${esc(money(month.expense || 0))}"></i></div></div>`).join('')}</div><div class="chart-labels">${months.map(month => `<span>${esc(month.label)}</span>`).join('')}</div>`;
 }
 
 function renderPolicyBanner() {
@@ -327,7 +367,7 @@ function renderOverview() {
   return `<section class="page-head"><div><span class="eyebrow">CENTRAL DO ADMINISTRADOR</span><h1>Visão geral</h1><p>Organizações, planos, status de assinatura, suporte e segurança da plataforma Emaús.</p></div><div class="page-actions"><button class="btn" data-admin-view="finance">Ver finanças</button><button class="btn btn-gold" data-admin-view="churches">Gerenciar igrejas</button></div></section>
   ${renderPolicyBanner()}
   ${renderKpis()}
-  <div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>Receita e gastos</h2><p>Mês atual · valores retornados pelo banco.</p></div><div class="legend"><span><i></i>Receita</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Resumo operacional</h2><p>Sem conciliação fictícia ou números de demonstração.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Receita mensal prevista</span><strong>${moneyOrUnavailable(revenue)}</strong></div><div class="summary-row"><span>Gastos registrados no mês</span><strong class="negative">${moneyOrUnavailable(expense)}</strong></div><div class="summary-row"><span>Resultado operacional</span><strong class="positive">${moneyOrUnavailable(result)}</strong></div><div class="summary-row"><span>Contas bloqueadas</span><strong>${countOrUnavailable(blocked)}</strong></div><div class="summary-row"><span>Backup PostgreSQL</span><strong>Não verificado</strong></div></div></div></section></div>
+  <div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>Recebido e gastos</h2><p>Últimos 12 meses · só o que está no banco (pagamentos aprovados e gastos lançados).</p></div><div class="legend"><span><i></i>Recebido</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Resumo operacional</h2><p>Sem conciliação fictícia ou números de demonstração.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Recebido neste mês</span><strong>${moneyOrUnavailable(paidThisMonth())}</strong></div><div class="summary-row"><span>Mensalidade cadastrada (previsto)</span><strong>${moneyOrUnavailable(revenue)}</strong></div><div class="summary-row"><span>Gastos registrados no mês</span><strong class="negative">${moneyOrUnavailable(expense)}</strong></div><div class="summary-row"><span>Lucro do mês</span><strong class="positive">${moneyOrUnavailable(profitThisMonth())}</strong></div><div class="summary-row"><span>Contas bloqueadas</span><strong>${countOrUnavailable(blocked)}</strong></div><div class="summary-row"><span>Backup PostgreSQL</span><strong>Não verificado</strong></div></div></div></section></div>
   <section class="panel church-card-section"><div class="panel-head"><div><h2>Igrejas da plataforma</h2><p>Cartões resumidos por organização, com acesso aos detalhes e ações administrativas.</p></div><button class="btn btn-small" data-admin-view="churches">Ver todas</button></div><div class="panel-body">${renderChurchCards(recent)}</div></section>${renderPipelineSummary()}`;
 }
 
@@ -349,7 +389,7 @@ function renderChurchCard(church) {
   const members = church.memberCount;
   const declarado = members !== null && members !== undefined;
   const percentage = limit && members !== null ? Math.min(100, Math.max(0, members / limit * 100)) : null;
-  return `<article class="church-card"><div class="church-card-head"><div class="church-cell"><div class="church-avatar">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)}</small></div></div>${statusBadge(church)}</div><div class="church-card-plan"><span>${esc(churchPlanLabel(church))}</span><strong>${moneyOrUnavailable(church.monthlyValue)}<small>/mês</small></strong></div><div class="church-card-stats"><div><small>${declarado ? 'Pessoas (declarado)' : 'Pessoas'}</small><strong>${countOrUnavailable(members)}</strong></div><div><small>Limite</small><strong>${countOrUnavailable(limit)}</strong></div><div><small>Teste/assinatura</small><strong>${esc(church.billingStatus)}</strong></div></div>${percentage === null ? '<div class="meter unavailable-meter"></div>' : `<div class="member-meter"><div class="member-meter-line"><span>Uso do plano</span><strong>${Math.round(percentage)}%</strong></div><p class="member-meter-note">o percentual usa o número informado pela igreja, não uma contagem do cadastro</p><div class="meter"><i style="width:${percentage}%"></i></div></div>`}<div class="church-card-actions"><button class="table-btn gold" data-admin-action="view-church" data-id="${esc(church.id)}">Ver detalhes</button><button class="table-btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar</button></div></article>`;
+  return `<article class="church-card"><div class="church-card-head"><div class="church-cell"><div class="church-avatar">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)}</small></div></div>${statusBadge(church)}</div><div class="church-card-plan"><span>${esc(churchPlanLabel(church))}${hasDiscount(church) ? ` · −${esc(String(church.discountPercent || 0))}%` : ''}</span><strong>${moneyOrUnavailable(church.monthlyValue)}<small>/mês</small></strong></div><div class="church-card-stats"><div><small>${declarado ? 'Pessoas (declarado)' : 'Pessoas'}</small><strong>${countOrUnavailable(members)}</strong></div><div><small>Limite</small><strong>${countOrUnavailable(limit)}</strong></div><div><small>Teste/assinatura</small><strong>${esc(churchStatus(church).label === 'Em teste' ? (daysLeftInTrial(church) !== null ? `Teste · ${daysLeftInTrial(church)}d` : 'Em teste') : church.billingStatus)}</strong></div></div>${percentage === null ? '<div class="meter unavailable-meter"></div>' : `<div class="member-meter"><div class="member-meter-line"><span>Uso do plano</span><strong>${Math.round(percentage)}%</strong></div><p class="member-meter-note">o percentual usa o número informado pela igreja, não uma contagem do cadastro</p><div class="meter"><i style="width:${percentage}%"></i></div></div>`}<div class="church-card-actions"><button class="table-btn gold" data-admin-action="view-church" data-id="${esc(church.id)}">Ver detalhes</button><button class="table-btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar</button></div></article>`;
 }
 
 function renderChurchCards(churches) {
@@ -389,15 +429,16 @@ function renderChurches() {
   const filtered = filteredChurches();
   const editing = state.churches.find(church => church.id === editChurchId);
   return `<section class="page-head"><div><span class="eyebrow">ORGANIZAÇÕES</span><h1>Igrejas cadastradas</h1><p>Cadastre, edite, ative, pause, bloqueie e consulte cada organização sem misturar dados entre igrejas.</p></div><div class="page-actions"><button class="btn btn-gold" data-admin-action="toggle-add-church">${addChurchOpen ? 'Fechar cadastro' : '+ Adicionar igreja'}</button></div></section>
-  ${addChurchOpen ? `<section class="add-panel"><div class="panel-kicker">NOVA ORGANIZAÇÃO</div><h3>Cadastrar igreja</h3><p>O cadastro é criado na API central e recebe o plano escolhido. O período de teste só é exibido quando estiver registrado pela API.</p><form data-admin-form="church"><div class="form-grid"><div class="field"><label for="newChurchName">Nome da igreja *</label><input id="newChurchName" name="name" required placeholder="Ex.: Igreja Esperança"></div><div class="field"><label for="newChurchCity">Cidade e estado</label><input id="newChurchCity" name="city" placeholder="Ex.: Niterói • RJ"></div><div class="field"><label for="newChurchPlan">Plano inicial</label><select id="newChurchPlan" name="plan" ${state.platformPlans.length ? '' : 'disabled'}>${state.platformPlans.length ? state.platformPlans.map(plan => `<option value="${esc(plan.id)}">${esc(plan.name)} · ${money(plan.price)}/mês · até ${number(plan.members)} pessoas</option>`).join('') : '<option>Nenhum plano disponível</option>'}</select></div><div class="field full"><label for="newChurchAdmin">Pastor(es) responsável(is)</label><textarea id="newChurchAdmin" name="admin" rows="2" placeholder="Um nome por linha"></textarea><small class="muted-inline">Pode ser mais de um: um nome por linha.</small></div></div><div class="form-actions"><button type="button" class="btn" data-admin-action="toggle-add-church">Cancelar</button><button type="submit" class="btn btn-gold" ${state.platformPlans.length ? '' : 'disabled'}>Salvar igreja</button></div></form></section>` : ''}
+  ${addChurchOpen ? `<section class="add-panel"><div class="panel-kicker">NOVA ORGANIZAÇÃO</div><h3>Cadastrar igreja</h3><p>O cadastro é criado na API central e recebe o plano escolhido. O período de teste só é exibido quando estiver registrado pela API.</p><form data-admin-form="church"><div class="form-grid"><div class="field"><label for="newChurchName">Nome da igreja *</label><input id="newChurchName" name="name" required placeholder="Ex.: Igreja Esperança"></div><div class="field"><label for="newChurchCity">Cidade e estado</label><input id="newChurchCity" name="city" placeholder="Ex.: Niterói • RJ"></div><div class="field"><label for="newChurchPlan">Plano inicial</label><select id="newChurchPlan" name="plan" ${state.platformPlans.length ? '' : 'disabled'}>${state.platformPlans.length ? state.platformPlans.map(plan => `<option value="${esc(plan.id)}">${esc(plan.name)} · ${money(plan.price)}/mês · até ${number(plan.members)} pessoas</option>`).join('') : '<option>Nenhum plano disponível</option>'}</select></div><div class="field"><label for="newChurchTrial">Dias de teste grátis</label><input id="newChurchTrial" name="trialDays" type="number" min="1" max="365" value="${esc(state.platformPolicy.trialDays || 30)}"><small class="muted-inline">Padrão da plataforma: ${esc(state.platformPolicy.trialDays || 30)} dias. Pode mudar só nesta igreja.</small></div><div class="field full"><label for="newChurchAdmin">Pastor(es) responsável(is)</label><textarea id="newChurchAdmin" name="admin" rows="2" placeholder="Um nome por linha"></textarea><small class="muted-inline">Pode ser mais de um: um nome por linha.</small></div></div><div class="form-actions"><button type="button" class="btn" data-admin-action="toggle-add-church">Cancelar</button><button type="submit" class="btn btn-gold" ${state.platformPlans.length ? '' : 'disabled'}>Salvar igreja</button></div></form></section>` : ''}
   ${renderChurchEditForm(editing)}
   <section class="panel"><div class="panel-head"><div><h2>Todas as organizações</h2><p>${number(filtered.length)} resultado${filtered.length === 1 ? '' : 's'} de ${number(state.churches.length)} igrejas carregadas da API.</p></div><span class="status active">${number(activeChurches().length)} ativas</span></div><div class="panel-body"><form class="filter-bar" data-admin-form="church-filter"><div class="field"><label for="churchSearch">Buscar igreja</label><input id="churchSearch" name="query" value="${esc(churchQuery)}" placeholder="Nome, cidade ou slug"></div><div class="field"><label for="churchStatusFilter">Status</label><select id="churchStatusFilter" name="status"><option value="all" ${churchFilter === 'all' ? 'selected' : ''}>Todos</option><option value="active" ${churchFilter === 'active' ? 'selected' : ''}>Ativas</option><option value="trial" ${churchFilter === 'trial' ? 'selected' : ''}>Em teste</option><option value="expired" ${churchFilter === 'expired' ? 'selected' : ''}>Vencidas</option><option value="paused" ${churchFilter === 'paused' ? 'selected' : ''}>Pausadas</option><option value="blocked" ${churchFilter === 'blocked' ? 'selected' : ''}>Bloqueadas</option></select></div><button type="submit" class="btn">Aplicar filtros</button></form><div class="table-wrap">${renderChurchTable(filtered)}</div></div></section>`;
 }
 
 function renderPlans() {
   if (!state.platformPlans.length) return `<section class="page-head"><div><span class="eyebrow">MONETIZAÇÃO</span><h1>Planos e preços</h1><p>Nenhum plano foi retornado pela API.</p></div></section><section class="panel"><div class="empty">Cadastre planos no banco da Emaús para habilitar esta área.</div></section>`;
-  return `<section class="page-head"><div><span class="eyebrow">MONETIZAÇÃO</span><h1>Planos e preços</h1><p>Limites, preços e recursos registrados no PostgreSQL da Emaús.</p></div><div class="page-actions"><button class="btn btn-gold" data-admin-action="save-plans-top">Salvar tabela de preços</button></div></section>
+  return `<section class="page-head"><div><span class="eyebrow">MONETIZAÇÃO</span><h1>Planos e preços</h1><p>Limites, preços, teste grátis e recursos registrados no PostgreSQL da Emaús.</p></div><div class="page-actions"><button class="btn btn-gold" data-admin-action="save-plans-top">Salvar tabela de preços</button></div></section>
   ${renderPolicyBanner()}
+  <section class="panel"><div class="panel-head"><div><h2>Teste grátis padrão</h2><p>Toda igreja nova entra com estes dias. Em cada igreja você ainda pode somar dias promocionais.</p></div></div><div class="panel-body"><form data-admin-form="policy" class="policy-form"><div class="field"><label for="policyTrialDays">Dias de teste para igreja nova</label><input id="policyTrialDays" name="trialDays" type="number" min="1" max="365" value="${esc(state.platformPolicy.trialDays || 30)}" required></div><div class="form-actions"><button type="submit" class="btn btn-gold">Salvar regra de teste</button></div></form></div></section>
   <section class="panel"><div class="panel-head"><div><h2>Tabela de preços da Emaús</h2><p>Edite os campos e salve explicitamente. Nenhum preço local é usado como fallback.</p></div><span class="status active">Banco conectado</span></div><div class="panel-body"><form data-admin-form="plans"><div class="table-wrap"><table class="plan-table"><thead><tr><th>Plano</th><th>Mensalidade</th><th>Pessoas ativas</th><th>Acessos</th></tr></thead><tbody>${state.platformPlans.map(plan => `<tr><td><input name="name_${esc(plan.id)}" value="${esc(plan.name)}" aria-label="Nome do plano"></td><td><input name="price_${esc(plan.id)}" value="${esc(plan.price)}" type="number" min="0" step="0.01" aria-label="Preço mensal"></td><td><input name="members_${esc(plan.id)}" value="${esc(plan.members)}" type="number" min="1" step="25" aria-label="Limite de pessoas ativas"></td><td><input name="users_${esc(plan.id)}" value="${esc(plan.users)}" type="number" min="1" step="1" aria-label="Limite de acessos"></td></tr>`).join('')}</tbody></table></div><div class="form-actions"><button type="submit" class="btn btn-gold">Salvar alterações</button></div></form></div></section>
   <div class="plan-card-grid">${state.platformPlans.map((plan, index) => `<article class="plan-card ${index === 1 ? 'highlight' : ''}"><h3>${esc(plan.name)}</h3><div class="plan-price">${moneyOrUnavailable(plan.price)} <small>/ mês</small></div><div class="plan-limits"><span>Até <strong>${countOrUnavailable(plan.members)}</strong> pessoas ativas</span><span><strong>${countOrUnavailable(plan.users)}</strong> acessos da equipe</span></div><p>${esc(plan.description || 'Descrição não cadastrada.')}</p><ul class="plan-points">${(plan.features || []).map(feature => `<li>${esc(feature)}</li>`).join('')}</ul></article>`).join('')}</div>`;
 }
@@ -405,12 +446,16 @@ function renderPlans() {
 function renderFinance() {
   const revenue = recurringRevenue();
   const expense = currentExpenses();
-  const result = operatingResult();
-  const margin = revenue !== null && revenue !== 0 && result !== null ? `${Math.round(result / revenue * 100)}%` : 'Indisponível';
+  const paid = paidThisMonth();
+  const profit = profitThisMonth();
+  const months = state.platformFinance.months || [];
   const transactions = state.platformFinance.transactions;
-  return `<section class="page-head"><div><span class="eyebrow">FINANCEIRO</span><h1>Ganhos e gastos</h1><p>Receita cadastrada nas igrejas ativas e gastos registrados no banco central, sem números demonstrativos.</p></div><div class="page-actions"><button class="btn btn-gold" data-admin-action="focus-expense">+ Registrar gasto</button></div></section>
-  <div class="kpi-grid"><article class="kpi-card copper"><span class="kpi-icon">R$</span><small>Receita mensal cadastrada</small><strong>${moneyOrUnavailable(revenue)}</strong><span>soma retornada pela API</span></article><article class="kpi-card"><span class="kpi-icon">◇</span><small>Gastos do mês</small><strong>${moneyOrUnavailable(expense)}</strong><span>data corrente do banco</span></article><article class="kpi-card green"><span class="kpi-icon">↑</span><small>Resultado</small><strong>${moneyOrUnavailable(result)}</strong><span>receita menos gastos do mês</span></article><article class="kpi-card blue"><span class="kpi-icon">%</span><small>Margem</small><strong>${margin}</strong><span>calculada somente com dados disponíveis</span></article></div>
-  <div class="finance-grid"><section class="panel"><div class="panel-head"><div><h2>Desempenho financeiro</h2><p>${state.platformFinance.months.length ? 'Mês atual · série histórica ainda não fornecida pela API.' : 'Série histórica não disponível.'}</p></div><div class="legend"><span><i></i>Receita</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}</div></section><section class="panel"><div class="panel-head"><div><h2>Registrar gasto</h2><p>O lançamento será gravado com data do servidor.</p></div></div><div class="panel-body"><form data-admin-form="expense"><div class="field"><label for="expenseDescription">Descrição *</label><input id="expenseDescription" name="description" required placeholder="Ex.: Hospedagem da API"></div><div class="field" style="margin-top:12px;"><label for="expenseCategory">Categoria</label><select id="expenseCategory" name="category"><option>Tecnologia</option><option>Operação</option><option>Marketing</option><option>Equipe</option><option>Outro</option></select></div><div class="field" style="margin-top:12px;"><label for="expenseAmount">Valor (R$) *</label><input id="expenseAmount" name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00"></div><div class="form-actions"><button class="btn btn-gold" type="submit">Salvar gasto</button></div></form></div></section></div>
+  const today = new Date();
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const monthRows = months.length ? `<div class="table-wrap" style="margin-top:16px;"><table class="month-table"><thead><tr><th>Mês</th><th>Recebido</th><th>Gastos</th><th>Lucro</th></tr></thead><tbody>${months.map(month => `<tr><td>${esc(month.label)}</td><td>${money(month.income || 0)}</td><td class="negative">${money(month.expense || 0)}</td><td class="${Number(month.profit || 0) < 0 ? 'negative' : 'positive'}">${money(month.profit || 0)}</td></tr>`).join('')}</tbody></table></div>` : '';
+  return `<section class="page-head"><div><span class="eyebrow">FINANCEIRO</span><h1>Ganhos e gastos</h1><p>Gráfico e lucro saem de pagamentos aprovados e gastos lançados. A mensalidade cadastrada aparece à parte, para não misturar previsto com recebido.</p></div><div class="page-actions"><button class="btn btn-gold" data-admin-action="focus-expense">+ Registrar gasto</button></div></section>
+  <div class="kpi-grid"><article class="kpi-card copper"><span class="kpi-icon">R$</span><small>Recebido neste mês</small><strong>${moneyOrUnavailable(paid)}</strong><span>pagamentos aprovados no banco</span></article><article class="kpi-card"><span class="kpi-icon">◇</span><small>Gastos do mês</small><strong>${moneyOrUnavailable(expense)}</strong><span>lançamentos com data deste mês</span></article><article class="kpi-card green"><span class="kpi-icon">↑</span><small>Lucro do mês</small><strong>${moneyOrUnavailable(profit)}</strong><span>recebido menos gastos</span></article><article class="kpi-card blue"><span class="kpi-icon">R$</span><small>Mensalidade cadastrada</small><strong>${moneyOrUnavailable(revenue)}</strong><span>previsto das igrejas ativas (não é lucro)</span></article></div>
+  <div class="finance-grid"><section class="panel"><div class="panel-head"><div><h2>Desempenho real · 12 meses</h2><p>Barras douradas = recebido. Barras cobre = gastos. Lucro na tabela abaixo.</p></div><div class="legend"><span><i></i>Recebido</span><span><i class="expense"></i>Gastos</span></div></div><div class="panel-body">${renderChart()}${monthRows}</div></section><section class="panel"><div class="panel-head"><div><h2>Registrar gasto</h2><p>Entra no gráfico do mês da data que você informar.</p></div></div><div class="panel-body"><form data-admin-form="expense"><div class="field"><label for="expenseDescription">Descrição *</label><input id="expenseDescription" name="description" required placeholder="Ex.: Hospedagem da API"></div><div class="field" style="margin-top:12px;"><label for="expenseCategory">Categoria</label><select id="expenseCategory" name="category"><option>Tecnologia</option><option>Operação</option><option>Marketing</option><option>Equipe</option><option>Outro</option></select></div><div class="field" style="margin-top:12px;"><label for="expenseDate">Data</label><input id="expenseDate" name="date" type="date" value="${esc(todayIso)}"></div><div class="field" style="margin-top:12px;"><label for="expenseAmount">Valor (R$) *</label><input id="expenseAmount" name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00"></div><div class="form-actions"><button class="btn btn-gold" type="submit">Salvar gasto</button></div></form></div></section></div>
   <section class="panel" style="margin-top:16px;"><div class="panel-head"><div><h2>Gastos registrados</h2><p>Histórico retornado pela API, limitado aos últimos lançamentos disponíveis.</p></div></div><div class="panel-body"><div class="transaction-list">${transactions.length ? transactions.map(item => `<div class="transaction"><div class="transaction-icon">−</div><div class="transaction-copy"><strong>${esc(item.description)}</strong><span>${esc(item.category)} · ${esc(item.date)}</span></div><div class="transaction-value">− ${moneyOrUnavailable(item.amount)}</div></div>`).join('') : '<div class="empty">Nenhum gasto registrado.</div>'}</div></div></section>`;
 }
 
@@ -430,6 +475,19 @@ function renderChurchDetail() {
   <div class="detail-hero"><div class="church-cell"><div class="church-avatar large">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)} · ${esc(church.slug || 'slug não informado')}</small><div class="detail-badges">${statusBadge(church)}<span class="soft-badge">Plano: ${esc(churchPlanLabel(church))}</span></div></div></div><div class="detail-hero-side"><span>Mensalidade cadastrada</span><strong>${moneyOrUnavailable(church.monthlyValue)}</strong><small>Limite: ${countOrUnavailable(church.memberLimit)} pessoas</small></div></div>
   ${detail ? '' : '<div class="inline-notice">Os dados detalhados ainda estão sendo carregados ou a rota de detalhes não está publicada na API. Os dados básicos acima vieram da listagem.</div>'}
   <div class="detail-metrics"><article class="metric-card"><small>Membros ativos</small><strong>${countOrUnavailable(members)}</strong><span>${membersDeFicha ? 'valor digitado na ficha (a lista não foi contada)' : 'contados no cadastro de membros'}</span></article><article class="metric-card"><small>Visitantes registrados</small><strong>${countOrUnavailable(visitors)}</strong><span>histórico da organização</span></article><article class="metric-card"><small>Próximos eventos</small><strong>${countOrUnavailable(events)}</strong><span>agenda futura</span></article><article class="metric-card"><small>Acessos ativos</small><strong>${countOrUnavailable(users)}</strong><span>equipe da igreja</span></article><article class="metric-card"><small>Fila do bot pendente</small><strong>${countOrUnavailable(botPending)}</strong><span>sem enviar mensagens automaticamente</span></article></div>
+  <section class="panel commercial-panel"><div class="panel-head"><div><h2>Teste, desconto e dias promocionais</h2><p>Vale só para esta igreja. O que você salvar entra no banco e na mensalidade cobrada.</p></div></div><div class="panel-body">
+    <div class="summary-list" style="margin-bottom:18px;">
+      <div class="summary-row"><span>Preço do plano</span><strong>${moneyOrUnavailable(listPriceOf(church))}</strong></div>
+      <div class="summary-row"><span>Desconto</span><strong>${hasDiscount(church) ? `${esc(String(church.discountPercent || 0))}%${church.discountCents ? ` + ${money(church.discountCents / 100)}` : ''}${church.discountNote ? ` · ${esc(church.discountNote)}` : ''}` : 'Nenhum'}</strong></div>
+      <div class="summary-row"><span>Mensalidade cobrada</span><strong>${moneyOrUnavailable(church.monthlyValue)}</strong></div>
+      <div class="summary-row"><span>Teste grátis</span><strong>${church.trialStartedAt || church.trialEndsAt ? `${formatDate(church.trialStartedAt)} até ${formatDate(church.trialEndsAt)}${daysLeftInTrial(church) !== null ? ` · ${daysLeftInTrial(church)} dia(s)` : ''}` : 'Não informado'}</strong></div>
+    </div>
+    <div class="commercial-grid">
+      <form data-admin-form="commercial-days"><input type="hidden" name="id" value="${esc(church.id)}"><div class="field"><label for="promoDays">Liberar dias promocionais</label><input id="promoDays" name="extraDays" type="number" min="1" max="365" value="7" required><small class="muted-inline">Soma estes dias ao fim do teste. Igreja bloqueada precisa ser liberada antes.</small></div><div class="form-actions"><button class="btn btn-gold" type="submit">Somar dias ao teste</button></div></form>
+      <form data-admin-form="commercial-trial"><input type="hidden" name="id" value="${esc(church.id)}"><div class="field"><label for="resetTrialDays">Recomeçar teste (dias a partir de hoje)</label><input id="resetTrialDays" name="trialDays" type="number" min="1" max="365" value="${esc(state.platformPolicy.trialDays || 30)}" required></div><div class="form-actions"><button class="btn" type="submit">Começar teste agora</button>${churchStatus(church).apiStatus === 'trial' ? `<button type="button" class="btn" data-admin-action="end-trial" data-id="${esc(church.id)}">Encerrar teste e ativar</button>` : ''}</div></form>
+      <form data-admin-form="commercial-discount"><input type="hidden" name="id" value="${esc(church.id)}"><div class="field"><label for="discountPercent">Desconto %</label><input id="discountPercent" name="discountPercent" type="number" min="0" max="100" value="${esc(church.discountPercent || 0)}"></div><div class="field" style="margin-top:12px;"><label for="discountReais">Desconto extra em R$</label><input id="discountReais" name="discountReais" type="number" min="0" step="0.01" value="${esc(((church.discountCents || 0) / 100).toFixed(2))}"></div><div class="field" style="margin-top:12px;"><label for="discountNote">Motivo (opcional)</label><input id="discountNote" name="discountNote" maxlength="180" value="${esc(church.discountNote || '')}" placeholder="Ex.: parceria, campanha de abril"></div><div class="form-actions"><button class="btn btn-gold" type="submit">Aplicar desconto</button><button type="button" class="btn" data-admin-action="clear-discount" data-id="${esc(church.id)}">Tirar desconto</button></div></form>
+    </div>
+  </div></section>
   <div class="grid-2 detail-grid"><section class="panel"><div class="panel-head"><div><h2>Assinatura e limites</h2><p>O status é administrativo; cobrança só aparece quando registrada na API.</p></div></div><div class="panel-body"><div class="summary-list"><div class="summary-row"><span>Status</span><strong>${statusBadge(church)}</strong></div><div class="summary-row"><span>Plano</span><strong>${esc(churchPlanLabel(church))}</strong></div><div class="summary-row"><span>Período de teste</span><strong>${church.trialStartedAt || church.trialEndsAt ? `${formatDate(church.trialStartedAt)} até ${formatDate(church.trialEndsAt)}` : 'Não informado'}</strong></div><div class="summary-row"><span>Atividade atualizada</span><strong>${formatDateTime(church.updatedAt)}</strong></div></div></div></section><section class="panel"><div class="panel-head"><div><h2>Atividade recente</h2><p>Eventos vinculados somente a esta igreja.</p></div></div><div class="panel-body"><div class="activity-list">${activity.length ? activity.map(item => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${esc(item.action || item.activity_type || 'Atividade')}</strong><small>${esc(item.text || item.name || '')}</small></div><time>${formatDateTime(item.created_at)}</time></div>`).join('') : '<div class="empty">Nenhuma atividade detalhada disponível.</div>'}</div></div></section></div>`;
 }
 
@@ -554,7 +612,7 @@ async function saveExpense(form) {
   const amount = numeric(data.get('amount'));
   if (!description || amount <= 0) return toast('Informe a descrição e um valor válido.');
   try {
-    await apiRequest('/api/admin/expenses', { method: 'POST', body: { description, category: String(data.get('category') || 'Outro'), amount } });
+    await apiRequest('/api/admin/expenses', { method: 'POST', body: { description, category: String(data.get('category') || 'Outro'), amount, date: String(data.get('date') || '') } });
     await loadRemoteState();
     toast('Gasto salvo no banco de produção.');
   } catch (error) {
@@ -569,7 +627,7 @@ async function addChurch(form) {
   const planId = String(data.get('plan') || '');
   if (!planId) return toast('Nenhum plano real está disponível para o cadastro.');
   try {
-    await apiRequest('/api/admin/churches', { method: 'POST', body: { name, city: String(data.get('city') || 'Brasil').trim(), planId, pastors: String(data.get('admin') || '').replace(/\r\n/g, '\n').trim() } });
+    await apiRequest('/api/admin/churches', { method: 'POST', body: { name, city: String(data.get('city') || 'Brasil').trim(), planId, pastors: String(data.get('admin') || '').replace(/\r\n/g, '\n').trim(), trialDays: Number(data.get('trialDays') || 0) || undefined } });
     await loadRemoteState();
     addChurchOpen = false;
     toast(`${name} foi cadastrada no banco de produção.`);
@@ -648,6 +706,43 @@ async function updateSupportStatus(id, status) {
   }
 }
 
+async function savePolicy(form) {
+  const data = new FormData(form);
+  const trialDays = Number(data.get('trialDays') || 0);
+  if (trialDays < 1 || trialDays > 365) return toast('Informe os dias de teste entre 1 e 365.');
+  try {
+    await apiRequest('/api/admin/policy', { method: 'PUT', body: { trialDays } });
+    await loadRemoteState();
+    toast(`Igreja nova passa a entrar com ${trialDays} dia(s) de teste.`);
+  } catch (error) {
+    toast(`Não foi possível salvar a regra de teste: ${error.message}`);
+  }
+}
+
+async function saveCommercial(form, action) {
+  const data = form && form.tagName === 'FORM' ? new FormData(form) : null;
+  const id = data ? String(data.get('id') || '') : String(form?.id || '');
+  if (!id) return;
+  const body = { action };
+  if (action === 'grant-days') body.extraDays = Number(data.get('extraDays') || 0);
+  if (action === 'set-trial') body.trialDays = Number(data.get('trialDays') || 0);
+  if (action === 'set-discount') {
+    body.discountPercent = Number(data.get('discountPercent') || 0);
+    body.discountReais = Number(data.get('discountReais') || 0);
+    body.discountNote = String(data.get('discountNote') || '').trim();
+  }
+  try {
+    await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}/commercial`, { method: 'POST', body });
+    await loadRemoteState();
+    if (selectedChurchId === id) await openChurchDetail(id);
+    else render();
+    const done = { 'grant-days': 'Dias promocionais somados ao teste.', 'set-trial': 'Teste recomeçado.', 'set-discount': 'Desconto aplicado na mensalidade.', 'clear-discount': 'Desconto removido.', 'end-trial': 'Teste encerrado. Igreja ativa.' };
+    toast(done[action] || 'Alteração comercial salva.');
+  } catch (error) {
+    toast(`Não foi possível salvar: ${error.message}`);
+  }
+}
+
 function handleInput(event) {
   if (event.target.id !== 'churchSearch') return;
   churchQuery = event.target.value;
@@ -687,7 +782,9 @@ function handleClick(event) {
   if (type === 'create-billing-checkout') { createBillingCheckout(action.dataset.id); return; }
   if (type === 'save-plans-top') { document.querySelector('[data-admin-form="plans"]')?.requestSubmit(); return; }
   if (type === 'focus-expense') { document.querySelector('#expenseDescription')?.focus(); return; }
-  if (type === 'support-status') { updateSupportStatus(action.dataset.id, action.dataset.status); }
+  if (type === 'support-status') { updateSupportStatus(action.dataset.id, action.dataset.status); return; }
+  if (type === 'clear-discount') { saveCommercial({ id: action.dataset.id }, 'clear-discount'); return; }
+  if (type === 'end-trial') { saveCommercial({ id: action.dataset.id }, 'end-trial'); }
 }
 
 async function handleSubmit(event) {
@@ -736,9 +833,13 @@ async function handleSubmit(event) {
   if (type === 'church') await addChurch(form);
   if (type === 'edit-church') await saveChurchEdit(form);
   if (type === 'plans') await savePlans(form);
+  if (type === 'policy') await savePolicy(form);
   if (type === 'expense') await saveExpense(form);
   if (type === 'support') await saveSupport(form);
   if (type === 'lead') await saveLead(form);
+  if (type === 'commercial-days') await saveCommercial(form, 'grant-days');
+  if (type === 'commercial-trial') await saveCommercial(form, 'set-trial');
+  if (type === 'commercial-discount') await saveCommercial(form, 'set-discount');
 }
 
 async function init() {

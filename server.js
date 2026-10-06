@@ -131,9 +131,77 @@ function cents(value) {
   return Math.round(Number(value || 0) * 100);
 }
 
+
 function moneyFromCents(value) {
   return Number(value || 0) / 100;
 }
+
+function clampDiscountPercent(value) {
+  const n = Math.round(Number(value) || 0);
+  return Math.min(100, Math.max(0, n));
+}
+
+function clampDiscountCents(value) {
+  return Math.max(0, Math.round(Number(value) || 0));
+}
+
+function priceAfterDiscount(planCents, percent, extraCents) {
+  const plan = Math.max(0, Number(planCents) || 0);
+  const afterPercent = Math.round(plan * (100 - clampDiscountPercent(percent)) / 100);
+  return Math.max(0, afterPercent - clampDiscountCents(extraCents));
+}
+
+const PAID_PAYMENT_STATUSES = ['approved', 'accredited', 'paid'];
+
+async function commercialPolicy() {
+  const row = (await query("SELECT value FROM platform_settings WHERE key = 'commercial_policy'")).rows[0];
+  const value = row && row.value && typeof row.value === 'object' ? row.value : {};
+  const trialDays = Math.min(365, Math.max(1, Number(value.trialDays) || 30));
+  return { trialDays };
+}
+
+async function monthFinanceSeries() {
+  const result = await query(`
+    WITH months AS (
+      SELECT date_trunc('month', d)::date AS month_start
+      FROM generate_series(
+        date_trunc('month', CURRENT_DATE) - INTERVAL '11 months',
+        date_trunc('month', CURRENT_DATE),
+        INTERVAL '1 month'
+      ) AS d
+    )
+    SELECT
+      to_char(m.month_start, 'YYYY-MM') AS key,
+      COALESCE((
+        SELECT SUM(p.amount_cents)::int FROM billing_payments p
+        WHERE lower(p.status) = ANY($1)
+          AND date_trunc('month', COALESCE(p.paid_at, p.created_at)) = m.month_start
+      ), 0) AS paid_cents,
+      COALESCE((
+        SELECT SUM(e.amount_cents)::int FROM expenses e
+        WHERE date_trunc('month', e.expense_date::timestamp) = m.month_start
+      ), 0) AS expense_cents
+    FROM months m
+    ORDER BY m.month_start
+  `, [PAID_PAYMENT_STATUSES]);
+  const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return result.rows.map(row => {
+    const month = Number(String(row.key).slice(5, 7));
+    const year = String(row.key).slice(2, 4);
+    const paid = Number(row.paid_cents || 0);
+    const expense = Number(row.expense_cents || 0);
+    return {
+      key: row.key,
+      label: `${nomes[month - 1]}/${year}`,
+      income: moneyFromCents(paid),
+      expense: moneyFromCents(expense),
+      profit: moneyFromCents(paid - expense),
+      paidCents: paid,
+      expenseCents: expense
+    };
+  });
+}
+
 
 function normalizePhone(value = '') {
   return String(value || '').replace(/\D/g, '');
@@ -554,13 +622,21 @@ app.patch('/api/me/profile', auth(), async (req, res) => {
 });
 
 app.get('/api/admin/summary', auth(['platform_admin']), async (req, res) => {
-  const [churches, revenue, expenses, people] = await Promise.all([
-    query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active, COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked FROM churches"),
+  const [churches, revenue, expenses, people, paid] = await Promise.all([
+    query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active, COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked, COUNT(*) FILTER (WHERE status = 'trial')::int AS trial FROM churches"),
     query("SELECT COALESCE(SUM(monthly_price_cents), 0)::int AS cents FROM churches WHERE status = 'active'"),
-    query('SELECT COALESCE(SUM(amount_cents), 0)::int AS cents FROM expenses WHERE expense_date >= date_trunc(\'month\', CURRENT_DATE)'),
-    query("SELECT COALESCE(SUM(member_count), 0)::int AS total FROM churches WHERE status = 'active'")
+    query("SELECT COALESCE(SUM(amount_cents), 0)::int AS cents FROM expenses WHERE expense_date >= date_trunc('month', CURRENT_DATE)"),
+    query("SELECT COALESCE(SUM(member_count), 0)::int AS total FROM churches WHERE status = 'active'"),
+    query("SELECT COALESCE(SUM(amount_cents), 0)::int AS cents FROM billing_payments WHERE lower(status) = ANY($1) AND date_trunc('month', COALESCE(paid_at, created_at)) = date_trunc('month', CURRENT_DATE)", [PAID_PAYMENT_STATUSES])
   ]);
-  res.json({ churches: churches.rows[0], monthlyRevenue: moneyFromCents(revenue.rows[0].cents), monthlyExpenses: moneyFromCents(expenses.rows[0].cents), activePeople: people.rows[0].total });
+  res.json({
+    churches: churches.rows[0],
+    monthlyRevenue: moneyFromCents(revenue.rows[0].cents),
+    monthlyExpenses: moneyFromCents(expenses.rows[0].cents),
+    paidThisMonth: moneyFromCents(paid.rows[0].cents),
+    profitThisMonth: moneyFromCents((paid.rows[0].cents || 0) - (expenses.rows[0].cents || 0)),
+    activePeople: people.rows[0].total
+  });
 });
 
 app.get('/api/admin/churches', auth(['platform_admin']), async (req, res) => {
@@ -575,7 +651,8 @@ app.post('/api/admin/churches', auth(['platform_admin']), async (req, res) => {
   const plan = (await query('SELECT * FROM plans WHERE id = $1 AND active = TRUE', [planId])).rows[0];
   if (!plan) return res.status(400).json({ error: 'Plano não encontrado.' });
   const slug = `${slugify(name)}-${crypto.randomBytes(3).toString('hex')}`;
-  const trialDays = 30;
+  const policy = await commercialPolicy();
+  const trialDays = Math.min(365, Math.max(1, Number(req.body.trialDays) || policy.trialDays || 30));
   const church = (await query(`INSERT INTO churches (name, slug, city, phone, pastors, plan_id, status, member_count, monthly_price_cents, trial_started_at, trial_ends_at)
     VALUES ($1, $2, $3, $4, $5, $6, 'trial', 0, $7, NOW(), NOW() + ($8 || ' days')::interval) RETURNING *`, [name, slug, req.body.city || 'Brasil', req.body.phone || '', req.body.pastors || '', plan.id, plan.price_cents, trialDays])).rows[0];
   await audit(req.user, 'church_created', { churchId: church.id, planId: plan.id }, church.id);
@@ -596,7 +673,9 @@ app.patch('/api/admin/churches/:churchId', auth(['platform_admin']), async (req,
   const result = await query(`UPDATE churches SET
     name = COALESCE($1, name), city = COALESCE($2, city), phone = COALESCE($3, phone), pastors = COALESCE($4, pastors),
     plan_id = COALESCE($5, plan_id),
-    monthly_price_cents = CASE WHEN $5 IS NULL THEN monthly_price_cents ELSE COALESCE((SELECT price_cents FROM plans WHERE id = $5), monthly_price_cents) END,
+    monthly_price_cents = CASE WHEN $5 IS NULL THEN monthly_price_cents ELSE GREATEST(0,
+      ROUND(COALESCE((SELECT price_cents FROM plans WHERE id = $5), monthly_price_cents) * (100 - COALESCE(discount_percent, 0)) / 100.0) - COALESCE(discount_cents, 0)
+    ) END,
     updated_at = NOW() WHERE id = $6 RETURNING *`, [name, city, phone, pastors, planId, req.params.churchId]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
   await audit(req.user, 'church_updated', { churchId: req.params.churchId, fields: Object.keys(req.body).slice(0, 10) }, req.params.churchId);
@@ -704,16 +783,98 @@ app.put('/api/admin/plans', auth(['platform_admin']), async (req, res) => {
   res.json({ plans: result.rows });
 });
 
+app.get('/api/admin/policy', auth(['platform_admin']), async (req, res) => {
+  res.json({ policy: await commercialPolicy() });
+});
+
+app.put('/api/admin/policy', auth(['platform_admin']), async (req, res) => {
+  const trialDays = Math.min(365, Math.max(1, Number(req.body.trialDays) || 30));
+  const policy = { trialDays };
+  await query("INSERT INTO platform_settings (key, value, updated_at) VALUES ('commercial_policy', $1::jsonb, NOW()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()", [JSON.stringify(policy)]);
+  await audit(req.user, 'commercial_policy_updated', policy);
+  res.json({ policy });
+});
+
+app.post('/api/admin/churches/:churchId/commercial', auth(['platform_admin']), async (req, res) => {
+  const church = (await query('SELECT * FROM churches WHERE id = $1', [req.params.churchId])).rows[0];
+  if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
+  if (church.status === 'blocked' && req.body.action !== 'clear-discount') {
+    return res.status(400).json({ error: 'Igreja bloqueada: libere antes de alterar teste ou desconto.' });
+  }
+  const action = String(req.body.action || '').trim();
+  const plan = church.plan_id ? (await query('SELECT * FROM plans WHERE id = $1', [church.plan_id])).rows[0] : null;
+  const planCents = plan ? Number(plan.price_cents) : Number(church.monthly_price_cents || 0);
+
+  if (action === 'grant-days') {
+    const extraDays = Math.min(365, Math.max(1, Number(req.body.extraDays) || 0));
+    const result = await query(`UPDATE churches SET
+      status = CASE WHEN status = 'blocked' THEN status ELSE 'trial' END,
+      trial_started_at = COALESCE(trial_started_at, NOW()),
+      trial_ends_at = GREATEST(COALESCE(trial_ends_at, NOW()), NOW()) + ($1 || ' days')::interval,
+      updated_at = NOW() WHERE id = $2 RETURNING *`, [String(extraDays), church.id]);
+    await audit(req.user, 'church_promo_days_granted', { churchId: church.id, extraDays }, church.id);
+    return res.json({ church: result.rows[0] });
+  }
+
+  if (action === 'set-trial') {
+    const trialDays = Math.min(365, Math.max(1, Number(req.body.trialDays) || 0));
+    const result = await query(`UPDATE churches SET
+      status = 'trial',
+      trial_started_at = NOW(),
+      trial_ends_at = NOW() + ($1 || ' days')::interval,
+      updated_at = NOW() WHERE id = $2 RETURNING *`, [String(trialDays), church.id]);
+    await audit(req.user, 'church_trial_set', { churchId: church.id, trialDays }, church.id);
+    return res.json({ church: result.rows[0] });
+  }
+
+  if (action === 'end-trial') {
+    const result = await query(`UPDATE churches SET status = 'active', trial_ends_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING *`, [church.id]);
+    await audit(req.user, 'church_trial_ended', { churchId: church.id }, church.id);
+    return res.json({ church: result.rows[0] });
+  }
+
+  if (action === 'set-discount') {
+    const percent = clampDiscountPercent(req.body.discountPercent);
+    const extraCents = req.body.discountCents !== undefined ? clampDiscountCents(req.body.discountCents) : cents(req.body.discountReais);
+    const note = String(req.body.discountNote || '').trim().slice(0, 180);
+    const monthly = priceAfterDiscount(planCents, percent, extraCents);
+    const result = await query(`UPDATE churches SET
+      discount_percent = $1, discount_cents = $2, discount_note = $3, monthly_price_cents = $4, updated_at = NOW()
+      WHERE id = $5 RETURNING *`, [percent, extraCents, note, monthly, church.id]);
+    await audit(req.user, 'church_discount_set', { churchId: church.id, percent, extraCents, monthly }, church.id);
+    return res.json({ church: result.rows[0] });
+  }
+
+  if (action === 'clear-discount') {
+    const monthly = planCents;
+    const result = await query(`UPDATE churches SET
+      discount_percent = 0, discount_cents = 0, discount_note = '', monthly_price_cents = $1, updated_at = NOW()
+      WHERE id = $2 RETURNING *`, [monthly, church.id]);
+    await audit(req.user, 'church_discount_cleared', { churchId: church.id, monthly }, church.id);
+    return res.json({ church: result.rows[0] });
+  }
+
+  return res.status(400).json({ error: 'Ação comercial inválida. Use grant-days, set-trial, end-trial, set-discount ou clear-discount.' });
+});
+
+
+
 app.get('/api/admin/finance', auth(['platform_admin']), async (req, res) => {
   const result = await query('SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC LIMIT 100');
-  res.json({ expenses: result.rows.map(item => ({ ...item, amount: moneyFromCents(item.amount_cents) })) });
+  const months = await monthFinanceSeries();
+  res.json({
+    expenses: result.rows.map(item => ({ ...item, amount: moneyFromCents(item.amount_cents) })),
+    months
+  });
 });
 
 app.post('/api/admin/expenses', auth(['platform_admin']), async (req, res) => {
   const description = String(req.body.description || '').trim();
   const amountCents = cents(req.body.amount);
   if (!description || amountCents <= 0) return res.status(400).json({ error: 'Descrição e valor são obrigatórios.' });
-  const result = await query('INSERT INTO expenses (description, category, amount_cents, created_by) VALUES ($1, $2, $3, $4) RETURNING *', [description, req.body.category || 'Outro', amountCents, req.user.id]);
+  const rawDate = String(req.body.date || req.body.expenseDate || '').slice(0, 10);
+  const expenseDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
+  const result = await query('INSERT INTO expenses (description, category, amount_cents, expense_date, created_by) VALUES ($1, $2, $3, COALESCE($4::date, CURRENT_DATE), $5) RETURNING *', [description, req.body.category || 'Outro', amountCents, expenseDate, req.user.id]);
   await audit(req.user, 'expense_created', { expenseId: result.rows[0].id, amount: moneyFromCents(amountCents) });
   res.status(201).json({ expense: result.rows[0] });
 });
@@ -1421,6 +1582,10 @@ app.get('/api/audit', auth(['platform_admin']), async (req, res) => {
 });
 
 async function ensureColumnCompatibility() {
+  await query("ALTER TABLE churches ADD COLUMN IF NOT EXISTS discount_percent INTEGER NOT NULL DEFAULT 0");
+  await query("ALTER TABLE churches ADD COLUMN IF NOT EXISTS discount_cents INTEGER NOT NULL DEFAULT 0");
+  await query("ALTER TABLE churches ADD COLUMN IF NOT EXISTS discount_note TEXT NOT NULL DEFAULT ''");
+  await query("INSERT INTO platform_settings (key, value) VALUES ('commercial_policy', '{\"trialDays\":30}'::jsonb) ON CONFLICT (key) DO NOTHING");
   await query(`CREATE TABLE IF NOT EXISTS platform_support_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     church_id UUID REFERENCES churches(id) ON DELETE SET NULL,

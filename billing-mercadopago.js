@@ -173,13 +173,14 @@ function registerMercadoPagoRoutes({ app, auth, query, audit, publicAppUrl }) {
   app.post('/api/admin/churches/:churchId/billing/checkout', auth(['platform_admin']), async (req, res) => {
     if (BILLING_PROVIDER !== 'mercadopago') return res.status(503).json({ error: 'O provedor de cobrança não está configurado como Mercado Pago.' });
     if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'MERCADOPAGO_ACCESS_TOKEN ainda não foi configurado no Railway.' });
-    const church = (await query('SELECT id, name, slug, plan_id FROM churches WHERE id = $1', [req.params.churchId])).rows[0];
+    const church = (await query('SELECT id, name, slug, plan_id, monthly_price_cents FROM churches WHERE id = $1', [req.params.churchId])).rows[0];
     if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });
     const planId = String(req.body.planId || church.plan_id || '').trim();
     const email = String(req.body.payerEmail || req.body.email || '').trim().toLowerCase();
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Informe um e-mail válido do responsável pelo pagamento.' });
     const plan = (await query('SELECT * FROM plans WHERE id = $1 AND active = TRUE', [planId])).rows[0];
     if (!plan) return res.status(400).json({ error: 'Plano ativo não encontrado.' });
+    const amountCents = Number(church.monthly_price_cents) > 0 ? Number(church.monthly_price_cents) : Number(plan.price_cents);
     const externalReference = `emaus:church:${church.id}:plan:${plan.id}:${Date.now()}`;
     const response = await mercadoPagoRequest('/preapproval', {
       method: 'POST',
@@ -188,7 +189,7 @@ function registerMercadoPagoRoutes({ app, auth, query, audit, publicAppUrl }) {
         reason: `Emaús — ${plan.name} — ${church.name}`,
         external_reference: externalReference,
         payer_email: email,
-        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: moneyFromCents(plan.price_cents), currency_id: 'BRL' },
+        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: moneyFromCents(amountCents), currency_id: 'BRL' },
         back_url: publicReturnUrl(publicAppUrl, church.slug),
         status: 'pending'
       }
@@ -201,7 +202,7 @@ function registerMercadoPagoRoutes({ app, auth, query, audit, publicAppUrl }) {
       status: providerStatusToLocal(response.status || 'pending'),
       externalReference: `subscription:${response.id}:${externalReference}`,
       checkoutUrl: response.init_point || response.sandbox_init_point || response.external_reference || null,
-      amountCents: plan.price_cents,
+      amountCents,
       currency: 'BRL',
       providerData: response
     });

@@ -1,0 +1,98 @@
+Emaús — rodada v25 · ADMINISTRADOR: TESTE, DESCONTO, DIAS PROMOCIONAIS E LUCRO REAL
+Pacote: emaus-admin-comercial-v25.zip
+Cache do aplicativo: emaus-shell-v94-admin-comercial
+Data: 06/10/2026 (Brasília)
+
+
+=========================================================================================
+1. O QUE VOCÊ PEDIU
+=========================================================================================
+
+  "Vamos trabalhar a minha plataforma que é a geral. quero tudo funcional.
+   quero poder liberar desconto ou até mesmos dias promocionais, ter controle
+   de teste gratis, ter graficos reais de gastos e lucos"
+
+A área do administrador (não a da igreja). Três coisas, as três no banco,
+sem número de demonstração.
+
+
+=========================================================================================
+2. TESTE GRÁTIS
+=========================================================================================
+
+  Planos e preços ▸ "Teste grátis padrão"
+    · quantos dias a igreja NOVA entra (antes era 30 chumbado no código)
+    · grava em platform_settings.commercial_policy
+
+  Ao cadastrar uma igreja, o campo "Dias de teste grátis" já vem com esse
+  padrão — e você pode mudar só naquela igreja.
+
+  Na ficha da igreja:
+    · somar dias promocionais ao fim do teste (7, 15, 30… até 365)
+    · recomeçar o teste a partir de hoje
+    · encerrar o teste e ativar
+
+
+=========================================================================================
+3. DESCONTO
+=========================================================================================
+
+  Na ficha da igreja, bloco "Teste, desconto e dias promocionais":
+
+    · desconto em % sobre o preço do plano
+    · desconto extra em reais (os dois somam)
+    · motivo opcional (parceria, campanha…)
+    · "Tirar desconto" volta a mensalidade ao preço do plano
+
+  A mensalidade cobrada (monthly_price_cents) é recalculada na hora.
+  O checkout do Mercado Pago usa ESSE valor, não o preço cheio do plano.
+
+  20% de R$ 100 = R$ 80. 10% + R$ 5 = R$ 85. 100% = cortesia (R$ 0).
+  Conferido por teste, não no olho.
+
+
+=========================================================================================
+4. GRÁFICOS REAIS DE GASTOS E LUCRO
+=========================================================================================
+
+  Ganhos e gastos, e também a visão geral:
+
+    · 12 meses, inclusive os zerados
+    · barra dourada = recebido (pagamentos aprovados no Mercado Pago)
+    · barra cobre = gastos que você lançou
+    · tabela embaixo: recebido, gastos, lucro de cada mês
+    · KPI "Recebido neste mês" ≠ "Mensalidade cadastrada"
+      (previsto não se mistura com o que entrou de verdade)
+
+  Ao lançar um gasto, agora tem DATA — entra no mês certo do gráfico.
+  Se ainda não houve pagamento aprovado, o recebido é R$ 0. É honesto.
+
+
+=========================================================================================
+5. O QUE NÃO MUDOU
+=========================================================================================
+
+  · Painel da igreja, portaria, púlpito, terceira cor, contraste, pastores.
+  · Isolamento por igreja. Nenhuma igreja herda marca ou preço de outra.
+  · Campo de pastores no admin (várias linhas) permanece.
+
+
+=========================================================================================
+6. COMO APLICAR
+=========================================================================================
+
+  GitHub Pages:
+    admin.html    admin.js    admin.css    service-worker.js
+
+  Railway (obrigatório — é o banco e as rotas novas):
+    server.js     schema.sql     billing-mercadopago.js
+  Sem SQL manual: o boot cria as colunas (discount_percent, discount_cents,
+  discount_note) e a chave commercial_policy.
+
+  Depois: Ctrl+Shift+R na aba do administrador.
+  Cache: emaus-shell-v94-admin-comercial
+  admin.css?v=62  ·  admin.js?v=61
+
+  Conferido: 16 arquivos de teste · 635 conferências · 0 falhas
+  (incluindo node teste-admin-comercial.js — a conta do desconto e as 12
+  colunas do gráfico executadas de verdade).

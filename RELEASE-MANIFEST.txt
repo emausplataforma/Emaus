@@ -1,5 +1,5 @@
 Emaús — registro da publicação
-Atualizado em 06/10/2026, 16:10 (Brasília) = 06/10 19:10 UTC (rodada v24 embalada). Correção de registro que
+Atualizado em 06/10/2026, 17:40 (Brasília) = 06/10 20:40 UTC (rodada v25 embalada). Correção de registro que
 precisa ficar dita: os carimbos marcados como "Brasília" nas rodadas v16 (00:58), v17
 (01:20-01:35) e v18 (02:05) foram escritos com o relógio UTC desta bancada, que está 3 h
 à frente — naqueles mesmos instantes eram 21:58, 22:20-22:35 e 23:05 de 05/10 em Brasília.
@@ -87,9 +87,9 @@ VERIFICADO DEPOIS DE PUBLICAR (05/10/2026, 20:41, Brasília)
   teste-pagina-pastores.js executa o publica.js de verdade).
 
 EMBALADO E AINDA FORA DO AR
-  V20–V24 nesta bancada. Publicar a v24 (cumulativa). Além do que a v23 já levava, a v24
-  aplica a cor suave e o contraste nas etiquetas de ministério da tela Lideranças — era o
-  bege do tema claro com a tinta do tema escuro por cima. A última conferência do Pages foi feita em 06/10 ~23:5x
+  V20–V25 nesta bancada. A v25 é a comercial do administrador (teste, desconto, dias
+  promocionais, gráfico real). Leva o cumulativo das anteriores. Railway obrigatório
+  nesta: server.js + schema.sql + billing-mercadopago.js. A última conferência do Pages foi feita em 06/10 ~23:5x
   (Brasília) com furo de cache: o ar tinha a v19 — app.js md5 3c9aa2b93fc4a1082cdf496f4e5bbffd,
   app.js?v=64, cache emaus-shell-v88. Desde então nada foi enviado: estes números valem para
   aquele instante, não para agora. Antes de publicar a v21, conferir de novo (o app.js da v21
@@ -417,6 +417,21 @@ v21 — CONTRASTE LEGÍVEL EM TUDO  (EMBALADA, NÃO PUBLICADA)
   12:1 no escuro); e o DOM que o admin.js monta não entra no medidor de cascata.
   Banco: nada. Servidor: nada. Volta atrás: reverter os 10 arquivos deste pacote — nenhum
   dado é tocado, e o cache emaus-shell-v90 some ao reverter o service-worker.js.
+
+v25 — ADMINISTRADOR COMERCIAL  (EMBALADA)
+  Zip: emaus-admin-comercial-v25.zip
+  Arquivos: admin.js · admin.html · admin.css · server.js · schema.sql · billing-mercadopago.js · service-worker.js
+  Cache: emaus-shell-v94-admin-comercial  (admin.css?v=62, admin.js?v=61)
+  Pedido: plataforma geral funcional — desconto ou dias promocionais, controle de teste
+  grátis, gráficos reais de gastos e lucros.
+  Feito: policy trialDays em platform_settings; POST /api/admin/churches/:id/commercial
+  (grant-days, set-trial, end-trial, set-discount, clear-discount); monthly_price_cents
+  recalculado; checkout MP usa a mensalidade com desconto; GET /api/admin/finance devolve
+  12 meses de billing_payments aprovados × expenses; gasto aceita data.
+  Tela: Planos (dias padrão), cadastro de igreja (dias), ficha da igreja (três formulários),
+  Ganhos e gastos (12 barras + tabela de lucro). Previsto ≠ recebido.
+  Testes: teste-admin-comercial.js novo; bateria 16 arquivos, 635 conferências, 0 falhas.
+  Painel da igreja não foi mexido.
 
 v24 — CONTRASTE NAS LIDERANÇAS  (EMBALADA)
   Zip: emaus-contraste-liderancas-v24.zip  (cumulativo)

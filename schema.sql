@@ -373,3 +373,9 @@ CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_attendance_church_member ON member_attendance(church_id, member_id, checked_in_at DESC);
 CREATE INDEX IF NOT EXISTS idx_care_tasks_church_status ON care_tasks(church_id, status, due_date);
 CREATE INDEX IF NOT EXISTS idx_member_consents_church ON member_consents(church_id, member_id);
+
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS discount_percent INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS discount_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE churches ADD COLUMN IF NOT EXISTS discount_note TEXT NOT NULL DEFAULT '';
+INSERT INTO platform_settings (key, value) VALUES ('commercial_policy', '{"trialDays":30}'::jsonb)
+  ON CONFLICT (key) DO NOTHING;
