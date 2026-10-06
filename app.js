@@ -1347,17 +1347,17 @@ function openModal(type, data = {}) {
     const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     const eventWeekday = Number.isInteger(Number(recurrenceRule.weekday)) ? Number(recurrenceRule.weekday) : parseDate(eventRecord.date).getDay();
     const eventOrdinal = Math.min(5, Math.max(1, Number(recurrenceRule.ordinal || 1)));
-    const eventRecurrenceOptions = [['none', 'Não repetir — evento único'], ['weekly-month', 'Semanal pelo dia da semana — até o fim deste mês'], ['weekly-year', 'Semanal pelo dia da semana — até 31 de dezembro'], ['monthly-date', 'Mensal pela data — todo dia do mês'], ['monthly-weekday', 'Mensal pelo dia da semana — toda 2ª terça, 1º domingo...'], ['yearly-date', 'Anual pela data — mesmo dia e mês'], ['yearly-weekday', 'Anual pelo dia da semana — mesma posição']].map(([value, label]) => `<option value="${value}" ${eventRecurrenceType === value ? 'selected' : ''}>${label}</option>`).join('');
+    const eventRecurrenceOptions = [['none', 'Não repetir — evento único'], ['weekly-month', 'Semanal — somente até o fim deste mês'], ['weekly-year', 'Semanal — um dia da semana se repetindo'], ['monthly-date', 'Mensal pela data — todo dia do mês'], ['monthly-weekday', 'Mensal pelo dia da semana — toda 2ª terça, 1º domingo...'], ['yearly-date', 'Anual pela data — mesmo dia e mês'], ['yearly-weekday', 'Anual pelo dia da semana — mesma posição']].map(([value, label]) => `<option value="${value}" ${eventRecurrenceType === value ? 'selected' : ''}>${label}</option>`).join('');
     const recurrenceText = eventRecord.recurrenceId ? 'Este evento faz parte de uma série recorrente. Por padrão, a alteração vale somente para esta ocorrência.' : 'Evento único, sem série recorrente.';
     modalTitle = 'Editar evento';
     modalEyebrow = 'AGENDA · EDIÇÃO';
-    content = `<form data-form="event-edit" data-id="${esc(eventRecord.id)}"><div class="event-edit-summary"><div class="event-edit-summary-icon">${ICON('calendar')}</div><div><strong>${esc(eventRecord.title)}</strong><span>${esc(formatDateLong(eventRecord.date))} · ${esc(eventRecord.time)}</span></div><span class="status-pill ${eventStatusClass(eventRecord.status)}">${eventStatusLabel(eventRecord.status)}</span></div><div class="form-grid"><div class="form-field full"><label for="editEventTitle">Nome do evento *</label><input class="input" id="editEventTitle" name="title" value="${esc(eventRecord.title)}" required></div><div class="form-field"><label for="editEventDate">Data *</label><input class="input" id="editEventDate" name="date" type="date" value="${esc(eventRecord.date)}" required></div><div class="form-field"><label for="editEventTime">Horário *</label><input class="input" id="editEventTime" name="time" type="time" value="${esc(eventRecord.time)}" required></div><div class="form-field"><label for="editEventType">Categoria</label><select class="select" id="editEventType" name="type"><option ${eventRecord.type === 'Culto' ? 'selected' : ''}>Culto</option><option ${eventRecord.type === 'Encontro' ? 'selected' : ''}>Encontro</option><option ${eventRecord.type === 'Festividade' ? 'selected' : ''}>Festividade</option><option ${eventRecord.type === 'Liderança' ? 'selected' : ''}>Liderança</option><option ${eventRecord.type === 'Outro' ? 'selected' : ''}>Outro</option></select></div><div class="form-field"><label for="editEventLocation">Local</label><input class="input" id="editEventLocation" name="location" value="${esc(eventRecord.location || '')}"></div><div class="form-field"><label for="editEventAudience">Público</label><select class="select" id="editEventAudience" name="audience"><option ${eventRecord.audience === 'Toda a igreja' ? 'selected' : ''}>Toda a igreja</option><option ${eventRecord.audience === 'Lideranças' ? 'selected' : ''}>Lideranças</option><option ${eventRecord.audience === 'Obreiros' ? 'selected' : ''}>Obreiros</option><option ${eventRecord.audience === 'Ministério de Mulheres' ? 'selected' : ''}>Ministério de Mulheres</option><option ${eventRecord.audience === 'Jovens' ? 'selected' : ''}>Jovens</option><option ${eventRecord.audience === 'Visitantes' ? 'selected' : ''}>Visitantes</option></select></div><div class="form-field"><label for="editEventStatus">Situação do evento</label><select class="select" id="editEventStatus" name="status"><option value="active" ${eventRecord.status === 'active' ? 'selected' : ''}>Ativo — publicado</option><option value="paused" ${eventRecord.status === 'paused' ? 'selected' : ''}>Pausado — manter para retomar depois</option><option value="blocked" ${eventRecord.status === 'blocked' ? 'selected' : ''}>Bloqueado — não deve acontecer</option></select></div></div><div class="form-grid"><div class="form-field full"><label for="editEventRecurrence">Como este evento deve se repetir?</label><select class="select" id="editEventRecurrence" name="recurrence">${eventRecurrenceOptions}</select><p class="field-note">Escolha evento único, repetição pela data, pelo dia da semana ou anual. As ocorrências são geradas até 31 de dezembro do ano atual.</p></div><div class="form-field"><label for="editEventWeekday">Dia da semana</label><select class="select" id="editEventWeekday" name="weekday">${weekdayNames.map((name, index) => `<option value="${index}" ${index === eventWeekday ? 'selected' : ''}>${name}</option>`).join('')}</select><p class="field-note">Usado nas opções pelo dia da semana.</p></div><div class="form-field"><label for="editEventOrdinal">Posição no mês</label><select class="select" id="editEventOrdinal" name="ordinal">${[1, 2, 3, 4, 5].map(value => `<option value="${value}" ${value === eventOrdinal ? 'selected' : ''}>${['Primeiro', 'Segundo', 'Terceiro', 'Quarto', 'Quinto'][value - 1]}</option>`).join('')}</select></div></div><div class="scope-note" style="margin-top:16px;"><span>${ICON('calendar')}</span><p><strong>${esc(recurrenceText)}</strong>${eventRecord.recurrenceId ? ` Marque a opção abaixo se quiser atualizar os dados gerais de todas as ocorrências desta série.` : ''}</p></div>${eventRecord.recurrenceId ? `<label class="checkbox-line event-series-option"><input type="checkbox" name="updateSeries"><span>Aplicar nome, horário, local, categoria, público e situação a todas as ocorrências desta série. Se você mudar o tipo de recorrência, a data informada será o início da nova série; mantendo o tipo, a data vale somente para esta ocorrência.</span></label>` : ''}<div class="event-quick-actions"><span>Alterar situação rapidamente:</span><button type="button" class="btn btn-secondary btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="paused">${ICON('clock')} Pausar</button><button type="button" class="btn btn-secondary btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="blocked">${ICON('shield')} Bloquear</button><button type="button" class="btn btn-gold btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="active">${ICON('check')} Reativar</button></div><div class="modal-actions"><button type="button" class="btn btn-danger" data-action="delete-event" data-id="${esc(eventRecord.id)}">${ICON('x')} Excluir evento</button><span style="flex:1"></span><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar alterações</button></div></form>`;
+    content = `<form data-form="event-edit" data-id="${esc(eventRecord.id)}"><div class="event-edit-summary"><div class="event-edit-summary-icon">${ICON('calendar')}</div><div><strong>${esc(eventRecord.title)}</strong><span>${esc(formatDateLong(eventRecord.date))} · ${esc(eventRecord.time)}</span></div><span class="status-pill ${eventStatusClass(eventRecord.status)}">${eventStatusLabel(eventRecord.status)}</span></div><div class="form-grid"><div class="form-field full"><label for="editEventTitle">Nome do evento *</label><input class="input" id="editEventTitle" name="title" value="${esc(eventRecord.title)}" required></div><div class="form-field"><label for="editEventDate">Data *</label><input class="input" id="editEventDate" name="date" type="date" value="${esc(eventRecord.date)}" required></div><div class="form-field"><label for="editEventTime">Horário *</label><input class="input" id="editEventTime" name="time" type="time" value="${esc(eventRecord.time)}" required></div><div class="form-field"><label for="editEventType">Categoria</label><select class="select" id="editEventType" name="type"><option ${eventRecord.type === 'Culto' ? 'selected' : ''}>Culto</option><option ${eventRecord.type === 'Encontro' ? 'selected' : ''}>Encontro</option><option ${eventRecord.type === 'Festividade' ? 'selected' : ''}>Festividade</option><option ${eventRecord.type === 'Liderança' ? 'selected' : ''}>Liderança</option><option ${eventRecord.type === 'Outro' ? 'selected' : ''}>Outro</option></select></div><div class="form-field"><label for="editEventLocation">Local</label><input class="input" id="editEventLocation" name="location" value="${esc(eventRecord.location || '')}"></div><div class="form-field"><label for="editEventAudience">Público</label><select class="select" id="editEventAudience" name="audience"><option ${eventRecord.audience === 'Toda a igreja' ? 'selected' : ''}>Toda a igreja</option><option ${eventRecord.audience === 'Lideranças' ? 'selected' : ''}>Lideranças</option><option ${eventRecord.audience === 'Obreiros' ? 'selected' : ''}>Obreiros</option><option ${eventRecord.audience === 'Ministério de Mulheres' ? 'selected' : ''}>Ministério de Mulheres</option><option ${eventRecord.audience === 'Jovens' ? 'selected' : ''}>Jovens</option><option ${eventRecord.audience === 'Visitantes' ? 'selected' : ''}>Visitantes</option></select></div><div class="form-field"><label for="editEventStatus">Situação do evento</label><select class="select" id="editEventStatus" name="status"><option value="active" ${eventRecord.status === 'active' ? 'selected' : ''}>Ativo — publicado</option><option value="paused" ${eventRecord.status === 'paused' ? 'selected' : ''}>Pausado — manter para retomar depois</option><option value="blocked" ${eventRecord.status === 'blocked' ? 'selected' : ''}>Bloqueado — não deve acontecer</option></select></div></div><div class="form-grid"><div class="form-field full"><label for="editEventRecurrence">Como este evento deve se repetir?</label><select class="select" id="editEventRecurrence" name="recurrence">${eventRecurrenceOptions}</select><p class="field-note">Escolha evento único, repetição pela data, pelo dia da semana ou anual. O alcance da série é escolhido abaixo: fim do ano, uma quantidade de ocorrências ou uma data final.</p></div><div class="form-field"><label for="editEventWeekday">Dia da semana</label><select class="select" id="editEventWeekday" name="weekday">${weekdayNames.map((name, index) => `<option value="${index}" ${index === eventWeekday ? 'selected' : ''}>${name}</option>`).join('')}</select><p class="field-note">Usado nas opções pelo dia da semana.</p></div><div class="form-field"><label for="editEventOrdinal">Posição no mês</label><select class="select" id="editEventOrdinal" name="ordinal">${[1, 2, 3, 4, 5].map(value => `<option value="${value}" ${value === eventOrdinal ? 'selected' : ''}>${['Primeiro', 'Segundo', 'Terceiro', 'Quarto', 'Quinto'][value - 1]}</option>`).join('')}</select></div>${eventRecurrenceExtraFields('editEvent', { intervaloSemanas: recurrenceRule.intervaloSemanas, modoAte: recurrenceRule.totalOcorrencias ? 'count' : (recurrenceRule.ateData ? 'date' : 'year'), totalOcorrencias: recurrenceRule.totalOcorrencias, ateData: recurrenceRule.ateData, anoBase: eventRecord.date })}</div><div class="scope-note" style="margin-top:16px;"><span>${ICON('calendar')}</span><p><strong>${esc(recurrenceText)}</strong>${eventRecord.recurrenceId ? ` Marque a opção abaixo se quiser atualizar os dados gerais de todas as ocorrências desta série.` : ''}</p></div>${eventRecord.recurrenceId ? `<label class="checkbox-line event-series-option"><input type="checkbox" name="updateSeries"><span>Aplicar nome, horário, local, categoria, público e situação a todas as ocorrências desta série. Mudar o tipo OU o alcance (a cada quanto tempo, quantas ocorrências, data final) refaz a série inteira a partir da data informada — por isso a opção abaixo precisa estar marcada. Sem marcar, nome, horário e local valem só para esta ocorrência.</span></label>` : ''}<div class="event-quick-actions"><span>Alterar situação rapidamente:</span><button type="button" class="btn btn-secondary btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="paused">${ICON('clock')} Pausar</button><button type="button" class="btn btn-secondary btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="blocked">${ICON('shield')} Bloquear</button><button type="button" class="btn btn-gold btn-small" data-action="set-event-status" data-id="${esc(eventRecord.id)}" data-status="active">${ICON('check')} Reativar</button></div><div class="modal-actions"><button type="button" class="btn btn-danger" data-action="delete-event" data-id="${esc(eventRecord.id)}">${ICON('x')} Excluir evento</button><span style="flex:1"></span><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('check')} Salvar alterações</button></div></form>`;
   } else if (type === 'event') {
     modalTitle = 'Novo evento';
     modalEyebrow = 'AGENDA';
     const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     const defaultWeekday = parseDate(TODAY).getDay();
-    content = `<form data-form="event"><div class="form-grid"><div class="form-field full"><label for="eventTitle">Nome do evento *</label><input class="input" id="eventTitle" name="title" required placeholder="Ex.: Culto de Celebração"></div><div class="form-field"><label for="eventDate">Data de início *</label><input class="input" id="eventDate" name="date" type="date" value="${TODAY}" required></div><div class="form-field"><label for="eventTime">Horário *</label><input class="input" id="eventTime" name="time" type="time" value="19:00" required></div><div class="form-field"><label for="eventType">Categoria</label><select class="select" id="eventType" name="type"><option>Culto</option><option>Encontro</option><option>Festividade</option><option>Liderança</option><option>Outro</option></select></div><div class="form-field"><label for="eventLocation">Local</label><input class="input" id="eventLocation" name="location" value="Templo principal"></div><div class="form-field full"><label for="eventAudience">Público</label><select class="select" id="eventAudience" name="audience"><option>Toda a igreja</option><option>Lideranças</option><option>Obreiros</option><option>Ministério de Mulheres</option><option>Jovens</option><option>Visitantes</option></select></div><div class="form-field full"><label for="eventRecurrence">Como este evento deve se repetir?</label><select class="select" id="eventRecurrence" name="recurrence"><option value="none">Não repetir — evento único</option><option value="weekly-month">Semanal pelo dia da semana — até o fim deste mês</option><option value="weekly-year">Semanal pelo dia da semana — até 31 de dezembro</option><option value="monthly-date">Mensal pela data — todo dia 15, 20, 25...</option><option value="monthly-weekday">Mensal pelo dia da semana — toda 2ª terça, 1º domingo...</option><option value="yearly-date">Anual pela data — uma vez por ano no mesmo dia e mês</option><option value="yearly-weekday">Anual pelo dia da semana — uma vez por ano na mesma posição</option></select><p class="field-note">Você pode deixar como evento único, repetir pela data do calendário ou repetir pelo dia da semana. As ocorrências são criadas até 31 de dezembro do ano atual.</p></div><div class="form-field"><label for="eventWeekday">Dia da semana</label><select class="select" id="eventWeekday" name="weekday">${weekdayNames.map((name, index) => `<option value="${index}" ${index === defaultWeekday ? 'selected' : ''}>${name}</option>`).join('')}</select><p class="field-note">Usado nas opções “pelo dia da semana”.</p></div><div class="form-field"><label for="eventOrdinal">Posição no mês</label><select class="select" id="eventOrdinal" name="ordinal"><option value="1">Primeiro</option><option value="2">Segundo</option><option value="3">Terceiro</option><option value="4">Quarto</option><option value="5">Quinto, quando existir</option></select><p class="field-note">Ex.: segundo domingo ou terceira terça.</p></div></div><div class="scope-note" style="margin-top:16px;"><span>${ICON('calendar')}</span><p><strong>Exemplo:</strong> para um culto todos os domingos, escolha “Semanal pelo dia da semana — até 31 de dezembro” e selecione “Domingo”. Para uma conferência anual, use “Anual pela data” ou “Anual pelo dia da semana”.</p></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('calendar')} Adicionar evento</button></div></form>`;
+    content = `<form data-form="event"><div class="form-grid"><div class="form-field full"><label for="eventTitle">Nome do evento *</label><input class="input" id="eventTitle" name="title" required placeholder="Ex.: Culto de Celebração"></div><div class="form-field"><label for="eventDate">Data de início *</label><input class="input" id="eventDate" name="date" type="date" value="${TODAY}" required></div><div class="form-field"><label for="eventTime">Horário *</label><input class="input" id="eventTime" name="time" type="time" value="19:00" required></div><div class="form-field"><label for="eventType">Categoria</label><select class="select" id="eventType" name="type"><option>Culto</option><option>Encontro</option><option>Festividade</option><option>Liderança</option><option>Outro</option></select></div><div class="form-field"><label for="eventLocation">Local</label><input class="input" id="eventLocation" name="location" value="Templo principal"></div><div class="form-field full"><label for="eventAudience">Público</label><select class="select" id="eventAudience" name="audience"><option>Toda a igreja</option><option>Lideranças</option><option>Obreiros</option><option>Ministério de Mulheres</option><option>Jovens</option><option>Visitantes</option></select></div><div class="form-field full"><label for="eventRecurrence">Como este evento deve se repetir?</label><select class="select" id="eventRecurrence" name="recurrence"><option value="none">Não repetir — evento único</option><option value="weekly-month">Semanal — somente até o fim deste mês</option><option value="weekly-year">Semanal — um dia da semana se repetindo</option><option value="monthly-date">Mensal pela data — todo dia 15, 20, 25...</option><option value="monthly-weekday">Mensal pelo dia da semana — toda 2ª terça, 1º domingo...</option><option value="yearly-date">Anual pela data — uma vez por ano no mesmo dia e mês</option><option value="yearly-weekday">Anual pelo dia da semana — uma vez por ano na mesma posição</option></select><p class="field-note">Você pode deixar como evento único, repetir pela data do calendário ou repetir pelo dia da semana. O alcance da série é escolhido logo abaixo: até 31 de dezembro, uma quantidade de ocorrências ou uma data final.</p></div><div class="form-field"><label for="eventWeekday">Dia da semana</label><select class="select" id="eventWeekday" name="weekday">${weekdayNames.map((name, index) => `<option value="${index}" ${index === defaultWeekday ? 'selected' : ''}>${name}</option>`).join('')}</select><p class="field-note">Usado nas opções “pelo dia da semana”.</p></div><div class="form-field"><label for="eventOrdinal">Posição no mês</label><select class="select" id="eventOrdinal" name="ordinal"><option value="1">Primeiro</option><option value="2">Segundo</option><option value="3">Terceiro</option><option value="4">Quarto</option><option value="5">Quinto, quando existir</option></select><p class="field-note">Ex.: segundo domingo ou terceira terça.</p></div>${eventRecurrenceExtraFields('event', { anoBase: TODAY })}</div><div class="scope-note" style="margin-top:16px;"><span>${ICON('calendar')}</span><p><strong>Exemplo:</strong> culto todo domingo às 19h pelo ano inteiro = “Semanal — um dia da semana se repetindo” + “Domingo” + “Até 31 de dezembro”. Para fechar o ano que vem também, troque “Até quando?” por “Até uma data que eu escolher” e informe 31/12 do outro ano. Para só os próximos três meses, escolha “Por um número de ocorrências” e escreva 13.</p></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-modal">Cancelar</button><button type="submit" class="btn btn-gold">${ICON('calendar')} Adicionar evento</button></div></form>`;
   } else if (type === 'church') {
     modalTitle = 'Adicionar igreja';
     modalEyebrow = 'PLATAFORMA SAAS';
@@ -1454,6 +1454,7 @@ function openModal(type, data = {}) {
   title.textContent = modalTitle;
   eyebrow.textContent = modalEyebrow;
   body.innerHTML = content;
+  if (type === 'event' || type === 'event-edit') syncEventRecurrence();
   backdrop.classList.remove('hidden');
   document.body.classList.add('modal-open');
   setTimeout(() => { const autofocus = $('#modalBody input[autofocus], #modalBody input:not([type="checkbox"]):not([type="radio"])'); autofocus?.focus(); }, 50);
@@ -1511,41 +1512,152 @@ function nthWeekdayDate(year, month, weekday, ordinal) {
   const date = new Date(year, month, 1 + offset + ((ordinal - 1) * 7), 12);
   return date.getMonth() === month ? date : null;
 }
-function generateEventDates(startDateValue, recurrence, weekday, ordinal) {
+// ===== Agenda: recorrência decidida por quem agenda =====
+// A série é criada como ocorrências normais (a API tem /events/bulk e a coluna
+// recurrence_rule), então nada aqui depende de migração. O alcance deixa de ser uma
+// decisão do código (parar em 31 de dezembro) e passa a ser escolha do pastor no
+// próprio formulário: até o fim do ano, uma quantidade de ocorrências ou uma data final.
+const EVENT_SERIES_LIMIT = 500;   // o /api/church/events/bulk grava 500 por vez
+const EVENT_WEEKDAY_NAMES = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+function recurrenceRange(startDateValue, recurrence, options = {}) {
   const start = parseDate(startDateValue);
-  const type = recurrence || 'none';
-  if (type === 'none') return [isoDateFromDate(start)];
-  const dates = [];
-  const year = start.getFullYear();
-  const month = start.getMonth();
-  const end = type === 'weekly-month' ? lastDayOfMonth(year, month) : new Date(year, 11, 31, 23, 59, 59);
-  if (type === 'weekly-month' || type === 'weekly-year') {
-    let cursor = start;
-    const distance = (Number(weekday) - cursor.getDay() + 7) % 7;
-    cursor = addDaysToDate(cursor, distance);
-    while (cursor <= end) { dates.push(isoDateFromDate(cursor)); cursor = addDaysToDate(cursor, 7); }
-  } else if (type === 'monthly-date') {
-    for (let cursor = new Date(year, month, 1); cursor <= end; cursor.setMonth(cursor.getMonth() + 1)) {
-      const candidate = new Date(cursor.getFullYear(), cursor.getMonth(), start.getDate(), 12);
-      if (candidate.getMonth() === cursor.getMonth() && candidate >= start && candidate <= end) dates.push(isoDateFromDate(candidate));
-    }
-  } else if (type === 'monthly-weekday') {
-    for (let cursor = new Date(year, month, 1); cursor <= end; cursor.setMonth(cursor.getMonth() + 1)) {
-      const candidate = nthWeekdayDate(cursor.getFullYear(), cursor.getMonth(), Number(weekday), Number(ordinal));
-      if (candidate && candidate >= start && candidate <= end) dates.push(isoDateFromDate(candidate));
-    }
-  } else if (type === 'yearly-date') {
-    const candidate = new Date(year, month, start.getDate(), 12);
-    if (candidate >= start && candidate <= end) dates.push(isoDateFromDate(candidate));
-  } else if (type === 'yearly-weekday') {
-    const candidate = nthWeekdayDate(year, month, Number(weekday), Number(ordinal));
-    if (candidate && candidate >= start && candidate <= end) dates.push(isoDateFromDate(candidate));
-  }
-  return [...new Set(dates.length ? dates : [isoDateFromDate(start)])];
+  if (!start) return null;
+  const inicio = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12);
+  const opts = options || {};
+  const total = Number(opts.totalOcorrencias) > 0 ? Math.floor(Number(opts.totalOcorrencias)) : 0;
+  const escolhido = opts.ateData ? parseDate(opts.ateData) : null;
+  let end;
+  if (escolhido) end = new Date(escolhido.getFullYear(), escolhido.getMonth(), escolhido.getDate(), 23, 59, 59);
+  else if (recurrence === 'weekly-month') end = lastDayOfMonth(inicio.getFullYear(), inicio.getMonth());
+  else end = new Date(inicio.getFullYear(), 11, 31, 23, 59, 59);
+  const teto = Number(opts.maximo) > 0 ? Math.floor(Number(opts.maximo)) : EVENT_SERIES_LIMIT;
+  return { inicio, end, maximo: Math.min(teto, total || teto) };
 }
-function buildRecurrenceRule(startDate, recurrence, weekday, ordinal) {
-  const until = recurrence === 'weekly-month' ? `${startDate.slice(0, 7)}-${String(new Date(Number(startDate.slice(0, 4)), Number(startDate.slice(5, 7)), 0).getDate()).padStart(2, '0')}` : `${startDate.slice(0, 4)}-12-31`;
-  return { type: recurrence || 'none', weekday: Number(weekday), ordinal: Number(ordinal), until };
+function generateEventDates(startDateValue, recurrence, weekday, ordinal, options = {}) {
+  const type = recurrence || 'none';
+  const start = parseDate(startDateValue);
+  if (!start) return [];
+  if (type === 'none') return [isoDateFromDate(start)];
+  const faixa = recurrenceRange(startDateValue, type, options);
+  if (!faixa) return [isoDateFromDate(start)];
+  const { inicio, end, maximo } = faixa;
+  if (inicio > end) return [];           // data final antes do início: não se inventa série
+  const intervalo = Math.min(4, Math.max(1, Math.floor(Number((options || {}).intervaloSemanas || 1))));
+  const dia = Number.isInteger(Number(weekday)) ? Number(weekday) : inicio.getDay();
+  const posicao = Math.min(5, Math.max(1, Number(ordinal || 1)));
+  const datas = [];
+  if (type === 'weekly-month' || type === 'weekly-year') {
+    let cursor = addDaysToDate(inicio, (dia - inicio.getDay() + 7) % 7);
+    while (cursor <= end && datas.length < maximo) {
+      datas.push(isoDateFromDate(cursor));
+      cursor = addDaysToDate(cursor, 7 * intervalo);
+    }
+  } else if (type === 'monthly-date' || type === 'monthly-weekday') {
+    let ano = inicio.getFullYear();
+    let mes = inicio.getMonth();
+    while (datas.length < maximo && new Date(ano, mes, 1, 12) <= end) {
+      const candidato = type === 'monthly-date'
+        ? new Date(ano, mes, inicio.getDate(), 12)
+        : nthWeekdayDate(ano, mes, dia, posicao);
+      const vale = candidato && (type !== 'monthly-date' || candidato.getMonth() === mes) && candidato >= inicio && candidato <= end;
+      if (vale) datas.push(isoDateFromDate(candidato));
+      mes += 1;
+      if (mes > 11) { mes = 0; ano += 1; }
+    }
+  } else if (type === 'yearly-date' || type === 'yearly-weekday') {
+    let ano = inicio.getFullYear();
+    while (datas.length < maximo && new Date(ano, inicio.getMonth(), 1, 12) <= end) {
+      const candidato = type === 'yearly-date'
+        ? new Date(ano, inicio.getMonth(), inicio.getDate(), 12)
+        : nthWeekdayDate(ano, inicio.getMonth(), dia, posicao);
+      if (candidato && candidato >= inicio && candidato <= end) datas.push(isoDateFromDate(candidato));
+      ano += 1;
+    }
+  }
+  return [...new Set(datas)].sort();
+}
+function buildRecurrenceRule(startDate, recurrence, weekday, ordinal, options = {}, geradas = null) {
+  const faixa = recurrenceRange(startDate, recurrence || 'none', options);
+  const ate = geradas && geradas.length ? geradas[geradas.length - 1] : (faixa ? isoDateFromDate(faixa.end) : startDate);
+  const opts = options || {};
+  return {
+    type: recurrence || 'none',
+    weekday: Number(weekday),
+    ordinal: Math.min(5, Math.max(1, Number(ordinal || 1))),
+    intervaloSemanas: Math.min(4, Math.max(1, Number(opts.intervaloSemanas || 1))),
+    totalOcorrencias: Number(opts.totalOcorrencias) > 0 ? Math.floor(Number(opts.totalOcorrencias)) : null,
+    ateData: opts.ateData || null,
+    until: ate,
+  };
+}
+// "Domingo" é o número zero: um `||` aqui trataria a escolha como campo vazio e o culto
+// do pastor sairia na segunda-feira.
+function weekdayEscolhido(data, startDate) {
+  const bruto = data.get('weekday');
+  if (bruto === null || bruto === undefined || bruto === '') {
+    const inicio = parseDate(startDate);
+    return inicio ? inicio.getDay() : 0;
+  }
+  const numero = Number(bruto);
+  return Number.isInteger(numero) && numero >= 0 && numero <= 6 ? numero : 0;
+}
+// O que o formulário escolheu vira opção do gerador — e só quando o campo faz sentido.
+function eventRecurrenceOptions(data) {
+  const modo = String(data.get('ateModo') || 'year');
+  const total = Number(data.get('total') || 0);
+  const ate = String(data.get('ate') || '');
+  return {
+    modoAte: ['count', 'date'].includes(modo) ? modo : 'year',
+    intervaloSemanas: Math.min(4, Math.max(1, Number(data.get('intervalo') || 1))),
+    totalOcorrencias: modo === 'count' && Number.isFinite(total) && total > 0 ? Math.floor(total) : 0,
+    ateData: modo === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(ate) ? ate : '',
+  };
+}
+function describeEventRecurrence(estado) {
+  const inicio = parseDate(estado.startDate);
+  if (!inicio) return 'Escolha a data de início para ver quantas datas serão criadas.';
+  if (estado.recurrence === 'none') return `Evento único: 1 data, ${formatDateLong(estado.startDate)}.`;
+  const projetadas = generateEventDates(estado.startDate, estado.recurrence, estado.weekday, estado.ordinal, { ...(estado.options || {}), totalOcorrencias: 0, maximo: 2000 });
+  if (!projetadas.length) return 'Nenhuma data cai no período escolhido. Ajuste a data final, o dia da semana ou a quantidade.';
+  const corta = Math.min(projetadas.length, EVENT_SERIES_LIMIT);
+  const palavras = { 1: 'toda semana', 2: 'a cada 2 semanas', 3: 'a cada 3 semanas', 4: 'a cada 4 semanas' };
+  const semanal = estado.recurrence === 'weekly-month' || estado.recurrence === 'weekly-year';
+  const passo = semanal ? ` Passos de ${palavras[(estado.options || {}).intervaloSemanas] || 'toda semana'} (${EVENT_WEEKDAY_NAMES[Number(estado.weekday)] || 'escolhido'}).` : '';
+  const estouro = projetadas.length > EVENT_SERIES_LIMIT ? ` São ${projetadas.length} datas, acima do limite de ${EVENT_SERIES_LIMIT} por agendamento — reduza a quantidade ou a data final.` : '';
+  return `Serão ${corta} ${corta === 1 ? 'data' : 'datas'}: a primeira em ${formatDateLong(projetadas[0])} e a última em ${formatDateLong(projetadas[corta - 1])}.${passo}${estouro}`;
+}
+// Os campos extras só aparecem quando têm função: "a cada quantas semanas" vale para as
+// semanais, e o número/a data só valem para o modo escolhido em "Até quando?".
+function eventRecurrenceStateFromForm(form) {
+  const campo = nome => form.querySelector(`[name="${nome}"]`);
+  const startDate = String((campo('date') || {}).value || TODAY);
+  const recurrence = String((campo('recurrence') || {}).value || 'none');
+  const inicio = parseDate(startDate);
+  const weekday = Number((campo('weekday') || {}).value ?? (inicio ? inicio.getDay() : 0));
+  return { startDate, recurrence, weekday: Number.isFinite(weekday) ? weekday : 0, ordinal: Number((campo('ordinal') || {}).value || 1), options: eventRecurrenceOptions({ get: nome => (campo(nome) || {}).value ?? '' }) };
+}
+function eventRecurrenceExtraFields(prefix, valores = {}) {
+  const intervalo = Math.min(4, Math.max(1, Number(valores.intervaloSemanas || 1)));
+  const modo = ['count', 'date'].includes(valores.modoAte) ? valores.modoAte : 'year';
+  const total = Number(valores.totalOcorrencias) > 0 ? Number(valores.totalOcorrencias) : '';
+  const ano = String(valores.anoBase || TODAY).slice(0, 4);
+  const dataFinal = valores.ateData || `${ano}-12-31`;
+  const opcao = (valor, texto, atual) => `<option value="${valor}" ${String(atual) === String(valor) ? 'selected' : ''}>${texto}</option>`;
+  return `<div class="form-field" data-recorrencia-bloco="semanal"><label for="${prefix}EventIntervalo">A cada quanto tempo?</label><select class="select" id="${prefix}EventIntervalo" name="intervalo">${opcao(1, 'Toda semana', intervalo)}${opcao(2, 'A cada 2 semanas (quinzenal)', intervalo)}${opcao(3, 'A cada 3 semanas', intervalo)}${opcao(4, 'A cada 4 semanas', intervalo)}</select><p class="field-note">Vale nas repetições pelo dia da semana.</p></div><div class="form-field"><label for="${prefix}EventAte">Até quando?</label><select class="select" id="${prefix}EventAte" name="ateModo">${opcao('year', 'Até 31 de dezembro deste ano', modo)}${opcao('count', 'Por um número de ocorrências', modo)}${opcao('date', 'Até uma data que eu escolher', modo)}</select><p class="field-note">Quem decide o alcance da série é você, aqui.</p></div><div class="form-field is-hidden" data-recorrencia-bloco="count"><label for="${prefix}EventAteCount">Quantas ocorrências?</label><input class="input" id="${prefix}EventAteCount" name="total" type="number" min="2" max="${EVENT_SERIES_LIMIT}" step="1" inputmode="numeric" value="${total}" placeholder="Ex.: 52"><p class="field-note">De 2 a ${EVENT_SERIES_LIMIT}. A série começa na data de início e conta daí.</p></div><div class="form-field is-hidden" data-recorrencia-bloco="date"><label for="${prefix}EventAteDate">Última data aceita</label><input class="input" id="${prefix}EventAteDate" name="ate" type="date" value="${esc(dataFinal)}"><p class="field-note">A série para na última ocorrência antes desta data.</p></div><div class="form-field full"><p class="field-note" id="${prefix}EventRecurrencePreview" data-recorrencia-preview>&nbsp;</p></div>`;
+}
+function syncEventRecurrence() {
+  const form = document.querySelector('#modalBody form[data-form^="event"]');
+  if (!form) return;
+  const estado = eventRecurrenceStateFromForm(form);
+  const semanal = estado.recurrence === 'weekly-month' || estado.recurrence === 'weekly-year';
+  const unico = estado.recurrence === 'none';
+  form.querySelectorAll('[data-recorrencia-bloco]').forEach(no => {
+    const bloco = no.dataset.recorrenciaBloco;
+    const mostrar = unico ? false : (bloco === 'semanal' ? semanal : bloco === estado.options.modoAte);
+    no.classList.toggle('is-hidden', !mostrar);
+  });
+  const preview = form.querySelector('[data-recorrencia-preview]');
+  if (preview) preview.textContent = describeEventRecurrence(estado);
 }
 
 async function handleSubmit(event) {
@@ -1603,25 +1715,39 @@ async function handleSubmit(event) {
     if (!title) return showToast('Informe o nome do evento.', 'error');
     const startDate = String(data.get('date') || eventRecord.date);
     const recurrence = String(data.get('recurrence') || 'none');
-    const weekday = Number(data.get('weekday') || parseDate(startDate).getDay());
+    const weekday = weekdayEscolhido(data, startDate);
     const ordinal = Number(data.get('ordinal') || 1);
     const updateSeries = data.get('updateSeries') === 'on';
     const currentRecurrence = eventRecord.recurrenceRule?.type || 'none';
-    const recurrenceChanged = recurrence !== currentRecurrence;
+    const alcance = eventRecurrenceOptions(data);
+    // mudar o alcance (a cada quantas semanas, quantas ocorrências, a data final) refaz a
+    // série inteira tanto quanto mudar o tipo — se não, o pastor estende a série e só uma
+    // ocorrência muda.
+    const regraAnterior = eventRecord.recurrenceRule || {};
+    const alcanceMudou = Number(regraAnterior.intervaloSemanas || 1) !== alcance.intervaloSemanas
+      || Number(regraAnterior.totalOcorrencias || 0) !== alcance.totalOcorrencias
+      || String(regraAnterior.ateData || '') !== String(alcance.ateData || '');
+    const recurrenceChanged = recurrence !== currentRecurrence || alcanceMudou;
     if (eventRecord.recurrenceId && recurrenceChanged && !updateSeries) return showToast('Para alterar a repetição de uma série, marque “Aplicar à série inteira”.', 'error');
     const recurrenceId = recurrence === 'none' ? '' : (eventRecord.recurrenceId || `rec-${Date.now()}`);
-    const recurrenceRule = buildRecurrenceRule(startDate, recurrence, weekday, ordinal);
-    const base = { title, date: startDate, time: String(data.get('time') || eventRecord.time || '19:00'), location: String(data.get('location') || ''), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), status: String(data.get('status') || 'active'), recurrenceRule, recurrenceId };
     const replaceSeries = (!eventRecord.recurrenceId && recurrence !== 'none') || (Boolean(eventRecord.recurrenceId) && recurrenceChanged);
+    const dates = replaceSeries ? generateEventDates(startDate, recurrence, weekday, ordinal, alcance) : [];
+    if (replaceSeries && recurrence !== 'none') {
+      const projetadas = generateEventDates(startDate, recurrence, weekday, ordinal, { ...alcance, totalOcorrencias: 0, maximo: 2000 });
+      if (projetadas.length > EVENT_SERIES_LIMIT) return showToast(`A série pede ${projetadas.length} datas e o limite por agendamento é ${EVENT_SERIES_LIMIT}. Reduza a quantidade ou a data final.`, 'error');
+      if (!dates.length) return showToast('Nenhuma data cai no período escolhido. Ajuste a data final, o dia da semana ou a quantidade.', 'error');
+    }
+    const recurrenceRule = buildRecurrenceRule(startDate, recurrence, weekday, ordinal, alcance, replaceSeries ? dates : null);
+    const base = { title, date: startDate, time: String(data.get('time') || eventRecord.time || '19:00'), location: String(data.get('location') || ''), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), status: String(data.get('status') || 'active'), recurrenceRule, recurrenceId };
     try {
       if (replaceSeries) {
-        const dates = generateEventDates(startDate, recurrence, weekday, ordinal);
         await apiRequest(`/api/church/events/${encodeURIComponent(eventRecord.id)}/series`, { method: 'PUT', body: { oldRecurrenceId: eventRecord.recurrenceId || '', events: dates.map(date => ({ ...base, date })) } });
       } else {
         await apiRequest(`/api/church/events/${encodeURIComponent(eventRecord.id)}`, { method: 'PATCH', body: { ...base, updateSeries } });
       }
       await loadRemoteChurchState(state.currentUser);
-      closeModal(); render(); showToast(`Evento “${title}” atualizado na agenda.`);
+      closeModal(); render();
+      showToast(replaceSeries && dates.length ? `Série “${title}” refeita: ${dates.length} ${dates.length === 1 ? 'data' : 'datas'}, de ${formatDateLong(dates[0])} a ${formatDateLong(dates[dates.length - 1])}.` : `Evento “${title}” atualizado na agenda.`);
     } catch (error) {
       showToast(`Não foi possível editar o evento: ${error.message}`, 'error');
     }
@@ -1630,17 +1756,30 @@ async function handleSubmit(event) {
     if (!title) return showToast('Informe o nome do evento.', 'error');
     const startDate = String(data.get('date') || TODAY);
     const recurrence = String(data.get('recurrence') || 'none');
-    const weekday = Number(data.get('weekday') || parseDate(startDate).getDay());
+    const weekday = weekdayEscolhido(data, startDate);
     const ordinal = Number(data.get('ordinal') || 1);
-    const dates = generateEventDates(startDate, recurrence, weekday, ordinal);
-    const recurrenceId = `rec-${Date.now()}`;
-    const base = { title, time: String(data.get('time') || '19:00'), location: String(data.get('location') || 'Templo principal'), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), status: 'active', recurrenceRule: buildRecurrenceRule(startDate, recurrence, weekday, ordinal), recurrenceId };
+    const alcance = eventRecurrenceOptions(data);
+    const todas = generateEventDates(startDate, recurrence, weekday, ordinal, alcance);
+    if (recurrence !== 'none') {
+      const projetadas = generateEventDates(startDate, recurrence, weekday, ordinal, { ...alcance, totalOcorrencias: 0, maximo: 2000 });
+      if (projetadas.length > EVENT_SERIES_LIMIT) return showToast(`A série pede ${projetadas.length} datas e o limite por agendamento é ${EVENT_SERIES_LIMIT}. Reduza a quantidade ou a data final.`, 'error');
+      if (!todas.length) return showToast('Nenhuma data cai no período escolhido. Ajuste a data final, o dia da semana ou a quantidade.', 'error');
+    }
+    const hora = String(data.get('time') || '19:00');
+    const ocupadas = new Set((state.events || []).filter(item => String(item.title || '').trim().toLowerCase() === title.toLowerCase() && String(item.time || '') === hora).map(item => String(item.date)));
+    const dates = recurrence === 'none' ? todas : todas.filter(date => !ocupadas.has(date));
+    if (!dates.length) return showToast('Estas datas já estão na agenda com o mesmo nome e horário. Nada foi repetido.', 'error');
+    const recurrenceId = recurrence === 'none' ? '' : `rec-${Date.now()}`;
+    const base = { title, time: hora, location: String(data.get('location') || 'Templo principal'), type: String(data.get('type') || 'Outro'), audience: String(data.get('audience') || 'Toda a igreja'), status: 'active', recurrenceRule: buildRecurrenceRule(startDate, recurrence, weekday, ordinal, alcance, dates), recurrenceId };
     const events = dates.map(date => ({ ...base, date }));
     try {
       await apiRequest('/api/church/events/bulk', { method: 'POST', body: { events } });
       await loadRemoteChurchState(state.currentUser);
       closeModal(); render();
-      showToast(`${events.length} ${events.length === 1 ? 'evento adicionado' : 'ocorrências adicionadas'} à agenda.`);
+      const repetidas = todas.length - dates.length;
+      showToast(recurrence === 'none'
+        ? `Evento “${title}” adicionado em ${formatDateLong(dates[0])}.`
+        : `${events.length} ${events.length === 1 ? 'data criada' : 'datas criadas'} para “${title}”: de ${formatDateLong(dates[0])} a ${formatDateLong(dates[dates.length - 1])}${repetidas > 0 ? ` · ${repetidas} ${repetidas === 1 ? 'data já estava' : 'datas já estavam'} na agenda e não foram repetidas` : ''}.`);
     } catch (error) {
       showToast(`Não foi possível salvar o evento: ${error.message}`, 'error');
     }
@@ -2212,6 +2351,7 @@ function init() {
   });
   document.addEventListener('submit', handleSubmit);
   document.addEventListener('input', event => {
+    if (event.target.closest && event.target.closest('#modalBody form[data-form^="event"]')) syncEventRecurrence();
     if (event.target.id === 'visitorSearch') { const rows = $('#visitorRows'); if (rows) rows.innerHTML = renderVisitorRows(); }
     if (event.target.id === 'churchLogoSymbol') updateLogoPreview();
     if (event.target.matches('[data-appearance-control][type="color"]')) {
@@ -2221,6 +2361,7 @@ function init() {
     }
   });
   document.addEventListener('change', event => {
+    if (event.target.closest && event.target.closest('#modalBody form[data-form^="event"]')) syncEventRecurrence();
     if (event.target.id === 'visitorStatus' || event.target.id === 'visitorArrival') { const rows = $('#visitorRows'); if (rows) rows.innerHTML = renderVisitorRows(); }
     if (event.target.matches('[data-family-toggle]')) { $('#familyFields')?.classList.toggle('is-hidden', !event.target.checked); }
     if (event.target.id === 'visitorArrivalType' && event.target.value !== 'Sozinho') {

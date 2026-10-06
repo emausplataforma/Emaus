@@ -1,24 +1,42 @@
 Emaús — registro da publicação
-Atualizado em 06/10/2026, 02:05 (Brasília, madrugada de 5 para 6 de outubro). Nada
+Atualizado em 06/10/2026, 00:20 (Brasília) = 06/10 03:20 UTC. Correção de registro que
+precisa ficar dita: os carimbos marcados como "Brasília" nas rodadas v16 (00:58), v17
+(01:20-01:35) e v18 (02:05) foram escritos com o relógio UTC desta bancada, que está 3 h
+à frente — naqueles mesmos instantes eram 21:58, 22:20-22:35 e 23:05 de 05/10 em Brasília.
+O conteúdo dos testes não muda; só o carimbo. Nada
 neste arquivo contém senha, token, DATABASE_URL, chave privada ou segredo.
 
 RELEASE EM PRODUÇÃO
-  Pacote ......... v15  (emaus-numeros-reais-e-pastores-v15.zip)
-  Commit ......... 35f43bd6 em main, 05/10/2026 21:37 (Brasília), "Add files via
-                   upload". Antes dele: 404e956a (20:39, os mesmos arquivos da v14)
-                   e 69e904ea (v14, 15:12).
-  Cache do app ... emaus-shell-v84-numeros-reais-pastores   (service-worker.js)
+  Pacote ......... v18  (emaus-acolhimento-fila-de-anuncio-v18.zip) — cumulativo: traz a
+                   v16 ("Excluir acesso"), a v17 ("números reais em tudo") e a v18
+                   (Acolhimento com a fila de anúncio limpa).
+  Commit ......... 41fb6c5c em main, 05/10/2026 23:06 (Brasília) = 06/10 02:06Z, "Add
+                   files via upload". Antes: f78561b0 (22:28), 35f43bd6 (v15, 21:37),
+                   404e956a (20:39) e 69e904ea (v14, 15:12).
+  Cache do app ... emaus-shell-v87-acolhimento-so-para-anunciar  (app.js?v=63,
+                   admin.js?v=60, styles.css?v=60)
   Frontend ....... github.com/emausplataforma/Emaus  ->  emausplataforma.github.io/Emaus
-  Conferido agora  os 6 arquivos que a v15 mexe foram comparados por MD5 entre o
-                   Pages e o repositório: iguais, um por um. No app.js publicado:
-                   0 ocorrências de "stat-open", 0 de "openIcon", engagementStats()
-                   presente e o textarea "newChurchAdmin" também. Ou seja, a v15 está
-                   integralmente no ar, incluindo o último enxugo de código morto.
-  API ............ emaus-production-2de0.up.railway.app — o server.js publicado é
-                   byte a byte o mesmo que estava nesta bancada antes da v16 (md5
-                   b4bd8abc7e52a2ba8032411d5ab0c075), e schema.sql, package.json e
-                   railway.json também estão iguais. Por isso o pacote da v16 traz
-                   uma rota só a mais, sem arrastar nada de carona.
+  Conferido agora  os 14 arquivos publicados (app.js, index.html, service-worker.js,
+                   styles.css, recepcao.html, reception.js, admin.js, admin.html, admin.css,
+                   publica.js, publica.html, publica.css, splash.js, api-config.js) foram
+                   baixados do Pages com furo de cache e comparados por MD5 com esta
+                   bancada: IGUAIS, um por um. No app.js publicado: 1x "return
+                   pendingPulpitVisitors();", 5x "Já anunciados" e 0x "semanaAtras" — a
+                   regra nova está no ar, e o plano B dos sete dias não existe mais lá.
+                   O espelho producao-atual/ foi atualizado com esses arquivos (o app.js e
+                   o admin.js de antes ficaram em *.pre-v18 e admin.js.antes-da-v17).
+  API ............ emaus-production-2de0.up.railway.app — o main tem o server.js da v16
+                   (md5 7bac044f3dd6a85316285677602c265c, 117.149 B, com o bloco
+                   RECEPTION_DETACH; o ar estava em b4bd8abc7e52a2ba8032411d5ab0c075,
+                   114.795 B). O QUE NÃO CONSIGO PROVAR DALI: /health devolve apenas
+                   { ok, service, timestamp } — sem versão nem uptime — e o repositório não
+                   tem .github/workflows (404), então push não é deploy automático de
+                   backend. A rota existe (DELETE /api/church/reception-users/:id sem token
+                   = 401 em 0,09 s, o que também prova que o auth é o primeiro middleware).
+                   Para confirmar o processo: Painel ▸ Acesso, excluir um acesso de teste.
+                   Respondeu na hora, com motivo quando falha = a v16 está rodando. Ainda
+                   15 s de relógio e "O serviço não respondeu a tempo" = só falta o deploy
+                   no Railway (redeploy manual do serviço).
 
 O QUE ESTÁ NO AR
   Da v14 (admin):
@@ -109,7 +127,7 @@ RODADA PUBLICADA (v15 — no ar desde 05/10 21:37, commit 35f43bd6)
   12 grupos de barras, eixo Y 5/4/3/2/1/0, cartões 2 · 1 · 3, saudação no plural,
   "sem mês anterior para comparar", aviso honesto quando não há cadastro).
 
-PACOTE EM MÃOS (v16 — "Excluir acesso" da recepção) · AINDA NÃO PUBLICADO
+PACOTE PUBLICADO (v16 — "Excluir acesso" da recepção) · no repositório com os outros; o processo do Railway depende de conferir na tela (ver "API" acima)
   Zip: emaus-excluir-acesso-recepcao-v16.zip
   Arquivos: server.js · app.js · index.html · service-worker.js
             · LEIA-ME-EXCLUIR-ACESSO-RECEPCAO-v1.txt
@@ -136,7 +154,7 @@ PACOTE EM MÃOS (v16 — "Excluir acesso" da recepção) · AINDA NÃO PUBLICADO
   três mudanças de rodadas anteriores estavam invisíveis no filtro: handleSubmit,
   markContacted e agora deleteReceptionAccess — todas deliberadas).
 
-PACOTE EM MÃOS (v17 — todo número da plataforma sai do que existe)
+PACOTE PUBLICADO (v17 — todo número da plataforma sai do que existe)
   Zip: emaus-numeros-reais-em-tudo-v17.zip  (leva a v16 junto, porque ela ainda não
   está no repositório)
   Arquivos: app.js · index.html · service-worker.js · admin.js · admin.html · admin.css
@@ -177,7 +195,7 @@ PACOTE EM MÃOS (v17 — todo número da plataforma sai do que existe)
   atualizado com o que está no ar (o antigo ficou em admin.js.antes-da-v17); conferido por
   diff, o admin.js publicado muda em 14 linhas só, todas nas três funções previstas.
 
-v18 — ACOLHIMENTO: EM DESTAQUE SÓ QUEM AINDA VAI SER ANUNCIADO  (EMBALADA, NÃO PUBLICADA)
+v18 — ACOLHIMENTO: EM DESTAQUE SÓ QUEM AINDA VAI SER ANUNCIADO  (PUBLICADA: commit 41fb6c5c, conferida arquivo por arquivo acima)
   Zip: emaus-acolhimento-fila-de-anuncio-v18.zip  (cumulativo: leva a v16 e a v17 junto)
   Arquivos: app.js · index.html · service-worker.js · admin.js · admin.html · admin.css
             · server.js (da v16) · os três LEIA-ME
@@ -210,7 +228,50 @@ v18 — ACOLHIMENTO: EM DESTAQUE SÓ QUEM AINDA VAI SER ANUNCIADO  (EMBALADA, N�
   Correção de rota em produção: o espelho producao-atual/app.js continua na v15
   (conferido por diff de função); main/server.js tem md5 b4bd8abc7e52a2ba8032411d5ab0c075
   (114.795 B, sem o bloco RECEPTION_DETACH) contra o local 7bac044f3dd6a85316285677602c265c
-  (117.149 B) — a v16 segue sem subir. Nada foi publicado desta rodada.
+  (117.149 B). Publicação conferida depois: os dois batem e o Pages serve o novo (abaixo).
+
+v19 — AGENDA COM RECORRÊNCIA DECIDIDA POR QUEM AGENDA  (EMBALADA, NÃO PUBLICADA)
+  Zip: emaus-agenda-recorrente-v19.zip  (leva junto admin.js/admin.html/admin.css, já no ar
+  desde a v18 e reconfirmados por MD5, e server.js da v16 — o único cujo processo ainda não
+  pude confirmar publicado)
+  Arquivos: app.js · index.html · service-worker.js · publica.js · publica.html
+            · admin.js · admin.html · admin.css · server.js (da v16) · os três LEIA-ME
+  Cache: emaus-shell-v88-agenda-recorrencia-do-pastor  (app.js?v=64, publica.js?v=60)
+  Pedido do pastor: "na parte do agenda eu quero que tenha possibilidade de agendamento
+  recorrente ... marca culto no domingo com inicio as 19h, pode ser colocado para todos os
+  domingos do ano e assim por diante, quem decide é o pastor no próprio agendamento".
+  O que já existia e por que não bastava: o seletor de repetição já estava no modal, mas o
+  fim da série estava chumbado no código (new Date(year, 11, 31)), não havia intervalo
+  (quinzenal nem "a cada N semanas"), não havia escolha de quantidade nem de data final, as
+  opções "anual" geravam UMA ocorrência só e todo evento único saía com recurrenceId criado
+  na hora — por isso a agenda etiquetava como "recorrente" o que era um evento só.
+  O que é agora: "Até quando?" (31/12 deste ano · N ocorrências, 2 a 500 · até a data que eu
+  escolher, atravessando anos), "A cada quanto tempo?" (1 a 4 semanas), prévia no formulário
+  calculada pelo MESMO gerador que grava ("Serão 12 datas: a primeira em 11 de outubro de
+  2026 e a última em 27 de dezembro de 2026. Passos de toda semana (domingo)."), anual e
+  mensal atravessando o alcance, recusa honesta acima de 500 datas ("A série pede 743 datas
+  e o limite por agendamento é 500"), nada de duplicar datas que já estão na agenda com o
+  mesmo nome e horário (grava as que faltam e conta as puladas), e na edição mudar o alcance
+  refaz a série inteira pela rota PUT /series (com a caixa "Aplicar à série inteira"; sem a
+  caixa, vale só para aquela ocorrência — é assim que se pula um domingo de feriado).
+  Zero migração, zero rota nova: as ocorrências saem pelo POST /api/church/events/bulk (já
+  existia, aceita 500 por vez) e a regra vive na coluna recurrence_rule (JSONB) que o banco
+  já tinha. until agora é a última data realmente criada, não a pedida.
+  Página pública (consequência previsível): oito domingos da mesma série viravam oito
+  cartões idênticos; publica.js passou a colapsar a série em um cartão com a próxima data e
+  o aviso "repete toda semana" (ou "a cada 2 semanas"), mantendo os eventos avulsos.
+  Verificação: teste-agenda-recorrencia.js, 61 conferências, executando o app.js real —
+  gerador de datas, prévia, regra gravada, o handleSubmit inteiro contra uma rede falsa
+  (POST em lote, PUT de série, recusas), os dois modais montados e o calendário marcando
+  3 dias em outubro, 5 em novembro e 4 em dezembro (12 no total). teste-pagina-pastores.js
+  ganhou 7 conferências (série colapsada, comparando com o que está no ar, onde a série ainda
+  sai em 6 cartões) e a comparação "tirar um bloco e conferir o resto" virou comparação função
+  por função. No caminho apareceu um defeito do próprio teste: a tela de mentirinha entregava
+  a lista na chave "eventos" e a página lê payload.events — com a chave errada nada do que a
+  página faz com a agenda era exercitado. Bateria: 13 arquivos, 484 conferências, 0 falhas.
+  Consequência a vigiar quando o bot for ligado: a API enfileira um lembrete por evento de
+  categoria Culto (server.js:306), então uma série semanal vira 12 lembretes no ano — hoje
+  nada sai porque o envio externo está desligado na plataforma.
 
 PENDENCIA ABERTA
   1. Renomear o rótulo "Como veio? *" para "Com quem veio?" na tela da portaria
@@ -225,6 +286,13 @@ PENDENCIA ABERTA
   4. (v18) Marcar o anúncio é de uma vez para todos os pendentes; não há marcar um por um
      nem "desanunciar", e pendência não expira. Se o pastor quiser decidir nome a nome, é
      uma rodada à parte (botão por linha + PATCH por cadastro — a API já aceita).
+  5. (v19) Recorrência sem "pular um domingo" dedicado: hoje se exclui a ocorrência (cada
+     data é um registro próprio). Se o pastor quiser exceções marcadas na série ("todos os
+     domingos, menos 15/11"), é uma rodada à parte — a API já permite apagar uma ocorrência
+     só; o que falta é a interface dizer que aquilo ficou de fora da série.
+  6. (v19) "Sempre" não existe: o teto é 500 datas por agendamento (o da rota de lote).
+     Para uma série que se renova sozinha a cada ano seria preciso uma coluna própria de
+     regra viva no banco, e isso não foi pedido nem feito.
 
 REGISTRO ANTERIOR (v1.5, mantido por histórico)
   Emaús — expansão do Administrador central v1.5. Frontend admin.html/admin.js/admin.css

@@ -1,0 +1,171 @@
+AGENDA — AGENDAMENTO RECORRENTE DECIDIDO POR QUEM AGENDA
+rodada v19 · feito em 06/10/2026 (madrugada de 5 para 6) · cache emaus-shell-v88-agenda-recorrencia-do-pastor
+_arquivos deste pacote: app.js · index.html · service-worker.js · publica.js · publica.html.
+Vão junto admin.js · admin.html · admin.css (a v17 já está no ar: MD5 conferido contra o Pages,
+idêntico) e server.js (a v16 está no repositório; o processo do Railway é a única coisa desta
+pasta que ainda não pude confirmar publicada)_
+
+=======================================================================
+1. O QUE O PASTOR PEDIU
+=======================================================================
+"na parte do agenda eu quero que tenha possibilidade de agendamento recorrente.
+exemplo marca culto no domingo com inicio as 19h, pode ser colocado para todos os
+domingos do ano e assim por diante, quem decide é o pastor no próprio agendamento."
+
+=======================================================================
+2. O QUE JÁ EXISTIA — E POR QUE NÃO BASTAVA
+=======================================================================
+O formulário "Novo evento" já tinha um seletor "Como este evento deve se repetir?", mas
+com três amarras que faziam a função parecer que não existia:
+
+· o fim da série estava escrito no código: `new Date(year, 11, 31, 23, 59, 59)`. Não
+  havia "até quando" — quem mandasse a série para o ano inteiro seguinte não conseguia.
+· não havia intervalo: "a cada 15 dias" (quinzenal) ou "a cada 3 semanas" não existia.
+· o rótulo da opção dizia "até 31 de dezembro" e a nota repetia isso, então a sensação era
+  de que a escolha era do sistema, não do pastor.
+· as opções "Anual pela data" e "Anual pelo dia da semana" geravam UMA ocorrência só (a do
+  ano da data inicial) — "anual" sem repetir ano nenhum.
+· sobra de um defeito: todo evento, mesmo "Não repetir", recebia `recurrenceId =
+  rec-<timestamp>`, então a agenda marcava "· recorrente" em eventos únicos.
+
+=======================================================================
+3. O QUE MUDOU
+=======================================================================
+1. "Até quando?" dentro do próprio agendamento, com três caminhos:
+   · Até 31 de dezembro deste ano (o padrão de antes, agora escolhível)
+   · Por um número de ocorrências (2 a 500)
+   · Até uma data que eu escolher (campo de data, podendo atravessar anos)
+2. "A cada quanto tempo?" para as repetições semanais: toda semana, a cada 2 (quinzenal),
+   3 ou 4 semanas.
+3. Prévia no formulário, escrita com o MESMO gerador que grava: "Serão 12 datas: a primeira
+   em 11 de outubro de 2026 e a última em 27 de dezembro de 2026. Passos de toda semana
+   (domingo)." Ela é recalculada a cada mudança de campo (data, dia da semana, posição no
+   mês, intervalo, alcance).
+4. Anual e mensal agora atravessam o alcance escolhido: "anual pela data" com data final em
+   31/12/2029 gera 4 datas (uma por ano), não uma.
+5. Duplicidade tratada: se as datas da série já estão na agenda com o mesmo nome e horário,
+   a plataforma não insere de novo — grava as que faltam e avisa "3 datas já estavam na
+   agenda e não foram repetidas". Se não falta nenhuma, não grada nada e diz por quê.
+6. Limite dito antes de gravar: a API aceita 500 ocorrências por pedido; acima disso a tela
+   avisa "A série pede 743 datas e o limite por agendamento é 500. Reduza a quantidade ou a
+   data final." em vez de gravar as primeiras 500 calado.
+7. Na edição de um evento da série, mudar o ALCANCE (intervalo, quantidade, data final) tem
+   o mesmo peso de mudar o tipo: refaz a série inteira, exigindo a caixa "Aplicar à série
+   inteira". Sem a caixa, a mudança vale só para aquela ocorrência (continua sendo o
+   caminho para "só este domingo não vai ter culto": edite esta ocorrência, não marque nada).
+8. Evento único volta a ser evento único: sem id de série, sem a etiqueta "recorrente".
+
+Nada de coluna nova, nada de rota nova: as ocorrências são gravadas pela rota que já
+existia (POST /api/church/events/bulk, que aceita até 500 por vez) e a regra fica na coluna
+recurrence_rule (JSONB), que o banco já tinha.
+
+=======================================================================
+4. COMO USAR (culto todo domingo às 19h pelo ano)
+=======================================================================
+Agenda ▸ "+ Novo evento" ▸ nome "Culto de Celebração" ▸ Data de início (qualquer uma) ▸
+Horário 19:00 ▸ Categoria Culto ▸ "Como este evento deve se repetir?" = "Semanal — um dia
+da semana se repetindo" ▸ Dia da semana = Domingo ▸ "A cada quanto tempo?" = Toda semana ▸
+"Até quando?" = Até 31 de dezembro deste ano. A prévia mostra "Serão 13 datas...". Salvar.
+Para o culto de todos os domingos do ano que vem também: "Até quando?" ▸ "Até uma data que
+eu escolher" ▸ 31/12/2027. Para só o trimestre: "Por um número de ocorrências" ▸ 13.
+
+=======================================================================
+5. O QUE FICA GRAVADO
+=======================================================================
+Cada domingo é um registro normal em church_events (data, hora, local, público, situação),
+todos com o mesmo recurrence_id — é isso que permite "aplicar à série inteira" e refazer a
+série pela rota PUT /api/church/events/:id/series. Em recurrence_rule fica, por exemplo:
+
+  { "type": "weekly-year", "weekday": 0, "ordinal": 1, "intervaloSemanas": 1,
+    "totalOcorrencias": null, "ateData": null, "until": "2026-12-27" }
+
+O "until" é a última data REALMENTE criada (não a pedida), para a tela não prometer o que
+não gravou.
+
+=======================================================================
+6. CONSEQUÊNCIAS HONESTAS
+=======================================================================
+· A agenda passa a listar cada domingo. O calendário marca um dia por ocorrência (outubro
+  com 3, novembro com 5, dezembro com 4), a lista do mês idem, e a exportação CSV traz as
+  12 linhas — é o que foi pedido, mas é bom saber antes.
+· Presença: cada ocorrência é um evento próprio, então o registro de presença do culto
+  continua sendo feito culto por culto, sem série "compartilhando" número.
+· Lembrete do bot: a API enfileira um lembrete por evento de categoria "Culto" (um por
+  membro com consentimento de contato e telefone). Nada é enviado hoje porque o envio
+  externo está desligado na plataforma; quando for ligado, a série vira a fonte dos
+  lembretes semanais — é assim que deve ser, mas o volume muda de 1 para 12 por ano.
+· Página pública: para a série não virar muro de cartões iguais, a página da igreja agora
+  mostra UMA cartão da série com a próxima data e o aviso "repete toda semana" (ou "a cada
+  2 semanas", conforme o intervalo), e os eventos avulsos seguem entrando. Foi preciso
+  mexer em publica.js/publica.html (cache publica.js?v=60).
+· A prévia conta datas, não pessoas: ela não sabe se alguém vai faltar.
+
+=======================================================================
+7. LIMITES DESTA RODADA
+=======================================================================
+· Não existe "recorrente para sempre": a plataforma grava ocorrências, não uma regra viva.
+  Uma série até 2040 daria 743 datas e esbarra no limite de 500 por agendamento — dá para
+  emendar no ano seguinte criando a continuação (mesmo nome e horário; as datas repetidas
+  não são duplicadas).
+· Não há "pular o domingo do feriado" num botão só. O caminho é excluir aquela ocorrência
+  (cada data é um registro próprio, o botão existe na linha) — e a exclusão não apaga as
+  outras 11.
+· Não há regra "toda quarta E sexta" num agendamento só: são duas séries, cada uma com seu
+  alcance. Nada impede, cada uma aparece marcada como série.
+· Marcar o alcance não reescreve o passado: só entram datas a partir da data de início.
+· O campo "Quantas ocorrências" aceita de 2 a 500 (o mesmo teto da API). Se a igreja
+  precisar de mais de 500 datas seguidas, é rodada nova (ou uma coluna própria de série na
+  API, que hoje não existe).
+
+=======================================================================
+8. COMO FOI TESTADO (executando o código real, não uma cópia)
+=======================================================================
+Teste novo: teste-agenda-recorrencia.js — 61 conferências em 10 seções. As telas e a
+gravação são montadas com as funções reais extraídas do app.js (fecho transitivo por
+função; rede e avisos de fora) e executadas num motor isolado:
+  1) culto domingo 19h pelo ano: 12 datas, todas domingo, passo de 7 dias, sem repetição
+  2) "e assim por diante": quinzenal (14 dias), a cada 4 semanas (28), quantidade 8,
+     série atravessando o ano (64 domingos em 2026-2027), data final antes do início = 0
+  3) mensal pela data entre anos, 2ª terça de todo mês, anual uma por ano (antes era 1),
+     evento único
+  4) limite: 743 datas projetadas, gerador devolve no máximo 500
+  5) prévia: texto real com contagem, primeira e última data, aviso de estouro e de período
+     vazio
+  6) regra gravada: type/weekday/ordinal/intervalo/quantidade/data final/until verdadeiro
+  7) handleSubmit com rede falsa: um POST em lote com as 12 ocorrências, id de série comum,
+     evento único SEM id de série, nada duplicado quando as datas já existem, 9 quando 3 já
+     existiam (e o aviso conta), recusa explícita acima do limite e em período vazio
+  8) edição: PUT /series com o oldRecurrenceId, 4 datas refeitas no novo horário
+  9) o modal: "A cada quanto tempo?", "Até quando?", os campos de quantidade e data final,
+     a prévia, o "Ex.: 52" só no placeholder (nunca em value=), as notas velhas fora
+ 10) a tela: calendário de outubro marca 3, novembro 5, os três meses somam as 12; linha da
+     série com "recorrente" e evento único sem a etiqueta
+
+Teste da página pública: teste-pagina-pastores.js ganhou a seção 6b (6 conferências):
+oito domingos da mesma série viram 1 cartão com "repete toda semana", o evento avulso não é
+engolido, o rótulo acompanha o intervalo (a cada 2 semanas) e — comparação com o arquivo
+publicado hoje — no ar a série ainda sai em 6 cartões. A seção 7 passou de "tirar um bloco
+e comparar o resto" para comparação função por função: hoje o publica.js do ar difere do
+pacote exatamente em renderEvents + as três funções novas, nada mais.
+
+Também foi preciso corrigir o próprio teste: a tela de mentirinha entregava a lista de
+eventos na chave "eventos", e a página lê payload.events (chave que a rota real devolve) —
+com a chave errada, nada do que a página faz com a agenda era exercitado de verdade.
+
+Bateria completa: 13 arquivos de teste, 484 conferências, 0 falhas. Cache do app trocado
+(emaus-shell-v87 ▸ v88), app.js?v=64 e publica.js?v=60.
+
+=======================================================================
+9. O QUE PUBLICAR
+=======================================================================
+· estáticos (GitHub Pages): app.js · index.html · service-worker.js · publica.js ·
+  publica.html. Os três arquivos do administrador já estão no ar desde a v18 e só repetem
+  neste pacote por segurança — se o Pages já os serve, pode ignorar
+· Railway: nada desta rodada mexe no backend. O server.js da v16 já está no repositório (md5
+  7bac044f3dd6a85316285677602c265c, conferido contra o arquivo publicado: iguais) — o que não
+  pude confirmar é se o processo do Railway já reiniciou com ele, porque /health não expõe
+  versão nem uptime e o repositório não tem workflow. O teste que tira a dúvida: excluir um
+  acesso da portaria de resposta imediata (com motivo, quando falha) em vez de 15 s de
+  "O serviço não respondeu a tempo". Se ainda travar, é só redeploy do serviço.
+· depois de subir: no painel, F12 ▸ Network ▸ app.js?v=64; na página pública,
+  publica.js?v=60; criar um culto semanal e conferir a prévia antes de salvar.

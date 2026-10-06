@@ -73,6 +73,38 @@ function showError(title, text) {
   setText('stateTitle', title);
   setText('stateText', text);
 }
+// Série recorrente não pode virar muro de cartões iguais na página de visitas: a agenda
+// pública mostra a próxima data com o aviso de que ela se repete, e as ocorrências
+// seguintes ficam de fora. A lista completa continua no painel da igreja.
+function ruleDeEvento(event) {
+  const bruto = event && (event.recurrence_rule || event.recurrenceRule);
+  if (!bruto) return {};
+  if (typeof bruto === 'string') { try { return JSON.parse(bruto) || {}; } catch (error) { return {}; } }
+  return typeof bruto === 'object' ? bruto : {};
+}
+function rotuloRecorrencia(event) {
+  const regra = ruleDeEvento(event);
+  const tipo = String(regra.type || '');
+  if (tipo === 'weekly-month' || tipo === 'weekly-year') {
+    const semanas = Number(regra.intervaloSemanas || 1);
+    return semanas > 1 ? `repete a cada ${semanas} semanas` : 'repete toda semana';
+  }
+  if (tipo === 'monthly-date' || tipo === 'monthly-weekday') return 'repete todo mês';
+  if (tipo === 'yearly-date' || tipo === 'yearly-weekday') return 'repete uma vez por ano';
+  return '';
+}
+function colapsaSerie(events = []) {
+  const vistas = new Set();
+  const saida = [];
+  for (const event of events) {
+    const serie = String((event && event.recurrence_id) || '');
+    if (!serie) { saida.push(event); continue; }
+    if (vistas.has(serie)) continue;
+    vistas.add(serie);
+    saida.push(event);
+  }
+  return saida;
+}
 function renderEvents(events = []) {
   const grid = document.getElementById('eventsGrid');
   if (!grid) return;
@@ -80,7 +112,8 @@ function renderEvents(events = []) {
     grid.innerHTML = '<div class="loading-card">Ainda não há encontros publicados. Volte em breve para conferir a agenda.</div>';
     return;
   }
-  grid.innerHTML = events.slice(0, 6).map(event => `<article class="event-card"><div><div class="event-date">${esc(formatDate(event.event_date))} · ${esc(event.event_time || '19:00')}</div><h3>${esc(event.title)}</h3><div class="event-detail"><span>⌖ ${esc(event.location || 'Templo principal')}</span><span>◉ ${esc(event.audience || 'Toda a igreja')}</span></div></div><span class="event-tag">${esc(event.event_type || 'Encontro')}${event.recurrence_id ? ' · recorrente' : ''}</span></article>`).join('');
+  const visiveis = colapsaSerie(events);
+  grid.innerHTML = visiveis.slice(0, 6).map(event => `<article class="event-card"><div><div class="event-date">${esc(formatDate(event.event_date))} · ${esc(event.event_time || '19:00')}${rotuloRecorrencia(event) ? ` · ${esc(rotuloRecorrencia(event))}` : ''}</div><h3>${esc(event.title)}</h3><div class="event-detail"><span>⌖ ${esc(event.location || 'Templo principal')}</span><span>◉ ${esc(event.audience || 'Toda a igreja')}</span></div></div><span class="event-tag">${esc(event.event_type || 'Encontro')}${event.recurrence_id ? ' · série' : ''}</span></article>`).join('');
 }
 function renderSocials(settings) {
   const links = [['Instagram', settings.instagram], ['Facebook', settings.facebook], ['YouTube', settings.youtube]].filter(([, value]) => safeExternalUrl(value));
