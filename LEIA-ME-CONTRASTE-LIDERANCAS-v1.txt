@@ -1,0 +1,69 @@
+Emaús — rodada v24 · CONTRASTE QUE FALTOU NAS LIDERANÇAS
+Pacote: emaus-contraste-liderancas-v24.zip  (cumulativo: v21 a v23 dentro)
+Cache do aplicativo: emaus-shell-v93-contraste-liderancas
+Data: 06/10/2026 (Brasília)
+
+
+=========================================================================================
+1. O QUE O PASTOR MOSTROU
+=========================================================================================
+
+  A tela Lideranças no tema escuro: nomes ok, mas cargo, telefone e sobretudo
+  as etiquetas (Célula Centro, Administração, Obreiros, Recepção, Louvor,
+  Acolhimento) apagadas — "ainda tem alguns lugares que não está funcionando
+  o contraste ou a última melhoria".
+
+  E o recado que vale daqui pra frente: manter o que já estava pronto, só
+  mudar o que foi pedido.
+
+
+=========================================================================================
+2. O QUE ESTAVA ERRADO (SÓ NESSA PEÇA)
+=========================================================================================
+
+  A etiqueta de ministério (.role-pill) ficou com o bege do tema CLARO
+  chumbado (#f4f1eb) e a tinta do tema ESCURO por cima (var(--muted) /
+  var(--muted-2), porque .leader-footer span ganhava a especificidade).
+
+  Bege claro + cinza claro = texto que some. E a terceira cor da igreja
+  (a melhoria da v22) nem chegava nesse selo.
+
+  O teste de contraste não pegou porque o cadastro de mentirinha usava
+  `ministry` e a tela lê `group` — a etiqueta ia vazia, sem texto para medir.
+
+
+=========================================================================================
+3. O QUE MUDOU (E O QUE NÃO MUDOU)
+=========================================================================================
+
+  Mudou, e só isso:
+    · etiqueta de ministério usa --gold-soft / --gold-ink (a cor suave da
+      igreja, já medida em 4,5:1 nos dois temas)
+    · cartão de líder usa var(--card) e a linha do rodapé var(--line)
+    · o rótulo "Ministério / grupo" passa a --muted (tinta mais forte que
+      --muted-2, ainda dentro do contrato de contraste)
+    · a tela aceita group ou ministry, para o nome do grupo não sumir
+    · o teste agora monta a etiqueta com texto e recusa o bege chumbado
+
+  Não mudou:
+    · saudação no plural, seta fora do ícone, números reais
+    · terceira cor, contraste do resto do painel
+    · service worker rede-primeiro (só o nome do cache, para o aparelho
+      buscar o CSS novo)
+    · banco, servidor, portaria, púlpito, agenda
+
+
+=========================================================================================
+4. COMO APLICAR
+=========================================================================================
+
+  GitHub Pages:
+    styles.css     app.js     index.html     service-worker.js
+  (o resto do zip é o cumulativo — se a v23 já estiver no ar, bastam esses quatro)
+
+  Depois: Ctrl+Shift+R nas abas da plataforma.
+
+  Cache: emaus-shell-v93-contraste-liderancas
+  styles.css?v=63  ·  app.js?v=69
+
+  Conferido: 15 arquivos · 600 conferências · 0 falhas.

@@ -1,7 +1,5 @@
 Emaús — registro da publicação
-Atualizado em 06/10/2026, 14:05 (Brasília) = 06/10 17:05 UTC (rodada v22 embalada).
-(Nota de bancada: o relógio deste ambiente não é contínuo entre os comandos — os carimbos
-acima foram lidos com TZ=America/Sao_Paulo em cada instante e valem para o instante dito.) Correção de registro que
+Atualizado em 06/10/2026, 16:10 (Brasília) = 06/10 19:10 UTC (rodada v24 embalada). Correção de registro que
 precisa ficar dita: os carimbos marcados como "Brasília" nas rodadas v16 (00:58), v17
 (01:20-01:35) e v18 (02:05) foram escritos com o relógio UTC desta bancada, que está 3 h
 à frente — naqueles mesmos instantes eram 21:58, 22:20-22:35 e 23:05 de 05/10 em Brasília.
@@ -89,9 +87,9 @@ VERIFICADO DEPOIS DE PUBLICAR (05/10/2026, 20:41, Brasília)
   teste-pagina-pastores.js executa o publica.js de verdade).
 
 EMBALADO E AINDA FORA DO AR
-  V20 (mais de uma posição no mês), V21 (contraste legível em tudo) e V22 (três cores na
-  identidade) estão embaladas nesta bancada e não foram publicadas. A v22 é cumulativa: leva
-  dentro a v21 inteira, então basta publicar a v22 para os dois trabalhos irem ao ar. A última conferência do Pages foi feita em 06/10 ~23:5x
+  V20–V24 nesta bancada. Publicar a v24 (cumulativa). Além do que a v23 já levava, a v24
+  aplica a cor suave e o contraste nas etiquetas de ministério da tela Lideranças — era o
+  bege do tema claro com a tinta do tema escuro por cima. A última conferência do Pages foi feita em 06/10 ~23:5x
   (Brasília) com furo de cache: o ar tinha a v19 — app.js md5 3c9aa2b93fc4a1082cdf496f4e5bbffd,
   app.js?v=64, cache emaus-shell-v88. Desde então nada foi enviado: estes números valem para
   aquele instante, não para agora. Antes de publicar a v21, conferir de novo (o app.js da v21
@@ -419,6 +417,41 @@ v21 — CONTRASTE LEGÍVEL EM TUDO  (EMBALADA, NÃO PUBLICADA)
   12:1 no escuro); e o DOM que o admin.js monta não entra no medidor de cascata.
   Banco: nada. Servidor: nada. Volta atrás: reverter os 10 arquivos deste pacote — nenhum
   dado é tocado, e o cache emaus-shell-v90 some ao reverter o service-worker.js.
+
+v24 — CONTRASTE NAS LIDERANÇAS  (EMBALADA)
+  Zip: emaus-contraste-liderancas-v24.zip  (cumulativo)
+  Arquivos: styles.css · app.js · index.html · service-worker.js
+  Cache: emaus-shell-v93-contraste-liderancas  (styles.css?v=63, app.js?v=69)
+  Pedido: captura da tela Lideranças — cargo/telefone/etiquetas apagados; manter o resto.
+  Causa: .role-pill com background #f4f1eb (tema claro) e color herdado de
+  .leader-footer span (muted-2 do tema escuro). O teste não media porque o mock usava
+  ministry e a tela lê group.
+  Correção: --gold-soft/--gold-ink na etiqueta (terceira cor + 4,5:1 já medidos);
+  cartão var(--card); linha var(--line); rótulo --muted; group || ministry.
+  Não mexeu em saudação, seta, números, SW rede-primeiro (só o nome do cache), servidor.
+  Testes: 15 arquivos, 600 conferências, 0 falhas.
+
+v23 — NÃO RETROCEDER O QUE JÁ ESTAVA PRONTO  (EMBALADA)
+  Zip: emaus-sem-retroceder-v23.zip  (cumulativo: v21+v22 dentro)
+  Arquivos: app.js · index.html · service-worker.js · server.js (+ os estáticos da v22)
+  Cache: emaus-shell-v92-sem-retroceder  (app.js?v=68)
+  Pedido: a captura do Início depois da v22 mostrou saudação no singular ("Pastor Pr"),
+  seta em cima do ícone dos cartões e +18,4% / +12,8%. "não pode mudar uma coisa e
+  retroceder o trabalho já feito".
+  Diagnóstico: 18,4% e .stat-open NÃO existem neste código (zero ocorrências; os 4 cartões
+  usam users/refresh/send/calendar; a seta só nos atalhos). A captura é o painel ANTIGO.
+  Causa: o SW era cache-first para JS/CSS — o arquivo novo já estava no GitHub e o aparelho
+  não foi buscá-lo. "Pastor Pr" é o fallback quando church.pastors não tem 2 nomes (o login
+  desta igreja se chama "Pr"); o PUT /api/church/settings fazia pastors=$4 sem proteção, então
+  um save de aparência com pastors='' apagava os nomes no banco.
+  Correção: SW rede-primeiro (cache só se a rede falhar) + v92; app.js?v=68; queueAppearanceSave
+  recusa id 'batesda'; server.js pastors=COALESCE(NULLIF($4,''), pastors). Seletor da cor suave
+  sem a barra invertida que o v22 deixou no campo de texto.
+  Testes: 15 arquivos, 598 conferências, 0 falhas. teste-numeros-reais agora recusa seta nos
+  4 cartões, recusa cache-first, confere o COALESCE e o guarda do id batesda.
+  Aplicar: GitHub Pages (obrigatório) + Railway server.js (recomendado, é o que trava o wipe).
+  Se depois do Ctrl+Shift+R a saudação continuar singular, repor os nomes em Configurações ▸
+  Identidade ▸ Pastores responsáveis (um por linha). Este pacote não inventa nome.
 
 v22 — TRÊS CORES NA IDENTIDADE, E O FIM DA COR INVENTADA  (EMBALADA, NÃO PUBLICADA)
   Zip: emaus-tres-cores-v22.zip  (cumulativo: traz a v21 dentro — mesma folha, mesmo app.js)

@@ -740,7 +740,7 @@ function applyAppearanceFromControls() {
   const accentText = $('[data-color-text="appearanceAccent"]');
   if (primaryText) primaryText.value = church.appearance.primary.toUpperCase();
   if (accentText) accentText.value = church.appearance.accent.toUpperCase();
-  const tintText = $('[data-color-text=\"appearanceTint\"]');
+  const tintText = $('[data-color-text="appearanceTint"]');
   const tintInput = $('#appearanceTint');
   const tintAuto = $('#appearanceTintAuto');
   if (tintInput && tintAuto) tintInput.disabled = tintAuto.checked;
@@ -759,6 +759,9 @@ function queueAppearanceSave() {
   appearanceSaveTimer = setTimeout(async () => {
     const church = getActiveChurch();
     if (!church || !churchAuthReady || !sessionStorage.getItem(CHURCH_TOKEN_KEY)) return;
+    // a igreja-placeholder do arquivo (id batesda) nunca vai para o banco: o PUT
+    // antigo gravava pastors='' e apagava os nomes da igreja de verdade.
+    if (!church.id || church.id === 'batesda') return;
     const publicSettings = { ...(church.publicSettings || {}), appearance: { ...church.appearance }, logoSymbol: church.logoSymbol || initials(church.name) };
     try {
       await apiRequest('/api/church/settings', { method: 'PUT', body: { name: church.name, city: church.city, phone: church.phone || '', pastors: church.pastors || '', description: church.description || '', logoUrl: church.logoImage || '', publicSettings } });
@@ -1384,7 +1387,7 @@ function renderLeaders() {
   return `
     <section class="page-head"><div><span class="eyebrow">EQUIPE</span><h1>Lideranças</h1><p>As pessoas que ajudam a cuidar da ${esc(church.name)} todos os dias.</p></div><div class="page-actions"><button class="btn btn-secondary" data-action="export-leaders">${ICON('download')} Exportar equipe</button><button class="btn btn-gold" data-action="new-leader">${ICON('plus')} Adicionar líder</button></div></section>
     <div class="welcome-banner"><div class="welcome-copy"><div class="welcome-icon">${ICON('users')}</div><div><strong>Uma equipe alinhada cuida melhor.</strong><p>Gerencie permissões e mantenha cada ministério conectado.</p></div></div><button class="btn btn-quiet welcome-action" data-view="settings">Gerenciar permissões ${ICON('arrow-up-right')}</button></div>
-    <div class="leader-grid">${state.leaders.map(leader => `<article class="leader-card"><div class="leader-head"><div class="avatar ${iconTone(leader.tone)}">${esc(leader.initials)}</div><div><strong>${esc(preferredDisplayName(leader))}</strong><span>${esc(genderedRole(leader, leader.role))}</span></div><button class="table-action" style="margin-left:auto;" data-action="leader-detail" data-id="${esc(leader.id)}" aria-label="Ver líder">${ICON('more')}</button></div><div class="leader-contact">${ICON('smartphone')} ${esc(leader.phone)}</div><div class="leader-footer"><span>Ministério / grupo</span><span class="role-pill">${esc(leader.group)}</span></div></article>`).join('')}</div>
+    <div class="leader-grid">${state.leaders.map(leader => `<article class="leader-card"><div class="leader-head"><div class="avatar ${iconTone(leader.tone)}">${esc(leader.initials)}</div><div><strong>${esc(preferredDisplayName(leader))}</strong><span>${esc(genderedRole(leader, leader.role))}</span></div><button class="table-action" style="margin-left:auto;" data-action="leader-detail" data-id="${esc(leader.id)}" aria-label="Ver líder">${ICON('more')}</button></div><div class="leader-contact">${ICON('smartphone')} ${esc(leader.phone)}</div><div class="leader-footer"><span>Ministério / grupo</span><span class="role-pill">${esc(leader.group || leader.ministry || '')}</span></div></article>`).join('')}</div>
   `;
 }
 

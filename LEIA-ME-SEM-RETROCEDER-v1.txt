@@ -1,0 +1,115 @@
+Emaús — rodada v23 · NÃO RETROCEDER O QUE JÁ ESTAVA PRONTO
+Pacote: emaus-sem-retroceder-v23.zip  (cumulativo: leva v21 e v22 dentro)
+Cache do aplicativo: emaus-shell-v92-sem-retroceder
+Data: 06/10/2026 (Brasília)
+
+
+=========================================================================================
+1. O QUE APARECEU NA TELA
+=========================================================================================
+
+  "Voltou tudo, o tratamento dos pastores ficou no singular o que já tinha sido
+   corrigido, as setas estão em cima dos ícones na tela inicial. não pode mudar
+   uma coisa e retroceder o trabalho já feito"
+
+A captura mostra três coisas juntas:
+
+  · "Boa tarde, Pastor Pr"
+  · seta ↗ em cima do ícone de cada cartão do Início
+  · "+18,4% vs. mês anterior" e "+12,8% pessoas alcançadas"
+
+As duas últimas NÃO existem neste código. Procurei 18,4% e "stat-open" (o selo
+da seta) em app.js, styles.css e index.html: zero ocorrências. Os quatro cartões
+do Início usam os ícones de pessoas, atualizar, enviar e calendário. A seta
+aparece só nos atalhos ("Abrir modo púlpito", "Ver tudo") — nunca em cima do
+ícone do cartão. O teste node teste-numeros-reais-e-pastores.js recusa os dois.
+
+O que a captura mostra é o painel ANTIGO, o de antes dessas correções. Ele
+continuou na tela depois da v22 porque o service worker entregava JS e CSS do
+CACHE primeiro. O arquivo novo já estava no GitHub; o aparelho não foi buscá-lo.
+
+
+=========================================================================================
+2. O QUE FOI FEITO (PARA ISSO NÃO REPETIR)
+=========================================================================================
+
+  · Service worker passou a buscar na REDE primeiro, cache só se a rede falhar.
+    Cache novo: emaus-shell-v92-sem-retroceder. O v91 e os anteriores são
+    apagados na ativação.
+  · app.js?v=68 (o número muda de propósito, para o pedido não coincidir com o
+    arquivo velho).
+
+Depois de publicar: um Ctrl+Shift+R (ou fechar todas as abas da plataforma e
+abrir de novo) resolve. Sem isso, a aba que já estava aberta continua com o
+painel que ela carregou de manhã.
+
+
+=========================================================================================
+3. "PASTOR PR" — O QUE É, E A PORTA QUE FECHEI
+=========================================================================================
+
+O login desta igreja se chama "Pr". Quando a plataforma TEM os dois nomes em
+"Pastores responsáveis", a saudação vai no plural: "Pastores Evandro Silva e
+Simone Silva". Quando NÃO tem, cai no nome de quem entrou: "Pastor Pr".
+
+Isso já estava no código. Se depois da v22 a saudação voltou ao singular de
+verdade (não só na aba antiga), a causa mais honesta é: um PUT de aparência
+mandou pastors='' e o banco gravou vazio. O endpoint antigo fazia
+`pastors = $4` sem proteção — string vazia apagava os nomes.
+
+Nesta rodada:
+
+  · server.js: pastors = COALESCE(NULLIF($4, ''), pastors)
+    — string vazia NÃO apaga mais o que está no banco.
+  · o salvamento de aparência recusa a igreja-placeholder do arquivo
+    (id "batesda"), para não gravar por cima da igreja de verdade.
+
+O server.js só vale depois do deploy no Railway. Os estáticos (GitHub Pages)
+já resolvem o painel antigo na tela. Se, DEPOIS do Ctrl+Shift+R, a saudação
+continuar "Pastor Pr", abra Configurações ▸ Identidade da igreja ▸ Pastores
+responsáveis e coloque os dois nomes de novo, um por linha:
+
+    Evandro Silva
+    Simone Silva
+
+Salvar ali devolve o plural. Não invento nome.
+
+
+=========================================================================================
+4. O QUE NÃO FOI MEXIDO
+=========================================================================================
+
+  · Terceira cor, contraste, agenda, portaria, púlpito, números reais.
+  · A v22 (três cores) continua neste zip. Nada dela foi desfeito.
+  · Administração da plataforma e página pública: sem campo novo.
+
+
+=========================================================================================
+5. COMO APLICAR
+=========================================================================================
+
+  GitHub Pages (obrigatório, é o que tira o painel antigo da tela):
+    app.js          index.html        service-worker.js
+    styles.css      recepcao.html     admin.css         admin.html
+    publica.html    splash.css
+  Depois: Ctrl+Shift+R em cada aba aberta da plataforma.
+
+  Railway (recomendado, é o que impede apagar os pastores de novo):
+    server.js
+  Sem SQL, sem variável nova.
+
+  Conferir na bancada:
+    node teste-numeros-reais-e-pastores.js
+    node teste-tres-cores-suaves.js
+    (a bateria toda: 15 arquivos, 598 conferências, 0 falhas)
+
+
+=========================================================================================
+6. LIMITE HONESTO
+=========================================================================================
+
+  · Aba que já estava aberta não se atualiza sozinha. É o Ctrl+Shift+R.
+  · Sem o server.js no Railway, um PUT de aparência com pastors vazio ainda
+    pode apagar os nomes. Com o server.js, não.
+  · Se os nomes já foram apagados, este pacote não os recupera do nada —
+    eles voltam pelo campo "Pastores responsáveis".

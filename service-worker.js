@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emaus-shell-v91-cor-suave-da-igreja';
+const CACHE_NAME = 'emaus-shell-v93-contraste-liderancas';
 const APP_SHELL = ['./', './index.html', './styles.css', './splash.css', './splash.js', './app.js', './api-config.js', './manifest.json', './recepcao.html', './reception.js', './admin.html', './admin.css', './admin.js', './emaus-admin-logo.png', './publica.html', './publica.css', './publica.js', './visita.html', './pagamento.html', './privacidade.html'];
 
 self.addEventListener('install', event => {
@@ -28,12 +28,16 @@ self.addEventListener('fetch', event => {
   }
   if (url.origin !== self.location.origin) return;
 
-  const isNavigation = request.mode === 'navigate';
+  // Rede primeiro, cache só se a rede falhar. O cache-first do JS/CSS fazia o
+  // aparelho continuar no painel antigo (seta em cima do ícone, 18,4% inventado,
+  // saudação no singular) mesmo depois do arquivo novo já estar no GitHub.
   event.respondWith(
-    (isNavigation ? fetch(request) : caches.match(request).then(cached => cached || fetch(request)))
+    fetch(request)
       .then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        }
         return response;
       })
       .catch(() => caches.match(request).then(cached => cached || caches.match('./index.html')))

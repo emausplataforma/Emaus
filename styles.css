@@ -465,16 +465,17 @@ tbody tr:hover td { background: var(--soft-flat-2); }
 .event-series-option { margin-top: 14px; }
 
 .leader-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.leader-card { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-sm); }
+.leader-card { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-sm); }
 .leader-head { display: flex; align-items: center; gap: 11px; }
 .leader-head .avatar { width: 40px; height: 40px; }
 .leader-head strong { display: block; font-size: 12px; }
 .leader-head span { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
 .leader-contact { display: flex; align-items: center; gap: 6px; margin-top: 18px; color: var(--muted); font-size: 10px; }
 .leader-contact .icon { width: 13px; height: 13px; color: var(--copper-ink); }
-.leader-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 17px; padding-top: 13px; border-top: 1px solid #f1eee8; }
-.leader-footer span { color: var(--muted-2); font-size: 9px; }
-.role-pill { padding: 4px 7px; border-radius: 5px; background: #f4f1eb; color: var(--muted); font-size: 8px; font-weight: 700; }
+.leader-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 17px; padding-top: 13px; border-top: 1px solid var(--line); }
+.leader-footer span { color: var(--muted); font-size: 9px; }
+.role-pill { padding: 4px 7px; border-radius: 5px; background: var(--gold-soft); color: var(--gold-ink); font-size: 8px; font-weight: 700; }
+.leader-footer .role-pill { color: var(--gold-ink); background: var(--gold-soft); }
 
 .settings-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 20px; align-items: start; }
 .settings-nav { padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-sm); }

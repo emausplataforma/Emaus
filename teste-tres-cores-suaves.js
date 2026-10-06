@@ -83,6 +83,7 @@ check(/\['--soft-flat', '--soft-flat-2', '--soft-bg'\]\.forEach\(prop => root\.s
 check(/aplicarTintasDeMarca\(root, primary, accent, resolved, suave\)/.test(app), 'a derivação de tintas recebe a cor suave e mede contra ela', 'quinto argumento');
 check(/appearance: \{ \.\.\.church\.appearance \}/.test(app), 'o que é salvo vai inteiro para publicSettings.appearance — a terceira cor viaja junto, sem mexer no servidor', 'queueAppearanceSave');
 check(/if \(\$\('#appearanceTint'\)\) \$\('#appearanceTint'\)\.value = palette\.tint/.test(app), 'as paletas rápidas carregam a terceira cor', 'applyPalette');
+check(/\$\('\[data-color-text="appearanceTint"\]'\)/.test(app) && !/data-color-text=\\"appearanceTint/.test(app), 'o campo de texto da cor suave usa o seletor certo (sem barra invertida)');
 
 console.log('\n===== 5) o que chega pronto para o pastor =====');
 check(DEFAULT_APPEARANCE.tint === '', 'padrão: sem cor suave, ninguém acorda com o painel pintado', JSON.stringify(DEFAULT_APPEARANCE.tint));
@@ -93,6 +94,9 @@ const nota = /id="appearanceTintNote">[\s\S]{0,320}/.exec(app);
 check(nota && /Tom automático /.test(nota[0]) && /derivado da sua cor principal/.test(nota[0]), 'a nota diz qual é o tom de hoje quando nada foi escolhido', (nota[0].match(/'Tom automático[^\n]{0,80}/) || [''])[0].slice(0, 78));
 check(/\.tint-auto \{[^}]*color: var\(--muted\)/.test(fs.readFileSync('styles.css', 'utf8')), 'a caixa tem estilo na folha do painel (e herda a tinta legível)', '.tint-auto');
 check(/\.palette-swatch > u\.vazia/.test(fs.readFileSync('styles.css', 'utf8')), 'a bolinha da terceira cor aparece na paleta — contorno tracejado quando não há', '.palette-swatch > u');
+const folha = fs.readFileSync('styles.css', 'utf8');
+check(/\.role-pill \{[^}]*background: var\(--gold-soft\)/.test(folha) && /\.leader-footer \.role-pill \{[^}]*color: var\(--gold-ink\)/.test(folha), 'as etiquetas de ministério (Lideranças) usam a cor suave da igreja, não o bege do tema claro');
+check(!/#f4f1eb/.test(folha), 'o bege chumbado das etiquetas saiu da folha');
 
 console.log(`\n${falhas ? 'FALHA' : '  OK    '} ${feitas} conferências · ${falhas} falha(s) — terceira cor, sem cor inventada`);
 if (falhas) process.exitCode = 1;

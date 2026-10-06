@@ -234,7 +234,7 @@ const estado = {
   ], activity: [
     { id: 'x1', text: 'Ana Souza foi registrada na portaria', initials: 'AS', tone: 'gold', at: '2026-10-04T20:00:00Z' },
   ], events: eventos, leaders: [
-    { id: 'l1', name: 'Pr. Evandro Silva', role: 'Pastor', phone: '(21) 90000-0009', status: 'active', ministry: 'Liderança' },
+    { id: 'l1', name: 'Pr. Evandro Silva', role: 'Pastor titular', phone: '(21) 90000-0009', status: 'active', group: 'Administração', ministry: 'Liderança', initials: 'ES', tone: 'dark' },
   ], receptionUsers: [{ id: 'r1', name: 'Simone', role: 'Recepção', status: 'active', lastSeen: '2026-10-05' }],
   careTasks: [{ id: 't1', name: 'Visitar Ana', status: 'aberta', due: '2026-10-12' }], attendance: [],
   calendarMonth: '2026-10',
