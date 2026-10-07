@@ -1,65 +1,1527 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111110">
-  <meta name="description" content="Emaús — administração da plataforma e das igrejas.">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="admin.css?v=63">
-  <title>Administrador · Emaús</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#D63A6B">
+<title>Painel — BoraAgendar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='20' fill='%23D63A6B'/%3E%3Ctext x='50' y='66' font-size='44' text-anchor='middle'%3E%F0%9F%92%8E%3C/text%3E%3C/svg%3E">
+<style>
+  :root{--pink:#D63A6B;--pink-dark:#B92C59;--pink-soft:#FBE9EE;--pink-faint:#FDF6F8;--pink-grad:#E8789C;--pink-contrast:#FFFFFF;--dark:#35272C;--muted:#8F7D84;--line:#F0E2E7;--bg:#FBF4F6;--card:#FFFFFF;--green:#2FA36B;--green-soft:#E4F6EC;--red:#D64545;--red-soft:#FDEBEB;--amber:#C99B3F;--amber-soft:#FFF3C4;--blue:#3E6FB0;--blue-soft:#E9F0FA;--radius:20px;--shadow:0 6px 24px rgba(214,58,107,.10);--font-body:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',Arial,sans-serif;--font-heading:Georgia,'Times New Roman',serif}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:var(--font-body);background:var(--bg);color:var(--dark);min-height:100vh;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--font-heading)}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit;font-size:15px;color:var(--dark)}
+  input[type=month],input[type=date],input[type=number],input[type=text],input[type=password],textarea,select{background:var(--card);color:var(--dark);border:1px solid var(--line)}
+  input[type=month],input[type=date]{border-radius:12px;padding:9px 11px}
+  .login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(150deg,var(--bg),var(--pink-soft))}
+  .login-box{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:30px;max-width:380px;width:100%;box-shadow:0 16px 50px rgba(214,58,107,.18);text-align:center}
+  .login-box .logo{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,var(--pink),var(--pink-grad));display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto;box-shadow:0 8px 20px rgba(214,58,107,.35)}
+  .login-box h1{font-size:21px;margin-top:14px}
+  .login-box p{color:var(--muted);font-size:13px;margin-top:6px}
+  .login-box input{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);outline:none;margin-top:12px;background:var(--card);color:var(--dark)}
+  .login-box input:focus{border-color:var(--pink)}
+  .pass-wrap{position:relative;margin-top:12px}
+  .pass-wrap input{width:100%;padding:13px 44px 13px 14px;border-radius:12px;border:1.5px solid var(--line);outline:none;margin-top:0;background:var(--card);color:var(--dark)}
+  .pass-wrap input:focus{border-color:var(--pink)}
+  .pass-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:19px;cursor:pointer;padding:4px;opacity:.7}
+  .pass-eye:hover{opacity:1}
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:228px;background:var(--card);color:var(--dark);flex-shrink:0;display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh;border-right:1px solid var(--line);box-shadow:6px 0 24px rgba(214,58,107,.06)}
+  .s-logo{display:flex;align-items:center;gap:10px;padding:4px 10px 16px;border-bottom:1px solid var(--line)}
+  .s-logo .ic{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--pink),var(--pink-grad));display:flex;align-items:center;justify-content:center;font-size:18px}
+  .s-logo b{font-size:15px;display:block}
+  .s-logo span{font-size:11px;color:var(--muted)}
+  .s-nav{display:flex;flex-direction:column;gap:3px;margin-top:14px}
+  .s-nav button{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--muted);text-align:left;transition:.15s}
+  .s-nav button .ic{font-size:17px;width:22px;text-align:center}
+  .s-nav button:hover{background:var(--pink-soft);color:var(--pink-dark)}
+  .s-nav button.active{background:linear-gradient(135deg,var(--pink),var(--pink-grad));color:var(--pink-contrast)}
+  .s-foot{margin-top:auto;padding:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.5}
+  .s-foot button{color:var(--pink-dark);font-weight:700;font-size:12px;margin-top:6px}
+  .main{flex:1;min-width:0;padding:22px 24px 60px;max-width:1200px}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .topbar h1{font-size:22px}
+  .topbar .sub{color:var(--muted);font-size:13px}
+  .topbar .spacer{flex:1}
+  button.user-chip{font-family:inherit;color:inherit}
+  .user-chip{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 6px;font-size:13px;font-weight:700;cursor:pointer;max-width:220px}
+  .user-chip:hover{border-color:var(--pink)}
+  .user-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .emoji-pick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .emoji-pick button{width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:18px;cursor:pointer}
+  .emoji-pick button.on{border-color:var(--pink);background:var(--pink-soft)}
+  .user-chip .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--pink-grad));color:var(--pink-contrast);display:flex;align-items:center;justify-content:center;font-size:13px}
+  .hamb{display:none;width:40px;height:40px;border-radius:11px;background:var(--card);border:1px solid var(--line);font-size:18px}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 0 12px}
+  .section-title h2{font-size:17px}
+  .section-title .sub{color:var(--muted);font-size:12.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card.pad{padding:18px}
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(min-width:900px){.kpis{grid-template-columns:repeat(4,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi .k{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .kpi .n{font-size:26px;font-weight:800;margin-top:6px}
+  .kpi .d{font-size:12px;color:var(--muted);margin-top:4px}
+  .kpi .em{position:absolute;right:14px;top:14px;font-size:22px;opacity:.85}
+  .kpi.up .n{color:var(--green)}.kpi.down .n{color:var(--red)}.kpi.pink .n{color:var(--pink-dark)}.kpi.amber .n{color:var(--amber)}.kpi.blue .n{color:var(--blue)}
+  .two{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+  @media(min-width:1000px){.two{grid-template-columns:1.4fr 1fr}}
+  .chart{display:flex;align-items:flex-end;gap:8px;height:170px;padding-top:14px}
+  .chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+  .chart-col .bar{width:100%;max-width:34px;border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,var(--pink-grad),var(--pink));min-height:4px;position:relative}
+  .chart-col .bar span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:800;color:var(--pink-dark);white-space:nowrap}
+  .chart-col .lab{font-size:11px;color:var(--muted);font-weight:600}
+  .list-row{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line)}
+  .list-row:last-child{border-bottom:none}
+  .list-row .av{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;background:var(--pink-soft)}
+  .list-row .main{flex:1;min-width:0}
+  .list-row .main b{font-size:14px;display:block}
+  .list-row .main span{font-size:12px;color:var(--muted)}
+  .list-row .right{font-size:12.5px;color:var(--muted);text-align:right;white-space:nowrap}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .search{flex:1;min-width:200px;padding:12px 15px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);outline:none;color:var(--dark)}
+  .search:focus{border-color:var(--pink)}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--pink),var(--pink-grad));color:var(--pink-contrast);font-weight:700;font-size:14px;padding:12px 18px;border-radius:14px;box-shadow:0 8px 20px rgba(214,58,107,.35)}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:var(--card);color:var(--pink-dark);border:1.5px solid var(--pink);box-shadow:none}
+  .btn.small{padding:8px 13px;font-size:12.5px;border-radius:10px}
+  .btn.full{width:100%;justify-content:center}
+  .badge{font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;letter-spacing:.3px}
+  .badge.ativo{background:var(--green-soft);color:var(--green)}
+  .badge.teste{background:var(--amber-soft);color:var(--amber)}
+  .badge.suspenso,.badge.bloqueado{background:var(--red-soft);color:var(--red)}
+  .badge.vencido{background:var(--red-soft);color:var(--red)}
+  .badge.teste{background:var(--amber-soft);color:var(--amber)}
+  .cat-pills{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+  .cat-pills button{border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:750;cursor:pointer}
+  .cat-pills button .n{margin-left:6px;font-size:11px;font-weight:850}
+  .cat-pills button.on{border-color:var(--pink);color:var(--pink-dark, var(--pink));background:var(--pink-soft,#FCE7F0)}
+  .cat-head{display:flex;align-items:center;gap:10px;margin:22px 0 10px}
+  .cat-head h3{margin:0;font-size:16px}
+  .cat-head .sub{color:var(--muted);font-size:12.5px}
+  .badge.aberto{background:var(--blue-soft);color:var(--blue)}
+  .badge.resolvido{background:var(--green-soft);color:var(--green)}
+  .badge.pago{background:var(--green-soft);color:var(--green)}
+  .badge.atrasado{background:var(--red-soft);color:var(--red)}
+  .salon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:8px}
+  .salon{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);transition:.15s;text-align:left;width:100%}
+  .salon:hover{border-color:var(--pink);transform:translateY(-2px)}
+  .salon .head{display:flex;align-items:center;gap:11px}
+  .salon .logo{width:46px;height:46px;border-radius:13px;background:var(--pink-soft);display:flex;align-items:center;justify-content:center;font-size:23px;flex-shrink:0}
+  .salon .name{font-size:15px;font-weight:800;line-height:1.2}
+  .salon .plan{font-size:11.5px;color:var(--muted)}
+  .salon .stats{display:flex;gap:10px;margin:14px 0 4px}
+  .salon .stat{flex:1;min-width:60px}
+  .salon .stat .n{font-size:16px;font-weight:800;color:var(--pink-dark)}
+  .salon .stat .l{font-size:10.5px;color:var(--muted)}
+  .salon .foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+  .salon .last{font-size:11.5px;color:var(--muted)}
+  .salon .status{display:flex;gap:6px}
+  .overlay{position:fixed;inset:0;background:rgba(53,39,44,.45);z-index:90;display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(2px)}
+  .overlay.show{display:flex;animation:fade .2s}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{background:var(--card);border-radius:20px;max-width:580px;width:100%;padding:24px;max-height:88vh;overflow:auto;animation:pop .3s cubic-bezier(.2,1.3,.4,1);color:var(--dark)}
+  @keyframes pop{0%{transform:scale(.92);opacity:0}100%{transform:scale(1);opacity:1}}
+  .modal h3{font-size:19px}
+  .modal p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:6px}
+  .modal .m-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+  .modal .m-actions button{flex:1;min-width:130px}
+  .m-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .m-row .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;min-width:96px}
+  .m-row .v{font-size:14px;font-weight:700}
+  .form-field{margin-top:14px}
+  .form-field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:6px}
+  .form-field input,.form-field select,.form-field textarea{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);outline:none;background:var(--card);color:var(--dark)}
+  .form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--pink)}
+  .appt{display:flex;gap:11px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .appt:last-child{border:none}
+  .appt .time{background:var(--pink-soft);color:var(--pink-dark);font-weight:800;font-size:12.5px;padding:6px 9px;border-radius:9px;min-width:50px;text-align:center;flex-shrink:0}
+  .appt .info{flex:1;min-width:0}
+  .appt .info b{font-size:13.5px;display:block}
+  .appt .info span{font-size:12px;color:var(--muted)}
+  .support-card{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:10px;box-shadow:var(--shadow)}
+  .support-card .ic{width:38px;height:38px;border-radius:11px;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .support-card b{font-size:14px;display:block}
+  .support-card p{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+  .support-card .meta{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .note{background:var(--amber-soft);border:1px solid var(--amber);color:var(--amber);border-radius:13px;padding:12px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
+  .loading{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);padding:60px 0;font-size:14px}
+  .spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--pink);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media(max-width:900px){
+    .sidebar{position:fixed;left:-240px;top:0;height:100vh;z-index:80;transition:.25s;box-shadow:0 0 40px rgba(0,0,0,.25)}
+    .sidebar.open{left:0}
+    .hamb{display:inline-flex;align-items:center;justify-content:center}
+    .main{padding:16px 14px 60px}
+  }
+</style>
 </head>
 <body>
-  <section class="admin-auth" id="adminLoginView">
-    <div class="auth-card">
-      <div class="auth-brand">
-        <img src="emaus-admin-logo.png" alt="Logo administrativa da Emaús">
-        <div><strong>Emaús</strong><span>Administração da plataforma</span></div>
+<div id="loginScreen" class="login">
+  <div class="login-box">
+    <div class="logo"><img src="/icons/icon-192.png?v=20260909" alt="BoraAgendar" style="width:100%;height:100%;object-fit:contain"></div>
+    <h1>Painel da plataforma</h1>
+    <p>Acesso da administração</p>
+    <input type="email" id="lgEmail" placeholder="E-mail" autocomplete="username">
+    <div class="pass-wrap">
+      <input type="password" id="lgPass" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button type="button" class="pass-eye" onclick="togglePass('lgPass', this)" aria-label="Mostrar/esconder senha">👁️</button>
+    </div>
+    <button class="btn full" style="margin-top:16px" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<div id="appScreen" class="app" style="display:none">
+  <aside class="sidebar" id="sidebar">
+    <div class="s-logo"><img src="/icons/icon-192.png?v=20260909" alt="" style="width:36px;height:36px;object-fit:contain"><div><b>BoraAgendar</b><span>Painel</span></div></div>
+    <nav class="s-nav" id="snav"></nav>
+    <div class="s-foot">Seu acesso<br><b style="color:var(--dark)" id="adminFootName">Admin</b><br>
+      <button onclick="askAdminProfile()">✏️ Editar perfil</button><br>
+      <button onclick="askPassword()">🔒 Alterar senha</button><br>
+      <button onclick="downloadBackup()">⬇️ Backup dos dados</button><br>
+      <button onclick="openRestore()">♻️ Restaurar backup</button><br>
+      <button onclick="logout()">🚪 Sair</button></div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <button class="hamb" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div><h1 id="pageTitle">Visão geral</h1><div class="sub" id="pageSub"></div></div>
+      <div class="spacer"></div>
+      <button type="button" class="user-chip" id="adminChip" onclick="askAdminProfile()" title="Toque para editar nome e ícone"><div class="av" id="adminChipEmoji">💎</div><span id="adminChipName">Admin</span><span style="opacity:.55;font-size:12px">✎</span></button>
+    </div>
+    <div id="content"><div class="loading"><div class="spin"></div>Carregando...</div></div>
+  </main>
+</div>
+<div class="overlay" id="overlay"><div class="modal" id="modalBox"></div></div>
+<div id="toastX" style="position:fixed;top:16px;left:50%;transform:translate(-50%,-90px);z-index:120;background:var(--dark);color:var(--card);padding:12px 20px;border-radius:14px;font-size:13.5px;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.3);transition:transform .3s;max-width:92%;text-align:center"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+let TOKEN = localStorage.getItem('ba_admin') || localStorage.getItem('glowp_admin') || null;
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtBRL = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+let PLAN_PRICES = {'Básico':69,'Pro':139,'Premium':249}; /* pode ser sobrescrito pelo gateway */
+let page = 'dash', salons = [], tickets = [], dash = null, searchQ = '';
+let salonCat = 'todos';
+let toastTimer;
+function toast(msg){ const t=$('#toastX'); t.textContent=msg; t.style.transform='translate(-50%,0)'; clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.transform='translate(-50%,-90px)',3200); }
+
+const THEME_DEFAULT = {primary:'#D63A6B', bg:'#FBF4F6', font:'padrao'};
+const THEME_PRESETS = [
+  {id:'rosa', label:'Rosa BoraAgendar', primary:'#D63A6B', bg:'#FBF4F6'},
+  {id:'barbearia', label:'Barbearia Preto & Dourado', primary:'#C9A227', bg:'#1F1B16'},
+  {id:'azul', label:'Azul Marinho', primary:'#2E5FA3', bg:'#F2F6FB'},
+  {id:'verde', label:'Verde Esmeralda', primary:'#1E8A5F', bg:'#F1F8F4'},
+  {id:'roxo', label:'Roxo', primary:'#7A4FC0', bg:'#F7F3FC'},
+  {id:'terracota', label:'Terracota', primary:'#C96A3D', bg:'#FBF4F0'},
+  {id:'vermelho', label:'Vermelho', primary:'#C93A3A', bg:'#FBF3F3'}
+];
+const THEME_FONT_OPTS = [
+  {id:'padrao', label:'Moderna (padrão)', body:"'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif", head:"Georgia, 'Times New Roman', serif"},
+  {id:'elegante', label:'Elegante (serifada)', body:"Georgia, 'Times New Roman', serif", head:"Georgia, 'Times New Roman', serif"},
+  {id:'moderna', label:'Moderno sem serifa', body:"'Segoe UI', system-ui, Arial, sans-serif", head:"'Segoe UI', system-ui, Arial, sans-serif"},
+  {id:'classica', label:'Clássica', body:"'Trebuchet MS', Verdana, sans-serif", head:"Georgia, 'Times New Roman', serif"},
+  {id:'impacto', label:'Destaque (forte)', body:"'Arial', 'Helvetica', sans-serif", head:"'Arial Black', 'Arial', sans-serif"},
+  {id:'retro', label:'Retrô (máquina de escrever)', body:"'Courier New', Courier, monospace", head:"'Courier New', Courier, monospace"}
+];
+let PANEL_THEME = Object.assign({}, THEME_DEFAULT);
+function hexRgb(h){ h=String(h||'').replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); if(isNaN(n)) return {r:0,g:0,b:0}; return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function mixColor(a,b,w){ const ca=hexRgb(a), cb=hexRgb(b); const c={r:Math.round(ca.r*(1-w)+cb.r*w),g:Math.round(ca.g*(1-w)+cb.g*w),b:Math.round(ca.b*(1-w)+cb.b*w)}; return '#'+((1<<24)+(c.r<<16)+(c.g<<8)+c.b).toString(16).slice(1); }
+function lumOf(h){ const c=hexRgb(h); return (0.299*c.r+0.587*c.g+0.114*c.b)/255; }
+function alphaOf(h,a){ const c=hexRgb(h); return 'rgba('+c.r+','+c.g+','+c.b+','+a+')'; }
+function cleanPanelTheme(th){
+  const t = th && typeof th === 'object' ? th : {};
+  const hex = v => /^#[0-9a-fA-F]{6}$/.test(String(v||'')) ? String(v) : null;
+  return { primary: hex(t.primary) || THEME_DEFAULT.primary, bg: hex(t.bg) || THEME_DEFAULT.bg, font: THEME_FONT_OPTS.some(f=>f.id===t.font) ? t.font : 'padrao' };
+}
+function applyPanelTheme(th){
+  PANEL_THEME = cleanPanelTheme(th);
+  try{ localStorage.setItem('ba_admin_theme', JSON.stringify(PANEL_THEME)); }catch(e){}
+  const primary = PANEL_THEME.primary, bg = PANEL_THEME.bg;
+  const dark = lumOf(bg) < 0.45;
+  const card = dark ? mixColor(bg,'#ffffff',0.10) : '#ffffff';
+  const text = dark ? '#F5EFE8' : '#35272C';
+  const muted = dark ? '#B9AFA6' : '#8F7D84';
+  const line = dark ? alphaOf('#ffffff',0.16) : mixColor(bg, text, 0.86);
+  const soft = mixColor(primary, card, dark ? 0.32 : 0.12);
+  const faint = mixColor(primary, card, dark ? 0.14 : 0.04);
+  const primDark = dark ? mixColor(primary, '#ffffff', lumOf(primary) < 0.55 ? 0.42 : 0.18) : mixColor(primary, '#000000', 0.22);
+  const grad = dark ? mixColor(primary, '#ffffff', 0.18) : mixColor(primary, '#ffffff', 0.22);
+  const contrast = lumOf(primary) > 0.62 ? '#1A1410' : '#FFFFFF';
+  const F = THEME_FONT_OPTS.find(f=>f.id===PANEL_THEME.font) || THEME_FONT_OPTS[0];
+  const tone = (hex) => dark ? mixColor(hex, '#ffffff', 0.42) : hex;
+  const softOf = (hex) => dark ? mixColor(hex, card, 0.80) : mixColor(hex, '#ffffff', 0.86);
+  const extras = dark ? ('--green:'+tone('#2FA36B')+';--red:'+tone('#D64545')+';--amber:'+tone('#C99B3F')+';--blue:'+tone('#3E6FB0')+';'
+    + '--green-soft:'+softOf('#2FA36B')+';--red-soft:'+softOf('#D64545')+';--amber-soft:'+softOf('#C99B3F')+';--blue-soft:'+softOf('#3E6FB0')+';') : '';
+  const css = ':root{color-scheme:'+(dark?'dark':'light')+';'+extras+'--pink:'+primary+';--pink-dark:'+primDark+';--pink-soft:'+soft+';--pink-faint:'+faint+';--pink-grad:'+grad+';--pink-contrast:'+contrast+';--bg:'+bg+';--card:'+card+';--dark:'+text+';--muted:'+muted+';--line:'+line+';--font-body:'+F.body+';--font-heading:'+F.head+'}';
+  let tag = document.getElementById('adminThemeVars');
+  if(!tag){ tag = document.createElement('style'); tag.id = 'adminThemeVars'; document.head.appendChild(tag); }
+  tag.textContent = css;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', primary);
+}
+function loadCachedTheme(){
+  try{
+    const raw = localStorage.getItem('ba_admin_theme');
+    if(raw) applyPanelTheme(JSON.parse(raw));
+  }catch(e){}
+}
+async function fetchPanelTheme(){
+  try{
+    const d = TOKEN ? await api('/api/admin/theme') : await fetch('/api/public/admin-theme').then(r=>r.json());
+    if(d && d.theme) applyPanelTheme(d.theme);
+  }catch(e){}
+}
+function setPanelPreset(id){
+  const pset = THEME_PRESETS.find(x=>x.id===id);
+  if(!pset) return;
+  PANEL_THEME.primary = pset.primary; PANEL_THEME.bg = pset.bg;
+  const pi = document.getElementById('adPanelPrimary'), bi = document.getElementById('adPanelBg');
+  if(pi) pi.value = pset.primary;
+  if(bi) bi.value = pset.bg;
+  applyPanelTheme(PANEL_THEME);
+}
+async function savePanelTheme(){
+  const pi = document.getElementById('adPanelPrimary'), bi = document.getElementById('adPanelBg'), fi = document.getElementById('adPanelFont');
+  if(pi) PANEL_THEME.primary = pi.value;
+  if(bi) PANEL_THEME.bg = bi.value;
+  if(fi) PANEL_THEME.font = fi.value;
+  applyPanelTheme(PANEL_THEME);
+  try{
+    await api('/api/admin/theme', {method:'PUT', body:JSON.stringify({theme:PANEL_THEME})});
+    toast('🎨 Cores do painel salvas');
+  }catch(e){ toast(e.message); }
+}
+function refreshBrandLogos(v){
+  const src = '/icons/icon-192.png?v=' + (v || Date.now());
+  document.querySelectorAll('img[src*="/icons/icon-192.png"]').forEach(img => { img.src = src; });
+  const prev = document.getElementById('brandLogoPrev');
+  if(prev) prev.innerHTML = '<img src="'+src+'" alt="logo" style="width:100%;height:100%;object-fit:cover">';
+}
+function pickBrandLogo(ev){
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  ev.target.value = '';
+  if(!String(f.type||'').startsWith('image/')){ toast('Envie uma imagem'); return; }
+  const reader = new FileReader();
+  reader.onerror = () => toast('Erro ao ler imagem');
+  reader.onload = e => {
+    const img = new Image();
+    img.onerror = () => toast('Imagem inválida');
+    img.onload = () => {
+      try{
+        const scale = Math.min(1, 800 / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = cv.toDataURL('image/png');
+        api('/api/admin/logo', {method:'PUT', body:JSON.stringify({logo:dataUrl})}).then(d => {
+          refreshBrandLogos(d.logoV);
+          toast('📷 Logo do BoraAgendar atualizada!');
+        }).catch(err => toast(err.message));
+      }catch(err){ toast('Não foi possível processar a imagem'); }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+async function removeBrandLogo(){
+  try{
+    const d = await api('/api/admin/logo', {method:'PUT', body:JSON.stringify({logo:null})});
+    refreshBrandLogos(d.logoV);
+    toast('Logo voltou à imagem padrão');
+  }catch(e){ toast(e.message); }
+}
+function brandLogoCardHTML(){
+  const src = '/icons/icon-192.png?v=' + Date.now();
+  return `<div class="card pad" style="max-width:560px;margin-bottom:16px">
+      <b style="font-size:15px">📷 Logo do BoraAgendar</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">É a foto do aplicativo: splash, ícone, login e topo quando o salão ainda não tem logo própria. Pode trocar quando quiser.</p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px">
+        <div id="brandLogoPrev" style="width:96px;height:96px;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,var(--pink),var(--pink-grad));box-shadow:0 8px 20px rgba(214,58,107,.28);display:flex;align-items:center;justify-content:center">
+          <img src="${src}" alt="logo" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        <div>
+          <label class="btn small ghost" style="cursor:pointer">📷 Enviar nova logo<input type="file" accept="image/*" style="display:none" onchange="pickBrandLogo(event)"></label>
+          <button class="btn small ghost" style="margin-left:6px" onclick="removeBrandLogo()">Voltar à padrão</button>
+          <p style="font-size:11.5px;color:var(--muted);margin-top:8px;max-width:280px">PNG ou JPG. Quadrada fica melhor (calendário com o check).</p>
+        </div>
       </div>
-      <span class="eyebrow">ÁREA RESTRITA</span>
-      <h1>Comandar a plataforma</h1>
-      <p>Gerencie igrejas, planos, liberações e os indicadores financeiros da Emaús.</p>
-      <form class="auth-form" id="adminLoginForm">
-        <div class="field"><label for="adminEmail">Login do administrador</label><input id="adminEmail" name="email" type="email" autocomplete="username" placeholder="admin@emaus.com.br" required></div>
-        <div class="field"><label for="adminPassword">Senha</label><input id="adminPassword" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required></div>
-        <div class="field hidden" id="adminOtpField"><label for="adminOtp">Código 2FA ou de recuperação</label><input id="adminOtp" name="otp" inputmode="text" autocomplete="one-time-code" placeholder="000000"></div>
-        <button class="btn btn-gold" type="submit">Entrar no administrador</button>
-        <p class="auth-error hidden" id="adminLoginError"></p>
-      </form>
-      <div class="auth-note"><strong>Área protegida:</strong> use o e-mail e a senha definidos no Railway. Os dados desta área são carregados da API de produção da Emaús.</div>
+    </div>`;
+}
+loadCachedTheme();
+
+async function api(path, opts){
+  opts = opts||{};
+  const headers = {'Content-Type':'application/json'};
+  if(TOKEN) headers['Authorization']='Bearer '+TOKEN;
+  const r = await fetch(path, Object.assign({},opts,{headers}));
+  let j = {}; try{ j = await r.json(); }catch(e){}
+  if(!r.ok || j.ok===false) throw new Error(j.error||'Erro no servidor');
+  return j;
+}
+function fmtWhen(ts){
+  if(!ts) return '—';
+  const mins = Math.round((Date.now()-ts)/60000);
+  if(mins<1) return 'agora';
+  if(mins<60) return 'há '+mins+' min';
+  const h = Math.round(mins/60);
+  if(h<24) return 'há '+h+' h';
+  return 'há '+Math.round(h/24)+' d';
+}
+async function doLogin(){
+  const email = ($('#lgEmail').value||'').trim(), pass = $('#lgPass').value||'';
+  try{
+    const d = await api('/api/auth/login', {method:'POST', body:JSON.stringify({email, password:pass})});
+    if(d.role!=='admin'){ toast('Esse acesso é de salão'); return; }
+    TOKEN = d.token;
+    localStorage.setItem('ba_admin', TOKEN); localStorage.removeItem('glowp_admin');
+    enterApp();
+  }catch(e){ toast(e.message); }
+}
+function logout(){ TOKEN=null; localStorage.removeItem('ba_admin'); localStorage.removeItem('glowp_admin'); $('#appScreen').style.display='none'; $('#loginScreen').style.display='flex'; }
+async function enterApp(){
+  $('#loginScreen').style.display='none';
+  $('#appScreen').style.display='flex';
+  await refreshData();
+  renderNav();
+  renderPage();
+}
+async function refreshData(){
+  [dash, salons, tickets] = await Promise.all([
+    api('/api/admin/dashboard'),
+    api('/api/admin/salons'),
+    api('/api/admin/tickets')
+  ]);
+  try{ finData = await api('/api/admin/finance-month' + (finMonth ? ('?month='+encodeURIComponent(finMonth)) : '')); }catch(e){ finData = finData || { month:'', collected:0, spent:0, profit:0, expenses:[] }; }
+  salons = salons.salons; tickets = tickets.tickets;
+  if (dash && dash.theme) applyPanelTheme(dash.theme);
+  if (dash && dash.planPrices) {
+    PLAN_PRICES = {
+      'Básico': dash.planPrices.basico || 69,
+      'Pro': dash.planPrices.pro || 139,
+      'Premium': dash.planPrices.premium || 249
+    };
+  }
+  applyAdminProfile();
+}
+const NAV = [
+  {id:'dash', label:'Visão geral', ic:'📊'},
+  {id:'saloes', label:'Meus salões', ic:'🏪'},
+  {id:'financeiro', label:'Financeiro', ic:'💰'},
+  {id:'vendas', label:'Vendas & Leads', ic:'📈'},
+  {id:'suporte', label:'Suporte', ic:'🎧'},
+  {id:'config', label:'Configurações', ic:'⚙️'}
+];
+function renderNav(){
+  $('#snav').innerHTML = NAV.map(n=>`<button class="${page===n.id?'active':''}" onclick="go('${n.id}')"><span class="ic">${n.ic}</span>${n.label}${n.id==='suporte'&&tickets.filter(t=>t.status==='aberto').length?` <span style="margin-left:auto;background:var(--pink);color:#fff;font-size:10.5px;padding:1px 7px;border-radius:999px">${tickets.filter(t=>t.status==='aberto').length}</span>`:''}</button>`).join('');
+  if(window.innerWidth<=900) $('#sidebar').classList.remove('open');
+}
+function go(p){
+  page = p;
+  renderNav();
+  const T = {dash:['Visão geral','todos os salões da plataforma'],saloes:['Meus salões','gerencie quem usa sua plataforma'],financeiro:['Financeiro','preços dos planos, assinaturas e faturas'],vendas:['Vendas & Leads','interessados em assinar'],suporte:['Suporte','chamados dos salões'],config:['Configurações','gateway de pagamento e automações']}[p];
+  $('#pageTitle').textContent = T[0]; $('#pageSub').textContent = T[1];
+  renderPage();
+  window.scrollTo({top:0});
+}
+async function renderPage(){
+  $('#content').innerHTML = '<div class="loading"><div class="spin"></div>Carregando...</div>';
+  try{
+    if(page!=='dash') await refreshData();
+    if(page==='dash') renderDash();
+    else if(page==='saloes') renderSaloes();
+    else if(page==='financeiro') renderFinanceiro();
+    else if(page==='vendas') renderVendas();
+    else if(page==='suporte') renderSuporte();
+    else renderConfig();
+  }catch(e){
+    if(String(e.message).includes('401')||String(e.message).includes('não autorizado')){ logout(); return; }
+    $('#content').innerHTML = `<div class="empty" style="text-align:center;color:var(--muted);padding:40px">Erro: ${esc(e.message)}</div>`;
+  }
+}
+function renderDash(){
+  const rb = dash.revenueByMonth||{};
+  const months = Object.keys(rb).sort();
+  const max = Math.max(1, ...Object.values(rb));
+  const chart = months.map(k=>{
+    const v = rb[k]||0;
+    const lab = (k.split('-')[1])+''; const short = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][+lab-1]||lab;
+    return `<div class="chart-col"><div class="bar" style="height:${Math.max(4,Math.round(v/max*100))}%">${v?`<span>${Math.round(v/100)/10}k</span>`:''}</div><div class="lab">${short}</div></div>`;
+  }).join('');
+  const recent = salons.slice().sort((a,b)=>(b.lastActive||0)-(a.lastActive||0)).slice(0,5);
+  $('#content').innerHTML = `
+    ${dash.recoveryMode ? '<div class="note" style="border-color:var(--red);background:var(--red-soft);color:var(--red)">🚨 <b>Modo de recuperação:</b> o banco de produção está vazio. Restaure o backup pelo botão <b>♻️ Restaurar backup</b> no menu lateral antes de cadastrar novos dados.</div>' : ''}
+    <div class="note">💡 Painel <b>real</b> da plataforma — os números vêm do servidor. Crie salões, veja quem usa e responda chamados de suporte.</div>
+    ${brandLogoCardHTML()}
+    <div class="kpis">
+      <div class="kpi pink"><div class="em">🏪</div><div class="k">Salões ativos</div><div class="n">${dash.active} de ${dash.total}</div><div class="d">${dash.test} em teste · ${dash.suspended} suspenso</div></div>
+      <div class="kpi up"><div class="em">💎</div><div class="k">Sua receita (MRR)</div><div class="n">${fmtBRL(dash.mrr)}</div><div class="d">assinaturas ativas/mês</div></div>
+      <div class="kpi blue"><div class="em">📅</div><div class="k">Agendamentos</div><div class="n">${dash.totalAppts}</div><div class="d">${dash.totalClients} clientes cadastradas</div></div>
+      <div class="kpi amber"><div class="em">🎧</div><div class="k">Suporte aberto</div><div class="n">${dash.openTickets}</div><div class="d">${dash.openTickets?'responder agora':'tudo em dia'}</div></div>
     </div>
-  </section>
-
-  <section class="hidden" id="adminAppView">
-    <header class="admin-topbar">
-      <a class="admin-top-brand" href="./" aria-label="Voltar para Emaús">
-        <img src="emaus-admin-logo.png" alt="Emaús">
-        <strong>Emaús</strong><span>Administrador da plataforma</span>
-      </a>
-      <div class="top-actions"><div class="admin-user"><strong>Administrador da plataforma</strong><span>Controle central das organizações</span></div><button class="btn btn-small" id="adminLogout" type="button">Sair</button></div>
-    </header>
-
-    <div class="admin-layout">
-      <aside class="admin-sidebar">
-        <div class="admin-sidebar-label">Central de controle</div>
-        <nav class="admin-nav" aria-label="Navegação administrativa">
-          <button class="active" data-admin-view="overview"><span class="admin-nav-icon">⌂</span>Visão geral</button>
-          <button data-admin-view="churches"><span class="admin-nav-icon">◈</span>Igrejas</button>
-          <button data-admin-view="pipeline"><span class="admin-nav-icon">△</span>Interessadas e implantação</button>
-          <button data-admin-view="plans"><span class="admin-nav-icon">◫</span>Planos e preços</button>
-          <button data-admin-view="finance"><span class="admin-nav-icon">◇</span>Ganhos e gastos</button>
-          <button data-admin-view="support"><span class="admin-nav-icon">?</span>Suporte e solicitações</button>
-          <button data-admin-view="settings"><span class="admin-nav-icon">⚙</span>Configurações e segurança</button>
-        </nav>
-        <div class="sidebar-note"><strong>Controle multi-igreja</strong>As igrejas podem personalizar sua identidade, mas o administrador central controla status, planos, valores e cobrança.</div>
-      </aside>
-
-      <main class="admin-main" id="adminContent"></main>
+    <div class="two">
+      <div class="card pad"><div class="section-title" style="margin-top:0"><h2>💰 Faturamento real dos salões</h2><span class="sub">últimos 12 meses</span></div><div class="chart">${chart}</div></div>
+      <div class="card pad"><div class="section-title" style="margin-top:0"><h2>🕐 Atividade recente</h2></div>
+        ${recent.map(s=>`<div class="list-row"><div class="av">🏪</div><div class="main"><b>${esc(s.name)}</b><span>${esc(s.owner)} · ${s.appts} agendamentos</span></div><div class="right">${fmtWhen(s.lastActive)}</div></div>`).join('')}
+      </div>
+    </div>`;
+}
+function salonCatOf(s){
+  if (s.status === 'suspenso') return 'bloqueado';
+  if (s.status === 'teste') return 'teste';
+  const today = new Date().toISOString().slice(0,10);
+  if (s.nextDue && s.nextDue < today) return 'vencido';
+  return 'ativo';
+}
+function salonCatMeta(id){
+  return {
+    teste: { label:'Teste grátis', hint:'ainda no período de teste' },
+    ativo: { label:'Ativo', hint:'assinatura em dia' },
+    vencido: { label:'Vencido', hint:'pagamento atrasado — ainda no ar' },
+    bloqueado: { label:'Bloqueado', hint:'agendamento público pausado' }
+  }[id] || { label:id, hint:'' };
+}
+function setSalonCat(id){ salonCat = id; renderSaloes(); }
+function renderSaloes(){
+  const q = searchQ.toLowerCase();
+  const all = salons.filter(s => !q || s.name.toLowerCase().includes(q) || s.owner.toLowerCase().includes(q) || String(s.email||'').toLowerCase().includes(q));
+  const order = ['teste','ativo','vencido','bloqueado'];
+  const groups = {};
+  order.forEach(k => groups[k] = []);
+  all.forEach(s => {
+    const k = salonCatOf(s);
+    (groups[k] || (groups[k] = [])).push(s);
+  });
+  const pills = [{id:'todos', label:'Todos', n: all.length}].concat(order.map(id => ({id, label: salonCatMeta(id).label, n: groups[id].length})));
+  const pillHtml = `<div class="cat-pills">${pills.map(p => `<button type="button" class="${salonCat===p.id?'on':''}" onclick="setSalonCat('${p.id}')">${esc(p.label)}<span class="n">${p.n}</span></button>`).join('')}</div>`;
+  const show = salonCat === 'todos' ? order : [salonCat];
+  let body = '';
+  show.forEach(id => {
+    const list = groups[id] || [];
+    const meta = salonCatMeta(id);
+    body += `<div class="cat-head"><span class="badge ${id}">${esc(meta.label).toUpperCase()}</span><h3>${esc(meta.label)}</h3><span class="sub">${list.length} · ${esc(meta.hint)}</span></div>`;
+    body += list.length
+      ? `<div class="salon-grid">${list.map(salonCard).join('')}</div>`
+      : `<p style="color:var(--muted);font-size:13px;margin:0 0 8px">Nenhum salão nesta categoria.</p>`;
+  });
+  $('#content').innerHTML = `
+    <div class="toolbar">
+      <input class="search" placeholder="🔎 Buscar salão, dono ou e-mail..." value="${esc(searchQ)}" oninput="searchQ=this.value;renderSaloes()">
+      <button class="btn ghost" onclick="enviarTutorialTodos()">📘 Tutorial para os donos</button>
+      <button class="btn ghost" onclick="mensagemDonos()">💬 Mensagem para os donos</button>
+      <button class="btn" onclick="novoSalon()">＋ Novo salão</button>
     </div>
-  </section>
+    <div class="section-title"><h2>Salões na plataforma</h2><span class="sub">${all.length} no total</span></div>
+    ${pillHtml}
+    ${body}`;
+}
+function salonCard(s){
+  const cat = salonCatOf(s);
+  const meta = salonCatMeta(cat);
+  const extra = cat==='teste' && s.trialEnd ? (' · teste até '+fmtDateBR(String(s.trialEnd).slice(0,10))) : (cat==='vencido' && s.nextDue ? (' · venceu '+fmtDateBR(String(s.nextDue).slice(0,10))) : (cat==='ativo' && s.nextDue ? (' · próximo '+fmtDateBR(String(s.nextDue).slice(0,10))) : ''));
+  return `<div class="salon">
+    <div class="head"><div class="logo">🏪</div><div><div class="name">${esc(s.name)}</div><div class="plan">Plano ${s.plan} · ${esc(s.owner)}</div></div></div>
+    <div class="stats">
+      <div class="stat"><div class="n">${s.appts}</div><div class="l">Agendamentos</div></div>
+      <div class="stat"><div class="n">${fmtBRL(s.revenue)}</div><div class="l">Faturamento</div></div>
+      <div class="stat"><div class="n">${s.clients}</div><div class="l">Clientes</div></div>
+    </div>
+    <div class="foot"><span class="last">⏱ ${fmtWhen(s.lastActive)}${extra}</span>
+      <span class="status"><span class="badge ${cat}">${esc(meta.label).toUpperCase()}</span></span></div>
+    <button class="btn small ghost" style="width:100%;margin-top:12px" onclick="verSalon('${s.slug}')">📊 Ver detalhes</button>
+  </div>`;
+}
+async function verSalon(slug){
+  const d = await api('/api/admin/salons/'+slug);
+  const s = d.salon;
+  const up = (s.upcoming||[]).map(a=>`<div class="appt"><div class="time">${a.time}</div><div class="info"><b>${esc(a.client)}</b><span>${esc(a.service)} · ${esc(a.pro)} · ${esc(a.date)}</span></div></div>`).join('') || '<p style="color:var(--muted);font-size:13px;padding:8px 0">Sem próximos agendamentos.</p>';
+  modal(`<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><div style="width:52px;height:52px;border-radius:14px;background:var(--pink-soft);display:flex;align-items:center;justify-content:center;font-size:26px">🏪</div><div><h3>${esc(s.name)}</h3><p style="color:var(--muted);font-size:13px;margin:0">${esc(s.owner)} · link: <b>/app?slug=${s.slug}</b></p></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select id="adStatus" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:13px">
+        <option value="ativo" ${s.status==='ativo'?'selected':''}>Ativo</option>
+        <option value="teste" ${s.status==='teste'?'selected':''}>Em teste</option>
+        <option value="suspenso" ${s.status==='suspenso'?'selected':''}>Suspenso</option>
+      </select>
+      <select id="adPlan" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:13px">
+        <option value="Básico" ${s.plan==='Básico'?'selected':''}>Básico R$ 69</option>
+        <option value="Pro" ${s.plan==='Pro'?'selected':''}>Pro R$ 139</option>
+        <option value="Premium" ${s.plan==='Premium'?'selected':''}>Premium R$ 249</option>
+      </select>
+      <button class="btn small" onclick="saveSalonAdmin('${s.slug}')">Salvar</button>
+    </div>
+    <div class="m-row"><div class="k">E-mail</div><div class="v">${esc(s.email)}</div></div>
+    <div class="form-field"><label>Chave de desconto</label>
+      <input id="adDiscountCode" placeholder="Ex.: LANCA20" value="${esc(s.discountCode||'')}" style="text-transform:uppercase">
+      <p style="font-size:11.5px;color:var(--muted);margin-top:4px">${s.discountCode ? (s.discountPercent+'% off · restam '+(s.discountTimesLeft||0)+' de '+(s.discountTimesTotal||0)+' cobranças') : 'Vazio = sem desconto. Salvar aplica a chave neste salão.'}</p>
+    </div>
+    <div class="form-field"><label>WhatsApp do salão (número que a cliente usa)</label>
+      <input id="adBotPhone" placeholder="(21) 99999-9999" value="${esc(s.contactPhone||'')}">
+    </div>
+    <div class="form-field"><label>WhatsApp da dona (para receber o link — pode ser outro estado)</label>
+      <input id="adInvitePhone" placeholder="celular da dona, com DDD" value="${esc(s.notifyPhone||s.contactPhone||'')}">
+    </div>
+    <div class="form-field"><label>WhatsApp do salão (ID da instância) — responde as clientes</label>
+      <input id="adBotInst" placeholder="ID Zapster/Z-API do WhatsApp do salão" value="${esc(s.botInstance||'')}">
+      <p style="font-size:11.5px;color:var(--muted);margin-top:4px">Número <b>exclusivo</b> deste espaço: quem escrever aqui cai direto no bot dele. Se for o <b>mesmo ID da plataforma</b>, vale o modo concierge (o bot pergunta de qual espaço a pessoa fala e usa o catálogo deste salão). Um ID nunca fica em dois espaços ao mesmo tempo.</p></div>
+    <details style="margin:6px 0 12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px">
+      <summary style="font-weight:700;font-size:13.5px;cursor:pointer">🤖 Personalidade do bot deste salão</summary>
+      <div class="form-field"><label>Tom</label><select id="adBotTone"><option value="auto" ${(s.bot&&s.bot.tone||'auto')==='auto'?'selected':''}>Automático para o nicho</option><option value="feminino" ${(s.bot&&s.bot.tone)==='feminino'?'selected':''}>Feminina e acolhedora</option><option value="masculino" ${(s.bot&&s.bot.tone)==='masculino'?'selected':''}>Masculina e direta</option><option value="neutro" ${(s.bot&&s.bot.tone)==='neutro'?'selected':''}>Neutra e inclusiva</option></select></div>
+      <div class="form-field"><label>Formalidade</label><select id="adBotFormal"><option value="auto" ${(s.bot&&s.bot.formality||'auto')==='auto'?'selected':''}>Automático</option><option value="informal" ${(s.bot&&s.bot.formality)==='informal'?'selected':''}>Informal e descontraído</option><option value="formal" ${(s.bot&&s.bot.formality)==='formal'?'selected':''}>Formal e respeitoso</option></select></div>
+      <div class="form-field"><label>Valores no chat</label><select id="adBotPrice"><option value="resumida" ${(s.bot&&s.bot.priceStyle||'resumida')==='resumida'?'selected':''}>Resumido</option><option value="detalhada" ${(s.bot&&s.bot.priceStyle)==='detalhada'?'selected':''}>Detalhado</option><option value="nao" ${(s.bot&&s.bot.priceStyle)==='nao'?'selected':''}>Não informar valores</option></select></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="adBotPerClient" style="width:18px;height:18px" ${s.bot&&s.bot.perClient?'checked':''}><label for="adBotPerClient" style="font-size:13px;font-weight:600;cursor:pointer">Adaptar ao perfil da cliente (nova/retorno/frequente/VIP)</label></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="adBotAi" style="width:18px;height:18px" ${s.bot&&s.bot.aiEnabled?'checked':''}><label for="adBotAi" style="font-size:13px;font-weight:600;cursor:pointer">Responder perguntas abertas com IA</label></div>
+      <p style="font-size:11.5px;color:var(--muted);margin:2px 0 6px">O motor de IA padrão da plataforma é definido em <b>Configurações → WhatsApp/chatbot</b>. Para sobrescrever aqui, informe um provedor próprio.</p>
+      <div class="form-field"><label>URL do provedor de IA (opcional)</label><input id="adBotAiBase" placeholder="https://api.openai.com/v1" value="${esc((s.bot&&s.bot.ai&&s.bot.ai.baseUrl)||'')}"></div>
+      <div class="form-field"><label>Modelo (opcional)</label><input id="adBotAiModel" placeholder="gpt-4o-mini" value="${esc((s.bot&&s.bot.ai&&s.bot.ai.model)||'')}"></div>
+      <div class="form-field"><label>Chave da API (opcional)</label><input id="adBotAiToken" type="password" placeholder="sk-..." value="${esc((s.bot&&s.bot.ai&&s.bot.ai.token)||'')}"></div>
+    </details>
+    <details style="margin:6px 0 12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px">
+      <summary style="font-weight:700;font-size:13.5px;cursor:pointer">🎁 Indicação deste salão (código: <code>${esc(s.slug)}</code>)</summary>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="adRefPaused" style="width:18px;height:18px" ${s.planFeatures&&s.referralPaused?'checked':''} onchange="saveRefPause('${s.slug}', this.checked)"><label for="adRefPaused" style="font-size:13px;font-weight:600;cursor:pointer">Pausar a indicação deste salão</label></div>
+      <div class="form-field"><label>Crédito em aberto (R$)</label>
+        <div style="display:flex;gap:8px;align-items:center"><input id="adRefCredit" type="number" min="0" value="${esc(s.referralCredits||0)}"><button class="btn small ghost" onclick="setRefCredit('${s.slug}')">Definir</button></div>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:4px">É o desconto que este salão ganhou e ainda não usou. Você pode zerar ou ajustar manualmente.</p></div>
+    </details>
+    <button class="btn full" style="margin-top:8px" onclick="conectarWhatsDistante('${s.slug}')">📲 Conectar WhatsApp à distância</button>
+    <div class="form-field"><label>Já existe na Zapster? Anexe (não cria outra)</label>
+      <select id="adZapInst"><option value="">Carregando instâncias…</option></select></div>
+    <button class="btn ghost full" onclick="anexarInstanciaExistente('${s.slug}')">📌 Anexar instância já conectada</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn small ghost" onclick="verWhatsStatus('${s.slug}')">🔎 Status</button>
+      <button class="btn small ghost" onclick="testarWhatsSalao('${s.slug}')">⚡ Testar envio</button>
+      <button class="btn small" onclick="enviarTutorialDono('${s.slug}')">📘 Enviar tutorial</button>
+      <button class="btn small ghost" onclick="mensagemDonos('${s.slug}')">💬 Recado</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Zapster cobra por instância. Se só existe uma e ela já está no número do salão, anexe o ID. O WhatsApp da plataforma precisa de outra instância.</p>
+    <div class="m-row"><div class="k">Serviços</div><div class="v">${s.services}</div></div>
+    <div class="m-row"><div class="k">Profissionais</div><div class="v">${s.pros}</div></div>
+    <div class="m-row"><div class="k">Agendamentos</div><div class="v">${s.appts}</div></div>
+    <div class="m-row"><div class="k">Faturamento</div><div class="v">${fmtBRL(s.revenue)}</div></div>
+    <div class="m-row"><div class="k">Renova em</div><div class="v">${s.status==='teste'?('teste até '+fmtDateBR(s.trialEnd)):fmtDateBR(s.nextDue)}</div></div>
+    <div class="m-row"><div class="k">🎁 Última cortesia</div><div class="v">${(s.gifts&&s.gifts[0])?('+'+s.gifts[0].days+' dias até '+fmtDateBR(s.gifts[0].until)+(s.gifts[0].note?(' · '+esc(s.gifts[0].note)):'')+' ('+fmtDateBR(s.gifts[0].date)+')'):'—'}</div></div>
+    <div class="section-title"><h2>📅 Próximos</h2></div>${up}
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn ghost" style="color:var(--green);border-color:var(--green);background:var(--green-soft)" onclick="askSalonPassword('${s.slug}','${esc(s.name)}')">🔑 Senha</button>
+      <button class="btn ghost" style="color:var(--amber);border-color:var(--amber);background:var(--amber-soft)" onclick="askSalonTrial('${s.slug}','${esc(s.name)}')">⏱️ Teste</button>
+      <button class="btn ghost" style="color:#8B5CF6;border-color:#8B5CF6;background:rgba(139,92,246,.12)" onclick="askGift('${s.slug}','${esc(s.name)}')">🎁 Cortesia</button>
+      <button class="btn ghost" style="color:var(--blue);border-color:var(--blue);background:var(--blue-soft)" onclick="askTheme('${s.slug}','${esc(s.name)}')">🎨 Tema</button>
+      <button class="btn ghost" style="color:var(--red);border-color:var(--red);background:var(--red-soft)" onclick="askDeleteSalon('${s.slug}','${esc(s.name)}')">🗑️ Excluir</button>
+      <a class="btn" style="text-decoration:none" href="/app?slug=${s.slug}" target="_blank">Abrir app do salão ↗</a></div>`);
+}
+const ADMIN_PRESETS = [
+  {id:'rosa', label:'Rosa BoraAgendar', primary:'#D63A6B', bg:'#FBF4F6'},
+  {id:'barbearia', label:'Barbearia Preto & Dourado', primary:'#C9A227', bg:'#1F1B16'},
+  {id:'azul', label:'Azul Marinho', primary:'#2E5FA3', bg:'#F2F6FB'},
+  {id:'verde', label:'Verde Esmeralda', primary:'#1E8A5F', bg:'#F1F8F4'},
+  {id:'roxo', label:'Roxo', primary:'#7A4FC0', bg:'#F7F3FC'},
+  {id:'terracota', label:'Terracota', primary:'#C96A3D', bg:'#FBF4F0'},
+  {id:'vermelho', label:'Vermelho', primary:'#C93A3A', bg:'#FBF3F3'}
+];
+const ADMIN_FONTS = [
+  {id:'padrao', label:'Moderna (padrão)'},
+  {id:'elegante', label:'Elegante (serifada)'},
+  {id:'moderna', label:'Moderno sem serifa'},
+  {id:'classica', label:'Clássica'},
+  {id:'impacto', label:'Destaque (forte)'},
+  {id:'retro', label:'Retrô (máquina de escrever)'}
+];
+let AD_THEME = {primary:'#D63A6B', bg:'#FBF4F6', font:'padrao'};
+function askTheme(slug, name){
+  AD_THEME = {primary:'#D63A6B', bg:'#FBF4F6', font:'padrao'};
+  modal(`<h3>🎨 Tema — ${esc(name)}</h3>
+    <p style="margin:6px 0 4px">Escolha as cores e a fonte da página deste salão (vale para as clientes e para a área dele). A dona também pode mudar por conta própria em <b>Salão → Aparência</b>.</p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px" id="adPresets">
+      ${ADMIN_PRESETS.map(p=>`<button class="btn small ghost" style="display:inline-flex;align-items:center;gap:6px" onclick="adSetPreset('${p.id}')"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:linear-gradient(135deg,${p.primary} 55%,${p.bg} 55%);border:1px solid var(--line)"></span>${p.label}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap">
+      <div><label style="font-size:12px;font-weight:700;color:var(--muted);display:block">Cor principal</label><input type="color" id="adPrimary" value="${AD_THEME.primary}" oninput="AD_THEME.primary=this.value" style="width:56px;height:38px;border-radius:9px;border:1.5px solid var(--line);margin-top:4px;padding:2px"></div>
+      <div><label style="font-size:12px;font-weight:700;color:var(--muted);display:block">Cor de fundo</label><input type="color" id="adBg" value="${AD_THEME.bg}" oninput="AD_THEME.bg=this.value" style="width:56px;height:38px;border-radius:9px;border:1.5px solid var(--line);margin-top:4px;padding:2px"></div>
+      <div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:var(--muted);display:block">Fonte</label>
+        <select id="adFont" onchange="AD_THEME.font=this.value" style="width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--line);margin-top:4px;background:var(--card);color:var(--dark)">
+          ${ADMIN_FONTS.map(f=>`<option value="${f.id}">${f.label}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveAdminTheme('${slug}')">💾 Salvar tema</button></div>`);
+}
+function adSetPreset(id){
+  const p = ADMIN_PRESETS.find(x=>x.id===id);
+  if(!p) return;
+  AD_THEME.primary = p.primary; AD_THEME.bg = p.bg;
+  const pi = document.getElementById('adPrimary'), bi = document.getElementById('adBg');
+  if(pi) pi.value = p.primary;
+  if(bi) bi.value = p.bg;
+}
+function askSalonPassword(slug, name){
+  modal(`<h3>🔑 Redefinir senha — ${esc(name)}</h3>
+    <p style="margin:6px 0">Digite a nova senha de acesso da dona do salão (mínimo 4 caracteres):</p>
+    <div class="form-field"><label>Nova senha</label><input id="adPass" type="text" placeholder="Ex.: 123456"></div>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveSalonPassword('${slug}')">💾 Salvar senha</button></div>`);
+}
+async function saveSalonPassword(slug){
+  const pw = ($('#adPass').value||'').trim();
+  if(pw.length < 4){ toast('A senha deve ter pelo menos 4 caracteres'); return; }
+  try{
+    await api('/api/admin/salons/'+slug+'/password', {method:'POST', body:JSON.stringify({password: pw})});
+    closeModal(); toast('🔑 Senha redefinida com sucesso!');
+  }catch(e){ toast(e.message); }
+}
+function askSalonTrial(slug, name){
+  modal(`<h3>⏱️ Teste grátis — ${esc(name)}</h3>
+    <p style="margin:6px 0">Ajuste o prazo de teste deste salão (promoção de mais/menos tempo).</p>
+    <div class="form-field"><label>Adicionar dias ao teste (1–365)</label><input id="adTrialDays" type="number" min="1" max="365" placeholder="Ex.: 15"></div>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveSalonTrial('${slug}')">💾 Ajustar teste</button></div>`);
+}
+async function saveSalonTrial(slug){
+  const days = parseInt($('#adTrialDays').value, 10);
+  if(!days || days < 1 || days > 365){ toast('Informe dias entre 1 e 365'); return; }
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/trial', {method:'POST', body:JSON.stringify({days})});
+    closeModal(); toast('⏱️ Teste ajustado! Novo término: '+d.trialEnd);
+    await refreshData(); if(page==='saloes') renderSaloes();
+  }catch(e){ toast(e.message); }
+}
+function askGift(slug, name){
+  modal(`<h3>🎁 Cortesia — ${esc(name)}</h3>
+    <p style="margin:6px 0">Dá <b>dias ou meses de graça</b> sem gerar cobrança. <b>Não entra como valor recebido</b> no Financeiro — é presente, não venda. Se o salão estiver bloqueado, volta a funcionar na hora. O relógio da próxima cobrança recomeça da nova data.</p>
+    <div class="form-field"><label>Unidade</label>
+      <select id="giftUnit" style="width:100%"><option value="d">Dias</option><option value="m">Meses (30 dias cada)</option></select></div>
+    <div class="form-field"><label>Quanto dar?</label><input id="giftQty" type="number" min="1" max="24" value="30" style="width:100%"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 10px">
+      ${[7,15,30,60,90,180,365].map(n=>`<button class="btn small ghost" onclick="$('#giftUnit').value='d';$('#giftQty').value=${n}">${n===30?'1 mês':n===60?'2 meses':n===90?'3 meses':n===180?'6 meses':n===365?'1 ano':'+'+n+' dias'}</button>`).join('')}
+    </div>
+    <div class="form-field"><label>Motivo (opcional — fica guardado na ficha dela)</label><input id="giftNote" placeholder="Ex.: renegotiação, evento, cliente antiga"></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin:6px 0 4px"><input type="checkbox" id="giftNotify" checked> Avisar a dona no WhatsApp dela</label>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveGift('${slug}')">🎁 Liberar cortesia</button></div>`);
+}
+async function saveGift(slug){
+  const unit = $('#giftUnit').value, q = parseInt($('#giftQty').value, 10);
+  const days = unit === 'm' ? q*30 : q;
+  if(!days || days < 1 || days > 730){ toast('Entre 1 e 730 dias (ou até 24 meses)'); return; }
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/gift', {method:'POST', body:JSON.stringify({days, note:($('#giftNote').value||'').trim(), notify:!!$('#giftNotify').checked})});
+    closeModal(); toast('🎁 Cortesia liberada! +'+d.days+' dias — acesso até '+fmtDateBR(d.until)+(d.notified?' · aviso sendo enviado':''));
+    await refreshData(); if(page==='saloes') renderSaloes();
+  }catch(e){ toast(e.message); }
+}
+async function saveAdminTheme(slug){
+  const pi = document.getElementById('adPrimary'), bi = document.getElementById('adBg'), fi = document.getElementById('adFont');
+  if(pi) AD_THEME.primary = pi.value;
+  if(bi) AD_THEME.bg = bi.value;
+  if(fi) AD_THEME.font = fi.value;
+  try{
+    await api('/api/admin/salons/'+slug+'/theme', {method:'PUT', body:JSON.stringify({theme:AD_THEME})});
+    closeModal(); toast('🎨 Tema salvo! O app do salão já usa as novas cores.');
+  }catch(e){ toast(e.message); }
+}
+async function askDeleteSalon(slug, name){
+  modal(`<h3>🗑️ Excluir salão?</h3>
+    <p>Deseja <b>remover completamente</b> o salão <b>${name}</b>? Todos os dados dele (agendamentos, serviços, profissionais) serão apagados para sempre.</p>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" style="background:linear-gradient(135deg,var(--red),#E06060)" onclick="doDeleteSalon('${slug}')">Sim, excluir tudo</button></div>`);
+}
+async function doDeleteSalon(slug){
+  try{
+    await api('/api/admin/salons/'+slug, {method:'DELETE'});
+    closeModal(); toast('🗑️ Salão excluído');
+    await refreshData(); if(page==='saloes') renderSaloes();
+  }catch(e){ toast(e.message); }
+}
+async function saveSalonAdmin(slug){
+  try{
+    const bot = {
+      tone: ($('#adBotTone') && $('#adBotTone').value) || 'auto',
+      formality: ($('#adBotFormal') && $('#adBotFormal').value) || 'auto',
+      emoji: 'auto',
+      greeting: '',
+      priceStyle: ($('#adBotPrice') && $('#adBotPrice').value) || 'resumida',
+      perClient: !!($('#adBotPerClient') && $('#adBotPerClient').checked),
+      aiEnabled: !!($('#adBotAi') && $('#adBotAi').checked),
+      ai: { baseUrl: ($('#adBotAiBase') && $('#adBotAiBase').value || '').trim(), model: ($('#adBotAiModel') && $('#adBotAiModel').value || '').trim(), token: ($('#adBotAiToken') && $('#adBotAiToken').value || '').trim(), temperature: 0.6 }
+    };
+    await api('/api/admin/salons/'+slug, {method:'PATCH', body:JSON.stringify({status:$('#adStatus').value, plan:$('#adPlan').value, botInstance: ($('#adBotInst') && $('#adBotInst').value || '').trim(), contactPhone: ($('#adBotPhone') && $('#adBotPhone').value || '').trim(), discountCode: ($('#adDiscountCode') && $('#adDiscountCode').value || '').trim(), bot})});
+    closeModal(); toast('✅ Salão atualizado'); await refreshData(); if(page==='saloes') renderSaloes();
+  }catch(e){ toast(e.message); }
+}
+async function loadZapsterInstances(){
+  const sel = document.getElementById('adZapInst');
+  if(!sel) return;
+  try{
+    const d = await api('/api/admin/zapster/instances');
+    const rows = d.instances || [];
+    if(!rows.length){ sel.innerHTML = '<option value="">Nenhuma instância na Zapster</option>'; return; }
+    sel.innerHTML = rows.map(x => '<option value="'+esc(x.id)+'">'+esc(x.name||x.id)+' · '+(x.connected?'conectada':'off')+' · '+esc(x.phone||x.id)+(x.isPlatform?' · (ID da plataforma)':'')+'</option>').join('');
+  }catch(e){ sel.innerHTML = '<option value="">Não listou: '+esc(e.message)+'</option>'; }
+}
+async function anexarInstanciaExistente(slug){
+  const inst = ($('#adZapInst') && $('#adZapInst').value || '').trim();
+  const phone = ($('#adBotPhone') && $('#adBotPhone').value || '').trim();
+  if(!inst){ toast('Escolha a instância da lista'); return; }
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/whats-connect', {method:'POST', body:JSON.stringify({instanceId: inst, phone, sendInvite:false})});
+    try{ await api('/api/admin/whats-webhooks', {method:'POST', body:JSON.stringify({})}); }catch(e){}
+    modal(`<h3>📌 Instância anexada</h3>
+      <p>O bot das clientes usa agora <code>${esc(d.instanceId||inst)}</code>.</p>
+      ${d.sameAsPlatform ? '<div class="note" style="margin-top:10px">Esse ID ainda está em <b>Configurações</b> como plataforma. O bot do salão passou a ter prioridade. Para o seu WhatsApp (21) 99292-7535 voltar a ser suporte, crie <b>+ Nova Instância</b> na Zapster, conecte esse número e cole o ID novo em Configurações.</div>' : ''}
+      <div class="m-actions"><button class="btn" onclick="closeModal()">Ok</button>
+        <button class="btn ghost" onclick="verWhatsStatus('${slug}')">🔎 Status</button></div>`);
+  }catch(e){ toast(e.message); }
+}
+async function verWhatsStatus(slug){
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/whats-status');
+    const ok = d.connected && d.webhook;
+    modal(`<h3>🔎 WhatsApp do salão</h3>
+      <div class="m-row"><div class="k">Instância</div><div class="v">${esc(d.instanceId||'—')}</div></div>
+      <div class="m-row"><div class="k">Status</div><div class="v">${d.connected?'✅ conectado':'❌ '+esc(d.status||'desconectado')}</div></div>
+      <div class="m-row"><div class="k">Webhook</div><div class="v">${d.webhook?'✅ ligado':'❌ não aponta para o BoraAgendar'}</div></div>
+      <div class="m-row"><div class="k">Número</div><div class="v">${esc(d.phone||'—')}</div></div>
+      ${ok?'<p style="margin-top:10px">De outro celular, mande <b>oi</b> no WhatsApp do salão.</p>':'<p style="margin-top:10px">Anexe a instância conectada e toque em Ligar webhook.</p>'}
+      <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Fechar</button>
+        <button class="btn" onclick="registerSalonWebhooks()">Ligar webhook</button></div>`);
+  }catch(e){ toast(e.message); }
+}
+async function testarWhatsSalao(slug){
+  const phone = prompt('WhatsApp que vai RECEBER o teste (outro celular, com DDD):');
+  if(!phone) return;
+  try{
+    await api('/api/admin/salons/'+slug+'/whats-test', {method:'POST', body:JSON.stringify({phone})});
+    toast('⚡ Teste enviado. Confira o outro celular.');
+  }catch(e){ toast(e.message); }
+}
+function enviarTutorialTodos(){
+  modal(`<h3>📘 Tutorial para os donos</h3>
+    <p>A plataforma manda a <b>saudação</b> e o <b>passo a passo</b> no WhatsApp de cada salão ativo ou em teste que tiver número da responsável.</p>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">Salões de demonstração, suspensos e sem WhatsApp são pulados. Cada envio leva alguns segundos — não feche esta janela.</p>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="doEnviarTutorialTodos()">Enviar agora</button></div>`);
+}
+function mensagemDonos(slug){
+  const um = !!slug;
+  modal(`<h3>💬 Mensagem para ${um ? 'esta dona' : 'os donos'}</h3>
+    <p>Sai no WhatsApp da plataforma <b>(21) 99292-7535</b>${um ? ' só para esta responsável' : ' para cada responsável (ativo ou em teste, com número)'}.</p>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">${um ? '' : 'Demo, suspenso e sem WhatsApp são pulados. ' }Cada envio leva alguns segundos — não feche esta janela.</p>
+    <div class="form-field"><label>Mensagem</label>
+      <textarea id="adOwnerMsg" rows="8" placeholder="Oi, {nome}! Tudo bem no {salao}?"></textarea></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">Opcional: <b>{nome}</b> vira o primeiro nome da dona e <b>{salao}</b> o nome do espaço. Vale *negrito* do WhatsApp.</p>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" onclick="doMensagemDonos(${um ? `'${slug}'` : 'null'})">${um ? 'Enviar' : 'Enviar para todos'}</button></div>`);
+  setTimeout(()=>{ const el = document.getElementById('adOwnerMsg'); if(el) el.focus(); }, 80);
+}
+async function doMensagemDonos(slug){
+  const text = (($('#adOwnerMsg') && $('#adOwnerMsg').value) || '').trim();
+  if(text.length < 2){ toast('Escreva a mensagem'); return; }
+  const um = !!slug;
+  if(!confirm(um ? 'Enviar esta mensagem no WhatsApp desta dona?' : 'Enviar esta mensagem no WhatsApp de todos os donos?')) return;
+  try{
+    toast(um ? 'Enviando…' : 'Enviando para os donos… pode levar um minutinho');
+    const body = { text };
+    if(slug) body.slugs = [slug];
+    const d = await api('/api/admin/send-owners-message', {method:'POST', body:JSON.stringify(body)});
+    const rows = (d.results||[]).map(r=>{
+      const st = r.ok ? '✅ enviado' : ('⏭ '+esc(r.skipped||r.error||'não enviado'));
+      return `<div class="m-row"><div class="k">${esc(r.name||r.slug)}</div><div class="v">${st}</div></div>`;
+    }).join('');
+    modal(`<h3>💬 Mensagem enviada</h3>
+      <p><b>${d.sent||0}</b> dono(s) receberam. ${d.skipped||0} pulado(s)${d.failed?(' · '+d.failed+' falhou'):''}.</p>
+      <div style="max-height:280px;overflow:auto;margin-top:10px">${rows||'<p>Nenhum salão.</p>'}</div>
+      <div class="m-actions"><button class="btn" onclick="closeModal()">Ok</button></div>`);
+    toast('💬 '+(d.sent||0)+' mensagem(ns) enviada(s)');
+  }catch(e){ toast(e.message); }
+}
+async function doEnviarTutorialTodos(){
+  try{
+    toast('Enviando tutorial… pode levar um minutinho');
+    const d = await api('/api/admin/send-tutorials', {method:'POST', body:JSON.stringify({})});
+    const rows = (d.results||[]).map(r=>{
+      const st = r.ok ? '✅ enviado' : ('⏭ '+esc(r.skipped||r.error||'não enviado'));
+      return `<div class="m-row"><div class="k">${esc(r.name||r.slug)}</div><div class="v">${st}</div></div>`;
+    }).join('');
+    modal(`<h3>📘 Tutorial enviado</h3>
+      <p><b>${d.sent||0}</b> dono(s) receberam as duas mensagens. ${d.skipped||0} pulado(s).</p>
+      <div style="max-height:280px;overflow:auto;margin-top:10px">${rows||'<p>Nenhum salão.</p>'}</div>
+      <div class="m-actions"><button class="btn" onclick="closeModal()">Ok</button></div>`);
+    toast('📘 '+ (d.sent||0) +' tutorial(ns) enviado(s)');
+  }catch(e){ toast(e.message); }
+}
+async function enviarTutorialDono(slug){
+  try{
+    toast('Enviando tutorial…');
+    const d = await api('/api/admin/salons/'+slug+'/send-tutorial', {method:'POST', body:JSON.stringify({})});
+    toast('📘 Tutorial enviado para '+ (d.phone||'o WhatsApp da responsável'));
+  }catch(e){ toast(e.message); }
+}
+async function verWhatsLog(){
+  try{
+    const d = await api('/api/admin/whats-log');
+    const rows = (d.log||[]).map(x=>`<div class="list-row"><div class="main"><b>${esc(x.ignored||(x.sendOk?'enviou':'falhou envio'))}</b><span>${esc(x.at||'')} · ${esc(x.salon||x.channel||'')} · de ${esc(x.from||'—')}<br>${esc(x.text||'')}${x.sendErr?'<br>erro: '+esc(x.sendErr):''}</span></div></div>`).join('') || '<p>Nada chegou ainda. Se o cliente mandou oi e aqui está vazio, o webhook da instância do salão não está neste servidor.</p>';
+    modal(`<h3>📋 Últimas do bot</h3>${rows}<div class="m-actions"><button class="btn" onclick="closeModal()">Fechar</button></div>`);
+  }catch(e){ toast(e.message); }
+}
+async function conectarWhatsDistante(slug){
+  const phone = ($('#adBotPhone') && $('#adBotPhone').value || '').trim();
+  const invitePhone = ($('#adInvitePhone') && $('#adInvitePhone').value || '').trim();
+  if(!phone){ toast('Preencha o WhatsApp do salão (número da cliente)'); return; }
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/whats-connect', {method:'POST', body:JSON.stringify({phone, invitePhone, sendInvite:true})});
+    const url = d.connectUrl || '';
+    modal(`<h3>📲 Link enviado</h3>
+      <p>A dona pode estar em outro estado. Ela abre o link no <b>celular do espaço</b>, toca em <b>Gerar código</b> e cola no WhatsApp (Aparelhos conectados → Conectar com número).</p>
+      ${d.invited?`<p style="margin-top:8px">Mensagem enviada para <b>${esc(d.invitePhone||invitePhone)}</b> pelo WhatsApp da plataforma.</p>`:'<p style="margin-top:8px">Não deu para enviar o WhatsApp automático — copie o link e mande no recado.</p>'}
+      <div class="form-field"><label>Link para a dona</label>
+        <input id="adConnectUrl" readonly value="${esc(url)}"></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:6px">Instância: <code>${esc(d.instanceId||'')}</code>${d.created?' (criada agora)':''}</p>
+      <div class="m-actions">
+        <button class="btn ghost" onclick="copyTxt('adConnectUrl')">Copiar link</button>
+        <a class="btn" href="${esc(url)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Abrir página</a>
+      </div>`);
+  }catch(e){ toast(e.message); }
+}
+function novoSalon(){
+  modal(`<h3>➕ Cadastrar novo salão</h3>
+    <p>O salão recebe este link: <b>/app?slug=...</b> e entra com e-mail/senha. A senha é mostrada uma única vez.</p>
+    <div class="form-field"><label>Nome do salão *</label><input id="nsName" placeholder="Ex.: Studio da Ana"></div>
+    <div class="form-field"><label>Responsável *</label><input id="nsOwner" placeholder="Nome da dona"></div>
+    <div class="form-field"><label>E-mail de acesso *</label><input id="nsEmail" type="email" placeholder="contato@salon.com"></div>
+    <div class="form-field"><label>WhatsApp da responsável</label><input id="nsPhone" type="tel" inputmode="tel" placeholder="(21) 99999-0000"></div>
+    <div class="form-field"><label>Senha *</label><input id="nsPass" type="text" placeholder="Defina uma senha"></div>
+    <div class="form-field"><label>Plano</label><select id="nsPlan"><option value="Básico">Básico — R$ 69/mês</option><option value="Pro" selected>Pro — R$ 139/mês</option><option value="Premium">Premium — R$ 249/mês</option></select></div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 8px">Se preencher o WhatsApp, a plataforma manda sozinha a saudação e o passo a passo de configuração.</p>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="criarSalon()">💾 Criar salão</button></div>`);
+}
+async function criarSalon(){
+  const name = ($('#nsName').value||'').trim(), owner = ($('#nsOwner').value||'').trim(),
+        email = ($('#nsEmail').value||'').trim(), pass = $('#nsPass').value||'',
+        phone = ($('#nsPhone') && $('#nsPhone').value || '').trim();
+  if(name.length<2||owner.length<2||!email||pass.length<4){ toast('Preencha todos os campos'); return; }
+  try{
+    const d = await api('/api/admin/salons', {method:'POST', body:JSON.stringify({name, owner, email, password:pass, plan:$('#nsPlan').value, phone})});
+    closeModal();
+    modal(`<h3>✅ Salão criado!</h3>
+      <p>Envie estas informações para a responsável:</p>
+      <div class="card pad" style="margin-top:12px;background:var(--pink-faint)">
+        <div class="m-row"><div class="k">Link</div><div class="v">/app?slug=${d.slug}</div></div>
+        <div class="m-row"><div class="k">E-mail</div><div class="v">${esc(d.email)}</div></div>
+        <div class="m-row"><div class="k">Senha</div><div class="v">${esc(d.password)}</div></div>
+        ${phone ? '<div class="m-row"><div class="k">WhatsApp</div><div class="v">Saudação + tutorial enviados</div></div>' : '<div class="m-row"><div class="k">WhatsApp</div><div class="v">Sem número — tutorial não enviado</div></div>'}
+      </div>
+      <div class="m-actions"><button class="btn" onclick="closeModal();refreshData();renderSaloes()">Entendi</button></div>`);
+    toast('🏪 Salão criado em modo TESTE');
+  }catch(e){ toast(e.message); }
+}
+function fmtDateBR(ds){ if(!ds) return '—'; const p = ds.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 
-  <div class="toast hidden" id="adminToast"></div>
-  <script src="api-config.js"></script>
-  <script src="admin.js?v=62"></script>
+async function savePlanPrices(){
+  const planPrices = {
+    basico: parseInt($('#ppBasic') && $('#ppBasic').value, 10) || 0,
+    pro: parseInt($('#ppPro') && $('#ppPro').value, 10) || 0,
+    premium: parseInt($('#ppPremium') && $('#ppPremium').value, 10) || 0
+  };
+  if (planPrices.basico < 1 || planPrices.pro < 1 || planPrices.premium < 1) {
+    toast('Informe um valor maior que zero em cada plano.');
+    return;
+  }
+  try{
+    const d = await api('/api/admin/plan-prices', { method:'PUT', body: JSON.stringify(planPrices) });
+    const pp = (d && d.planPrices) || planPrices;
+    PLAN_PRICES = { 'Básico': pp.basico, 'Pro': pp.pro, 'Premium': pp.premium };
+    toast('💎 Preços atualizados na hora — landing e cobranças novas já usam estes valores.');
+    renderFinanceiro();
+  }catch(e){ toast(e.message); }
+}
+let finData = null, finMonth = '';
+const FIN_CATS = [['zapster','WhatsApp (Zapster)'],['infra','Infra (Railway, domínio)'],['pagamentos','Taxas de pagamento'],['marketing','Marketing'],['equipamento','Equipamento'],['outros','Outros']];
+function finCardHTML(){
+  const d = finData || { month:'', collected:0, spent:0, profit:0, expenses:[] };
+  const ex = d.expenses || [];
+  const IC = { zapster:'📱', infra:'🖥️', pagamentos:'🧾', marketing:'📣', equipamento:'🔌', outros:'📎' };
+  const rows = ex.length ? ex.map(e=>`<div class="list-row"><div class="av">${IC[e.cat]||'📎'}</div><div class="main"><b>${esc(e.label)}</b><span>${fmtDateBR(e.date)} · ${(FIN_CATS.find(c=>c[0]===e.cat)||['','outros'])[1]}${e.monthly?' · todo mês':''}${e.auto?' · automático':''}</span></div><div class="right" style="display:flex;gap:8px;align-items:center"><b style="color:var(--red)">${fmtBRL(e.amount)}</b>${e.monthly?`<button class="btn small ghost" onclick="renewFinExpense('${e.id}')">↻ lançar de novo</button>`:''}<button class="btn small ghost" style="color:var(--red)" onclick="delFinExpense('${e.id}')">🗑️</button></div></div>`).join('') : '<p style="font-size:13px;color:var(--muted);margin-top:10px">Nenhum gasto lançado neste mês. Some aí o Zapster, o Railway, as taxas do Pix, o que você gastar — e o resultado do mês sai pronto.</p>';
+  return `<div class="card pad" style="margin-bottom:16px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <b style="font-size:16px">🧮 Seu resultado — recebido x gasto</b>
+      <input type="month" value="${esc(d.month||'')}" onchange="setFinMonth(this.value)" style="width:auto;margin-left:auto">
+      <button class="btn small ghost" onclick="checkPendingPay()">🔄 Conferir Pix pagos agora</button>
+    </div>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi blue"><div class="em">💰</div><div class="k">Recebido (assinaturas)</div><div class="n">${fmtBRL(d.collected||0)}</div><div class="d">pagamentos baixados em ${esc((d.month||'').split('-').reverse().join('/'))}</div></div>
+      <div class="kpi amber"><div class="em">📉</div><div class="k">Seus gastos</div><div class="n">${fmtBRL(d.spent||0)}</div><div class="d">${ex.length} lançamento${ex.length===1?'':'s'}</div></div>
+      <div class="kpi ${(d.profit||0)>=0?'up':'down'}"><div class="em">${(d.profit||0)>=0?'📈':''}</div><div class="k">Resultado</div><div class="n">${fmtBRL(d.profit||0)}</div><div class="d">recebido − gastos</div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:flex-end">
+      <div style="flex:2;min-width:150px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">O QUE VOCÊ PAGOU</label><input id="finLabel" placeholder="Ex.: Zapster 6 instâncias"></div>
+      <div style="flex:1;min-width:92px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">VALOR R$</label><input id="finAmt" type="number" min="0" step="0.01" placeholder="282,00"></div>
+      <div style="flex:1;min-width:120px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">CATEGORIA</label><select id="finCat" style="width:100%">${FIN_CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div>
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center;color:var(--muted);padding-bottom:8px"><input type="checkbox" id="finMonthly"> todo mês</label>
+      <button class="btn small" onclick="addFinExpense()">+ Lançar</button>
+    </div>
+    <div style="margin-top:12px">${rows}</div>
+  </div>`;
+}
+async function setFinMonth(m){ finMonth = m || ''; renderPage(); }
+async function addFinExpense(){
+  const label = ($('#finLabel').value||'').trim(), amount = parseFloat(String($('#finAmt').value||'').replace(',','.')), cat = $('#finCat').value, monthly = $('#finMonthly').checked;
+  if (label.length < 2 || !(amount > 0)) { toast('Dê um nome e um valor maior que zero'); return; }
+  try { await api('/api/admin/expenses', {method:'POST', body:JSON.stringify({label, amount, cat, monthly})}); toast('Gasto lançado'); renderPage(); } catch(e){ toast(e.message); }
+}
+async function delFinExpense(id){ try { await api('/api/admin/expenses/'+id, {method:'DELETE'}); renderPage(); } catch(e){ toast(e.message); } }
+async function renewFinExpense(id){ try { await api('/api/admin/expenses/renew', {method:'POST', body:JSON.stringify({id})}); toast('Lançado neste mês'); renderPage(); } catch(e){ toast(e.message); } }
+async function checkPendingPay(){
+  toast('Conferindo pagamentos no Mercado Pago…');
+  try { const r = await api('/api/admin/billing/check-pending', {method:'POST'});
+    toast(r.settled ? ('✅ '+r.settled+' assinatura(s) baixada(s) na hora — vencimentos estendidos') : (r.ran === false ? 'Mercado Pago sem token no Gateway — configure em Configurações' : 'Nenhum Pix pendente para baixar'));
+    renderPage();
+  } catch(e){ toast(e.message); }
+}
+function renderFinanceiro(){
+  const openAmt = salons.filter(s=>s.status!=='suspenso').reduce((a,s)=>a+PLAN_PRICES[s.plan],0);
+  const today = new Date().toISOString().slice(0,10);
+  const rows = salons.map(s=>{
+    const susp = s.status==='suspenso';
+    const vencido = !susp && (!s.nextDue || s.nextDue < today);
+    const badge = susp ? '<span class="badge suspenso">suspenso</span>' : vencido ? '<span class="badge atrasado">vencido</span>' : '<span class="badge pago">em dia</span>';
+    const pagos = (s.payments||[]).length;
+    const promoTxt = (s.discountCode && s.discountTimesLeft>0) ? (' · 🔑 '+s.discountCode+' '+s.discountPercent+'% ×'+s.discountTimesLeft) : '';
+    return `<div class="list-row"><div class="av">🏪</div><div class="main"><b>${esc(s.name)}</b><span>${esc(s.owner)} · plano ${s.plan}${promoTxt} · vencimento ${fmtDateBR(s.nextDue)} · ${pagos} ${pagos===1?'pagamento':'pagamentos'}</span></div>
+      <div class="right" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${fmtBRL(PLAN_PRICES[s.plan])}/mês ${badge}
+        <button class="btn small ghost" onclick="askPix('${s.slug}','${esc(s.name)}')">💠 Pix</button>
+        <button class="btn small" onclick="askCharge('${s.slug}','${esc(s.name)}','${s.plan}')">⚡ Gerar cobrança</button>
+        <button class="btn small" onclick="askPay('${s.slug}','${esc(s.name)}')">💳 Pagamento</button>
+        <button class="btn small ghost" style="color:#8B5CF6;border-color:#8B5CF6" onclick="askGift('${s.slug}','${esc(s.name)}')">🎁 Cortesia</button></div></div>`;
+  }).join('');
+  $('#content').innerHTML = `
+    ${finCardHTML()}
+    <div class="card pad" style="margin-bottom:16px">
+      <b style="font-size:16px">💎 Preços dos planos</b>
+      <p style="font-size:13px;color:var(--muted);margin:6px 0 12px">Mude a qualquer momento. Vale na hora na landing, no teste e nas <b>cobranças novas</b>. Quem já pagou o valor antigo permanece até o próximo vencimento.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block">Básico (R$/mês)</label><input id="ppBasic" type="number" min="1" step="1" value="${PLAN_PRICES['Básico']||69}"></div>
+        <div style="flex:1;min-width:120px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block">Pro (R$/mês)</label><input id="ppPro" type="number" min="1" step="1" value="${PLAN_PRICES['Pro']||139}"></div>
+        <div style="flex:1;min-width:120px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block">Premium (R$/mês)</label><input id="ppPremium" type="number" min="1" step="1" value="${PLAN_PRICES['Premium']||249}"></div>
+      </div>
+      <button class="btn" style="margin-top:12px" onclick="savePlanPrices()">Salvar preços agora</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">Hoje no ar: Básico <b>${fmtBRL(PLAN_PRICES['Básico'])}</b> · Pro <b>${fmtBRL(PLAN_PRICES['Pro'])}</b> · Premium <b>${fmtBRL(PLAN_PRICES['Premium'])}</b></p>
+    </div>
+    <div class="kpis">
+      <div class="kpi pink"><div class="em">💳</div><div class="k">Sua receita mensal</div><div class="n">${fmtBRL(dash.mrr)}</div><div class="d">${dash.active} assinaturas ativas</div></div>
+      <div class="kpi amber"><div class="em">⏰</div><div class="k">Vencidos</div><div class="n">${dash.overdue||0}</div><div class="d">ativos com pagamento atrasado</div></div>
+      <div class="kpi blue"><div class="em">🧾</div><div class="k">Faturamento dos salões</div><div class="n">${fmtBRL(salons.reduce((a,s)=>a+s.revenue,0))}</div><div class="d">soma dos salões (não seu)</div></div>
+      <div class="kpi up"><div class="em">📈</div><div class="k">Potencial anual</div><div class="n">${fmtBRL(openAmt*12)}</div><div class="d">se todos pagarem</div></div>
+    </div>
+    <div class="note" style="margin-top:16px">💡 Seu ganho é a <b>assinatura mensal</b> de cada salão. Quando o salão paga (Pix/cartão), toque em <b>"💳 Pagamento"</b> — o vencimento avança 30 dias e o salão volta a ficar ativo automaticamente.</div>
+    <div class="section-title"><h2>Assinaturas</h2><span class="sub">${fmtBRL(openAmt)}/mês em dia</span></div>
+    <div class="card pad">${rows}</div>`;
+}
+async function createDiscountKey(){
+  const code = ($('#dkCode')&&$('#dkCode').value||'').trim();
+  const percent = parseInt($('#dkPct')&&$('#dkPct').value,10);
+  const times = parseInt($('#dkTimes')&&$('#dkTimes').value,10);
+  const maxUses = parseInt($('#dkMax')&&$('#dkMax').value,10)||0;
+  const note = ($('#dkNote')&&$('#dkNote').value||'').trim();
+  if(!code){ toast('Informe a chave'); return; }
+  try{
+    await api('/api/admin/discount-keys', {method:'POST', body:JSON.stringify({code, percent, times, maxUses, note})});
+    toast('🔑 Chave criada');
+    renderConfig();
+  }catch(e){ toast(e.message); }
+}
+async function toggleDiscountKey(id, enable){
+  try{ await api('/api/admin/discount-keys/'+id, {method:'PATCH', body:JSON.stringify({enabled: !!enable})}); renderConfig(); }
+  catch(e){ toast(e.message); }
+}
+async function deleteDiscountKey(id){
+  if(!confirm('Excluir esta chave? Quem já aplicou continua com o desconto restante.')) return;
+  try{ await api('/api/admin/discount-keys/'+id, {method:'DELETE'}); renderConfig(); }
+  catch(e){ toast(e.message); }
+}
+function salonDueAmount(s){
+  const base = PLAN_PRICES[s && s.plan] || 0;
+  if(s && s.discountTimesLeft>0 && s.discountPercent>0) return Math.max(0, base - Math.round(base * s.discountPercent / 100));
+  return base;
+}
+function askPay(slug, name){
+  const s = salons.find(x=>x.slug===slug);
+  const plan = s ? s.plan : 'Pro';
+  const base = PLAN_PRICES[plan];
+  const amt = salonDueAmount(s);
+  const promo = (s && s.discountTimesLeft>0 && s.discountPercent>0) ? `<br>Chave <b>${esc(s.discountCode)}</b>: <b>${s.discountPercent}%</b> off · restam <b>${s.discountTimesLeft}</b> cobrança${s.discountTimesLeft===1?'':'s'}. Valor desta: <b>${fmtBRL(amt)}</b> (de ${fmtBRL(base)}).` : '';
+  modal(`<h3>💳 Registrar pagamento</h3>
+    <p>Confirma o recebimento de <b>${fmtBRL(amt)}</b> do salão <b>${name}</b>?${promo}<br>O vencimento avança <b>30 dias</b> e o salão é reativado.</p>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="doPay('${slug}')">Confirmar pagamento</button></div>`);
+}
+async function doPay(slug){
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/pay', {method:'POST', body:JSON.stringify({})});
+    closeModal(); toast('✅ Pagamento registrado! Vencimento: '+fmtDateBR(d.nextDue));
+    await refreshData(); renderFinanceiro();
+  }catch(e){ toast(e.message); }
+}
+function askPix(slug, name){
+  const s = salons.find(x=>x.slug===slug);
+  const key = (s && s.pixKey) || '';
+  modal(`<h3>💠 Chave Pix do salão</h3>
+    <p>Cadastre a <b>chave Pix</b> (CPF, celular ou e-mail) que <b>${esc(name)}</b> usa para pagar a assinatura. Assim você cobra rapidinho:</p>
+    <div class="form-field"><label>Chave Pix</label><input id="pixKeyInp" placeholder="Ex.: (21) 99999-9999" value="${esc(key)}"></div>
+    ${key?`<div style="display:flex;gap:8px;margin-top:10px"><input readonly value="${esc(key)}" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--line);font-size:12.5px"><button class="btn small ghost" onclick="copyTxt('pixKeyInp')">Copiar</button></div>`:''}
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Fechar</button><button class="btn" onclick="savePix('${slug}')">💾 Salvar chave</button></div>`);
+}
+async function savePix(slug){
+  const pixKey = ($('#pixKeyInp').value||'').trim();
+  try{
+    await api('/api/admin/salons/'+slug+'/pix', {method:'PUT', body:JSON.stringify({pixKey})});
+    closeModal(); toast('💠 Chave Pix salva'); await refreshData(); renderFinanceiro();
+  }catch(e){ toast(e.message); }
+}
+function askCharge(slug, name, plan){
+  const s = salons.find(x=>x.slug===slug);
+  const last = s && s.lastCharge;
+  const amount = salonDueAmount(s) || PLAN_PRICES[plan] || 139;
+  modal(`<h3>⚡ Cobrança Pix — ${esc(name)}</h3>
+    <p>Gera uma cobrança Pix de <b>${fmtBRL(amount)}</b> (plano ${plan}) e o salão recebe o QR Code para pagar. Se o Mercado Pago estiver configurado, a cobrança é <b>automática e rastreável</b>; senão, você envia a chave Pix manualmente.</p>
+    <div class="form-field"><label>Valor (R$)</label><input id="chgAmount" type="number" value="${amount}"></div>
+    <div class="form-field"><label>E-mail do responsável (para o Pix automático)</label><input id="chgEmail" placeholder="email do salão" value="${esc((s||{}).email||'')}"></div>
+    ${last?`<div class="card pad" style="margin-top:12px;background:var(--pink-faint)">
+      <b style="font-size:13.5px">🕒 Última cobrança:</b><br>
+      <span style="font-size:12.5px;color:var(--muted)">${fmtBRL(last.amount)} · ${new Date(last.createdAt).toLocaleString('pt-BR')} · status: ${last.status}</span>
+      ${last.qrCode?`<div style="display:flex;gap:8px;margin-top:8px"><input readonly value="${esc(last.qrCode)}" style="flex:1;padding:9px;border-radius:9px;border:1px solid var(--line);font-size:11px"><button class="btn small ghost" onclick="copyTxt('lastQr')">Copiar Pix</button></div><input type="hidden" id="lastQr" value="${esc(last.qrCode)}">`:''}
+    </div>`:''}
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Fechar</button><button class="btn" onclick="doCharge('${slug}','${esc(name)}')">⚡ Gerar Pix</button></div>`);
+}
+async function doCharge(slug, name){
+  const amount = parseFloat($('#chgAmount').value) || 0;
+  const payerEmail = ($('#chgEmail').value||'').trim();
+  try{
+    const d = await api('/api/admin/salons/'+slug+'/pix-charge', {method:'POST', body:JSON.stringify({amount, payerEmail})});
+    closeModal();
+    if(d.qrCode){
+      modal(`<h3>⚡ Pix gerado!</h3><p>Cobrança de <b>${fmtBRL(amount)}</b> para <b>${esc(name)}</b> criada no Mercado Pago. Copie o código ou envie para o salão:</p>
+        <div style="display:flex;gap:8px;margin-top:10px"><input readonly value="${esc(d.qrCode)}" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--line);font-size:11px"><button class="btn small ghost" onclick="copyTxt('qrOut')">Copiar</button></div>
+        <input type="hidden" id="qrOut" value="${esc(d.qrCode)}">
+        <div class="m-actions"><button class="btn" onclick="closeModal()">Entendi</button></div>`);
+    }
+  }catch(e){ toast(e.message); }
+}
+function copyTxt(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.select ? el.select() : el.focus();
+  try{ document.execCommand('copy'); toast('✅ Copiado!'); }catch(e){ toast('Copie manualmente'); }
+}
+async function renderVendas(){
+  let leads = [], codes = [], refs = [], cref = { salons: [], log: [], totalCredit: 0, totalReferrals: 0 };
+  try{ const d = await api('/api/admin/leads'); leads = d.leads || []; }catch(e){}
+  try{ const d = await api('/api/admin/referral-code'); codes = d.codes || []; }catch(e){}
+  try{ const d = await api('/api/admin/referrals'); refs = d.referrals || []; }catch(e){}
+  try{ const d = await api('/api/admin/client-referrals'); cref = Object.assign(cref, d); }catch(e){}
+  const open = leads.filter(l=>!l.handled).length;
+  const nameOf = slug => { const s = codes.find(c=>c.slug===slug); return s?s.name:slug; };
+  const crefSalons = cref.salons || []; const crefLog = cref.log || [];
+  $('#content').innerHTML = `
+    <div class="note">📈 Candidatos interessados em assinar, capturados pelo WhatsApp da plataforma e pelas páginas de captura. Clique em <b>Marcar atendido</b> quando resolver.</div>
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi pink"><div class="em">📈</div><div class="k">Leads ao total</div><div class="n">${leads.length}</div></div>
+      <div class="kpi amber"><div class="em">🕐</div><div class="k">A aguardar contato</div><div class="n">${open}</div></div>
+      <div class="kpi blue"><div class="em">🎁</div><div class="k">Créditos de indicação</div><div class="n">${codes.reduce((a,c)=>a+(c.referralCredits||0),0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}</div></div>
+    </div>
+    <div class="card pad" style="margin-bottom:16px">
+      <div class="section-title" style="margin-top:0"><h2>🎁 Códigos de indicação dos salões</h2><span class="sub">compartilhe com os clientes</span></div>
+      <div class="list-row" style="font-size:12px;font-weight:800;color:var(--muted);border-bottom:1px solid var(--line)"><div style="flex:1">Salão</div><div style="width:130px">Código</div><div style="width:120px;text-align:right">Crédito</div></div>
+      ${codes.map(c=>`<div class="list-row"><div class="main"><b>${esc(c.name)}</b><span>${esc(c.status)}</span></div><div style="width:130px"><code style="background:var(--pink-faint);padding:3px 8px;border-radius:8px">${esc(c.referralCode)}</code> <button class="btn small ghost" onclick="copyRef('${esc(c.referralCode)}')">Copiar</button></div><div class="right" style="width:120px">${(c.referralCredits||0)?fmtBRL(c.referralCredits):'—'}</div></div>`).join('') || '<p style="color:var(--muted)">Nenhum salão cadastrado.</p>'}
+      <p style="font-size:11.5px;color:var(--muted);margin-top:10px">Link de captura prontos: <code>/captura</code> (genérico) ou <code>/captura/[:nicho]</code>. Pode juntar <code>?ref=SEU_CODIGO</code>.</p>
+    </div>
+    <div class="card pad">
+      <div class="section-title" style="margin-top:0"><h2>📈 Leads recentes</h2><span class="sub">${open} aguardando</span></div>
+      ${leads.length ? leads.map(l=>`<div class="list-row"><div class="av">📈</div><div class="main"><b>${esc(l.phone)}</b><span>${esc(l.niche||'—')} · ${esc(l.source||'')} · ${new Date(l.at).toLocaleString('pt-BR')}<br>${esc(l.note||'')}</span></div><div class="right">${l.handled?'<span class="badge resolvido">atendido</span>':`<button class="btn small" onclick="marcarLead('${l.id}')">✓ Marcar atendido</button>`}</div></div>`).join('') : '<p style="color:var(--muted);text-align:center;padding:20px">Nenhum lead ainda. Quando alguém se interessar pelo bot, aparece aqui.</p>'}
+    </div>
+    ${refs.length ? `<div class="card pad" style="margin-top:16px"><div class="section-title" style="margin-top:0"><h2>🎁 Indicações registradas</h2><span class="sub">${refs.length}</span></div>${refs.map(r=>`<div class="list-row"><div class="main"><b>${esc(nameOf(r.referredBy))}</b> indicou <span>${esc(nameOf(r.referredTo))}</span></div><div class="right">${fmtBRL(r.discount||0)} · ${r.percent}%</div></div>`).join('')}</div>` : ''}
+    <div class="card pad" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0"><h2>💝 Indicações de clientes (Indique & Ganhe)</h2><span class="sub">clientes que indicam clientes, por salão</span></div>
+      <div class="kpis" style="margin:0 0 12px">
+        <div class="kpi pink"><div class="em">🔁</div><div class="k">Indicações registradas</div><div class="n">${cref.totalReferrals||0}</div></div>
+        <div class="kpi blue"><div class="em">💰</div><div class="k">Créditos em aberto (clientes)</div><div class="n">${fmtBRL(cref.totalCredit||0)}</div></div>
+      </div>
+      <div class="list-row" style="font-size:12px;font-weight:800;color:var(--muted);border-bottom:1px solid var(--line)"><div style="flex:1">Salão</div><div style="width:70px;text-align:center">Prog.</div><div style="width:70px;text-align:right">%</div><div style="width:80px;text-align:right">Crédito aberto</div><div style="width:80px;text-align:right">Já ganho</div><div style="width:110px;text-align:center">Ação</div></div>
+      ${crefSalons.map(c=>`<div class="list-row"><div class="main"><b>${esc(c.name)}</b><span>${c.established} indicado(s) válido(s) · ${c.refs} cliente(s)</span></div><div style="width:70px;text-align:center">${c.enabled?'<span class="badge resolvido">on</span>':(c.status==='ativo'?'<span class="badge cancelado">off</span>':'')}</div><div style="width:70px;text-align:right">${c.percent}%</div><div style="width:80px;text-align:right">${c.outstanding?fmtBRL(c.outstanding):'—'}</div><div style="width:80px;text-align:right">${c.rewarded?fmtBRL(c.rewarded):'—'}</div><div style="width:110px;text-align:center"><button class="btn small ghost" onclick="go('saloes')">Ver salão</button></div></div>`).join('') || '<p style="color:var(--muted)">Nenhum salão com clientes ainda.</p>'}
+      ${crefLog.length ? `<div style="margin-top:14px"><div class="section-title" style="margin-top:0"><h2>💝 Últimas recompensas</h2><span class="sub">${crefLog.length}</span></div>${crefLog.slice(0,25).map(l=>`<div class="list-row"><div class="av">🎁</div><div class="main"><b>${esc(l.referredByName||'Cliente')}</b> indicou <span>${esc(l.referredTo)} · ${esc(l.salonName)}</span></div><div class="right">+ ${fmtBRL(l.credit||0)} · ${l.percent}%</div></div>`).join('')}</div>` : `<p style="color:var(--muted);text-align:center;padding:14px;margin-top:8px">Nenhuma recompensa de indicação de cliente ainda.</p>`}
+    </div>`;
+}
+function copyRef(txt){ if(navigator.clipboard) navigator.clipboard.writeText(txt); toast('🔗 Código '+txt+' copiado'); }
+async function saveRefPause(slug, paused){
+  try{ await api('/api/admin/referral-code', {method:'PUT', body:JSON.stringify({slug, paused})}); toast(paused?'⏸️ Indicação pausada':'▶️ Indicação reativada'); }catch(e){ toast(e.message); }
+}
+async function setRefCredit(slug){
+  const v = ($('#adRefCredit') && parseFloat($('#adRefCredit').value));
+  try{ await api('/api/admin/referral-code', {method:'PUT', body:JSON.stringify({slug, setCredits: Number.isFinite(v)?v:0})}); toast('💾 Crédito de indicação atualizado'); }catch(e){ toast(e.message); }
+}
+async function loadReferralView(){ await renderVendas(); }
+async function marcarLead(id){
+  try{ await api('/api/admin/leads/'+id, {method:'PATCH', body:JSON.stringify({handled:true, status:'atendido'})}); toast('✅ Lead marcado como atendido'); renderVendas(); }catch(e){ toast(e.message); }
+}
+async function runAutomationsNow(){
+  try{
+    const d = await api('/api/admin/run-all', {method:'POST', body:JSON.stringify({})});
+    const b = d.billing || {}, m = d.monitor || {}, bk = d.backup || {}, wk = d.weekly || {};
+    let txt = `⚡ Automações rodadas: backup ${bk.file?('→ '+bk.file):'off'} · monitor ${m.checked?m.checked+' instâncias, '+m.down+' fora':'off'}`;
+    if(b.ran && b.charged) txt += `\n💳 Cobranças geradas: ${b.charged}`;
+    /* resumo semanal desligado — não notificar envio */
+    toast(txt);
+  }catch(e){ toast(e.message); }
+}
+function renderSuporte(){
+  const rows = tickets.map(t=>`<div class="support-card">
+      <div class="ic">${t.status==='aberto'?'🚨':'✅'}</div>
+      <div><b>${esc(t.subject)}</b><p><b>${esc(t.salonName)}</b> · ${esc(t.user)}<br>${esc(t.message)}</p></div>
+      <div class="meta"><span class="badge ${t.status}">${t.status}</span><span>${fmtWhen(t.when)}</span>
+        ${t.status==='aberto'?`<button class="btn small" onclick="resolveTicket('${t.id}')">✓ Resolver</button>`:''}</div>
+    </div>`).join('') || '<div class="card pad" style="text-align:center;color:var(--muted)">Nenhum chamado ainda.</div>';
+  $('#content').innerHTML = `
+    <div class="note">🎧 Chamados abertos pelos salões (botão "Suporte" dentro do app deles). Clique em "Resolver" quando atendido.</div>
+    <div class="section-title"><h2>Chamados de suporte</h2><span class="sub">${tickets.filter(t=>t.status==='aberto').length} abertos</span></div>
+    ${rows}`;
+}
+async function resolveTicket(id){
+  try{ await api('/api/admin/tickets/'+id, {method:'PATCH', body:JSON.stringify({status:'resolvido'})}); toast('✅ Chamado resolvido'); await refreshData(); renderSuporte(); }
+  catch(e){ toast(e.message); }
+}
+function adminProfileOf(){
+  const p = (dash && dash.profile) || {};
+  return { name: (p.name || 'Admin'), emoji: (p.emoji || '💎') };
+}
+function applyAdminProfile(){
+  const p = adminProfileOf();
+  const em = document.getElementById('adminChipEmoji');
+  const nm = document.getElementById('adminChipName');
+  const ft = document.getElementById('adminFootName');
+  if(em) em.textContent = p.emoji;
+  if(nm) nm.textContent = p.name;
+  if(ft) ft.textContent = p.name;
+}
+function askAdminProfile(){
+  const p = adminProfileOf();
+  const emojis = ['💎','👤','🧔','👨','👩','💼','⭐','🚀','🎯','👑','💻','📱','✂️','💅'];
+  const picks = emojis.map(e=>`<button type="button" class="${e===p.emoji?'on':''}" onclick="pickAdminEmoji('${e}')">${e}</button>`).join('');
+  modal(`<h3>✏️ Seu perfil no painel</h3>
+    <p style="font-size:13px;color:var(--muted);margin-top:4px">Aparece no canto superior direito. Só você vê.</p>
+    <div class="form-field"><label>Nome</label><input id="adProfName" maxlength="40" value="${esc(p.name)}" placeholder="Ex.: Marcelo"></div>
+    <div class="form-field"><label>Ícone</label>
+      <div class="emoji-pick" id="adProfEmojiBox">${picks}</div>
+      <input id="adProfEmoji" type="hidden" value="${esc(p.emoji)}">
+    </div>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveAdminProfile()">Salvar</button></div>`);
+}
+function pickAdminEmoji(e){
+  const inp = document.getElementById('adProfEmoji');
+  if(inp) inp.value = e;
+  document.querySelectorAll('#adProfEmojiBox button').forEach(b => b.classList.toggle('on', b.textContent === e));
+}
+async function saveAdminProfile(){
+  const name = (($('#adProfName') && $('#adProfName').value) || '').trim();
+  const emoji = (($('#adProfEmoji') && $('#adProfEmoji').value) || '💎').trim() || '💎';
+  if(name.length < 2){ toast('Digite um nome'); return; }
+  try{
+    const d = await api('/api/admin/profile', {method:'PUT', body:JSON.stringify({name, emoji})});
+    if(!dash) dash = {};
+    dash.profile = d.profile || {name, emoji};
+    applyAdminProfile();
+    closeModal();
+    toast('Perfil atualizado');
+  }catch(e){ toast(e.message); }
+}
+function askPassword(){
+  modal(`<h3>🔒 Alterar senha do painel</h3>
+    <p>Use esta opção para trocar a senha padrão <b>admin123</b> após o primeiro acesso.</p>
+    <div class="form-field"><label>Senha atual</label>
+      <div class="pass-wrap"><input type="password" id="pwCur"><button type="button" class="pass-eye" onclick="togglePass('pwCur', this)">👁️</button></div></div>
+    <div class="form-field"><label>Nova senha (mín. 6 caracteres)</label>
+      <div class="pass-wrap"><input type="password" id="pwNew"><button type="button" class="pass-eye" onclick="togglePass('pwNew', this)">👁️</button></div></div>
+    <div class="form-field"><label>Confirmar nova senha</label>
+      <div class="pass-wrap"><input type="password" id="pwNew2"><button type="button" class="pass-eye" onclick="togglePass('pwNew2', this)">👁️</button></div></div>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="changePassword()">Salvar</button></div>`);
+}
+async function changePassword(){
+  const cur = $('#pwCur').value, n1 = $('#pwNew').value, n2 = $('#pwNew2').value;
+  if(n1 !== n2){ toast('A confirmação não confere'); return; }
+  try{
+    await api('/api/admin/password', {method:'PUT', body:JSON.stringify({current:cur, next:n1})});
+    closeModal(); toast('🔒 Senha alterada com sucesso!');
+  }catch(e){ toast(e.message); }
+}
+function openRestore(){
+  modal(`<h3>♻️ Restaurar backup</h3>
+    <p>Selecione o arquivo JSON baixado em <b>Backup dos dados</b>. A restauração substitui os dados atuais pelos dados do arquivo e encerra as sessões ativas.</p>
+    <div class="note" style="margin-top:12px">⚠️ Use esta opção somente com um backup confiável. Não feche a página enquanto a restauração estiver em andamento.</div>
+    <label class="btn full" style="margin-top:14px;cursor:pointer;justify-content:center">📂 Escolher arquivo JSON<input type="file" id="restoreFile" accept=".json,application/json" style="display:none" onchange="restoreBackupFile(event)"></label>
+    <div class="m-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function restoreBackupFile(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  if(file.size > 4800000){ toast('O backup é maior que o limite permitido'); return; }
+  if(!confirm('Restaurar este backup agora? Os dados atuais serão substituídos.')) return;
+  try{
+    const snapshot = JSON.parse(await file.text());
+    if(!snapshot.db || !snapshot.salons) throw new Error('Este arquivo não parece ser um backup do BoraAgendar');
+    const d = await api('/api/admin/restore', {method:'POST', body:JSON.stringify(snapshot)});
+    closeModal();
+    toast(`✅ ${d.restoredSalons} salão(ões) restaurado(s). Entre novamente.`);
+    TOKEN=null; localStorage.removeItem('ba_admin'); localStorage.removeItem('glowp_admin');
+    setTimeout(()=>location.reload(), 900);
+  }catch(e){ toast('Falha ao restaurar: '+e.message); }
+}
+
+async function downloadBackup(){
+  try{
+    const r = await fetch('/api/admin/backup', {headers:{'Authorization':'Bearer '+TOKEN}});
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = 'boraagendar-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('⬇️ Backup baixado — guarde em local seguro!');
+  }catch(e){ toast('Erro ao gerar backup: '+e.message); }
+}
+async function renderConfig(){
+  setTimeout(function(){ try{ toggleWhatsProvider(); }catch(e){} }, 80);
+  let gw = {mercadopagoToken:'', pixKey:'', trialDays:15, whatsappProvider:'zapi', zapi:{baseUrl:'',instance:'',token:''}, zapster:{baseUrl:'https://api.zapsterapi.com',instance:'',token:''}, ai:{baseUrl:'',model:'',token:''}, planPrices:{basico:69,pro:139,premium:249}, automations:{}, adminWhats:'', referral:{enabled:true,percent:20}, clientReferral:{enabled:false,percent:15,welcomePercent:0,expiryDays:0,maxCredits:0}};
+  try{ const d = await api('/api/admin/gateway'); gw = Object.assign({}, gw, d.gateway||{}); gw.zapi = Object.assign({}, gw.zapi||{}); gw.zapster = Object.assign({}, gw.zapster||{}); gw.ai = Object.assign({}, gw.ai||{}); gw.planPrices = Object.assign({basico:69,pro:139,premium:249}, gw.planPrices||{}); gw.botConcierge = gw.botConcierge !== false; }catch(e){}
+  let discountKeys = [];
+  try{ const dk = await api('/api/admin/discount-keys'); discountKeys = dk.keys || []; }catch(e){}
+  const dkRows = discountKeys.length ? discountKeys.map(k => `<div class="list-row" style="margin-top:8px"><div class="main"><b>${esc(k.code)}</b><span>${k.percent}% off · ${k.times} cobrança${k.times===1?'':'s'} · ${k.uses||0} salão${(k.uses||0)===1?'':'es'}${k.maxUses?(' / '+k.maxUses):''}${k.note?(' · '+esc(k.note)):''}${k.enabled===false?' · pausada':''}</span></div><div class="right" style="display:flex;gap:6px"><button class="btn small ghost" onclick="toggleDiscountKey('${k.id}', ${k.enabled===false})">${k.enabled===false?'Ativar':'Pausar'}</button><button class="btn small ghost" onclick="deleteDiscountKey('${k.id}')">Excluir</button></div></div>`).join('') : '<p style="font-size:12.5px;color:var(--muted);margin-top:8px">Nenhuma chave ainda.</p>';
+  /* reflete os preços salvos na aba Financeiro */
+  if(gw && gw.planPrices){ PLAN_PRICES = {'Básico':gw.planPrices.basico||69,'Pro':gw.planPrices.pro||139,'Premium':gw.planPrices.premium||249}; }
+  const th = cleanPanelTheme(PANEL_THEME);
+  $('#content').innerHTML = `
+    ${brandLogoCardHTML()}
+    <div class="card pad" style="max-width:560px;margin-bottom:16px">
+      <b style="font-size:15px">🎨 Aparência do painel</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Escolha as cores da <b>sua</b> área admin. Cada salão continua com o tema próprio (clientes e dona). A mudança aparece na hora; toque em salvar para gravar.</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+        ${THEME_PRESETS.map(p=>`<button class="btn small ghost" style="display:inline-flex;align-items:center;gap:6px" onclick="setPanelPreset('${p.id}')"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:linear-gradient(135deg,${p.primary} 55%,${p.bg} 55%);border:1px solid var(--line)"></span>${p.label}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap">
+        <div><label style="font-size:12px;font-weight:700;color:var(--muted);display:block">Cor principal</label>
+          <input type="color" id="adPanelPrimary" value="${th.primary}" oninput="PANEL_THEME.primary=this.value;applyPanelTheme(PANEL_THEME)" style="width:56px;height:38px;border-radius:9px;border:1.5px solid var(--line);margin-top:4px;padding:2px"></div>
+        <div><label style="font-size:12px;font-weight:700;color:var(--muted);display:block">Cor de fundo</label>
+          <input type="color" id="adPanelBg" value="${th.bg}" oninput="PANEL_THEME.bg=this.value;applyPanelTheme(PANEL_THEME)" style="width:56px;height:38px;border-radius:9px;border:1.5px solid var(--line);margin-top:4px;padding:2px"></div>
+        <div style="flex:1;min-width:150px"><label style="font-size:12px;font-weight:700;color:var(--muted);display:block">Fonte</label>
+          <select id="adPanelFont" onchange="PANEL_THEME.font=this.value;applyPanelTheme(PANEL_THEME)" style="width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--line);margin-top:4px;background:var(--card);color:var(--dark)">
+            ${THEME_FONT_OPTS.map(f=>`<option value="${f.id}" ${th.font===f.id?'selected':''}>${f.label}</option>`).join('')}
+          </select></div>
+      </div>
+      <button class="btn full" style="margin-top:14px" onclick="savePanelTheme()">💾 Salvar cores do painel</button>
+    </div>
+    <div class="note blue">💳 <b>Recebimento automático (Pix/cartão):</b> conecte sua conta do <b>Mercado Pago</b> para gerar cobranças Pix automáticas (QR Code no painel e na confirmação dos salões). É grátis em <code>mercadopago.com.br</code> — cole o <b>Access Token</b> (Configurações → Credenciais de produção).</div>
+    <div class="card pad" style="max-width:560px">
+      <b style="font-size:15px">Mercado Pago</b>
+      <div class="form-field"><label>Access Token de produção</label>
+        <input id="gwToken" type="password" placeholder="APP_USR-..." value="${esc(gw.mercadopagoToken||'')}"></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">O token fica salvo apenas no seu servidor. Sem ele, a cobrança é manual (chave Pix).</p>
+      <div class="form-field"><label>Sua chave Pix padrão (pagamentos manuais)</label><input id="gwPix" placeholder="CPF, celular ou e-mail" value="${esc(gw.pixKey||'')}"></div>
+      <div class="form-field"><label>🎁 Tempo de teste grátis (dias) — vale para novos cadastros</label><input id="gwTrial" type="number" min="1" max="90" value="${esc(gw.trialDays||15)}"><p style="font-size:12px;color:var(--muted);margin-top:4px">Este número é a lei: a landing, o cadastro, o guia, a captura e o robô do WhatsApp mostram <b>automaticamente</b> o valor daqui — sem precisar mexer no site. Evento? Ponha 30 e salve. Depois volte para 15. (1 a 90)</p></div>
+      <div class="form-field"><label>💎 Preço dos planos (R$/mês) — vale para novos pagamentos e cobranças</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <div style="flex:1;min-width:110px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block">Básico</label><input id="gpBasic" type="number" min="1" value="${esc(gw.planPrices&&gw.planPrices.basico||69)}"></div>
+          <div style="flex:1;min-width:110px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block">Pro</label><input id="gpPro" type="number" min="1" value="${esc(gw.planPrices&&gw.planPrices.pro||139)}"></div>
+          <div style="flex:1;min-width:110px"><label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block">Premium</label><input id="gpPremium" type="number" min="1" value="${esc(gw.planPrices&&gw.planPrices.premium||249)}"></div>
+        </div>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:4px">Já pagaram o valor antigo e permanecem com ele até o próximo vencimento.</p></div>
+      <button class="btn full" style="margin-top:14px" onclick="saveGateway()">💾 Salvar pagamentos</button>
+    </div>
+    <div class="card pad" style="max-width:560px;margin-top:16px">
+      <b style="font-size:15px">🤖 WhatsApp, chatbot e lembretes</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Dois números, dois papéis. A <b>Zapster</b> é recomendada (teste de 7 dias e caminho para a API oficial da Meta).</p>
+      <div class="note" style="margin-top:10px">📱 <b>Este WhatsApp (plataforma)</b> atende <b>quem escrever nele</b>: donos de espaço (senha, plano, suporte), leads do teste grátis e — com o modo abaixo ligado — as <b>clientes de todos os espaços</b>, cada uma com o catálogo, os valores e o link do seu salão.<br><br>💇 <b>WhatsApp de cada salão</b> (ID da instância em Meus salões → detalhes) é <b>opcional</b>: só compensa se você quiser um número por espaço. Lembretes e avisos saem pelo número da plataforma quando o salão não tem instância própria.</div>
+      <div class="form-field"><label>Gateway de WhatsApp</label><select id="waProvider" onchange="toggleWhatsProvider()"><option value="zapster" ${gw.whatsappProvider==='zapster'?'selected':''}>Zapster API</option><option value="meta" ${gw.whatsappProvider==='meta'?'selected':''}>🏛️ WhatsApp oficial — API da Meta (oficial, sem risco de bloqueio)</option><option value="zapi" ${gw.whatsappProvider==='zapi'?'selected':''}>Z-API</option></select></div>
+      <div id="zapsterFields">
+        <div class="form-field"><label>URL base da Zapster</label><input id="zsUrl" placeholder="https://api.zapsterapi.com" value="${esc(gw.zapster.baseUrl||'https://api.zapsterapi.com')}"></div>
+        <div class="form-field"><label>ID da instância Zapster</label><input id="zsInst" placeholder="ID da instância conectada" value="${esc(gw.zapster.instance||'')}"></div>
+        <div class="form-field"><label>API Key / Token Zapster</label><input id="zsTok" type="password" placeholder="Bearer token" value="${esc(gw.zapster.token||'')}"></div>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:3px">Webhook da Zapster: <code>https://SEU-DOMINIO/api/bot/webhook</code></p>
+      </div>
+      <div id="metaFields" style="display:none;background:rgba(10,186,181,.06);border:1.5px solid rgba(10,186,181,.4);border-radius:14px;padding:12px;margin:10px 0">
+        <b style="font-size:13px">🏛️ WhatsApp oficial (Meta Cloud API)</b>
+        <p style="font-size:12px;color:var(--muted);margin:4px 0 10px">Preencha com os dados que a Meta mostra no painel do aplicativo (developers.facebook.com → seu app → WhatsApp → API Setup). O número da <b>plataforma</b> passa a sair daqui; salões com instância própria seguem na Zapster normalmente.</p>
+        <div class="form-field"><label>Phone Number ID</label><input id="mmPhone" placeholder="ex.: 123456789012345" value="${esc((gw.meta&&gw.meta.phoneId)||'')}"></div>
+        <div class="form-field"><label>Token permanente (System User)</label><input id="mmTok" type="password" placeholder="EAAt..." value="${esc((gw.meta&&gw.meta.token)||'')}"></div>
+        <div class="form-field"><label>ID da WABA (conta comercial)</label><input id="mmWaba" placeholder="ex.: 987654321098765" value="${esc((gw.meta&&gw.meta.wabaId)||'')}"></div>
+        <div class="form-field"><label>Token de verificação do webhook (invente um, copie lá também)</label><input id="mmVerify" placeholder="ex.: bora-meta-2026" value="${esc((gw.meta&&gw.meta.verifyToken)||'')}"></div>
+        <div class="form-field"><label>App Secret (aparece em Configurações do app)</label><input id="mmSecret" type="password" value="${esc((gw.meta&&gw.meta.appSecret)||'')}"></div>
+        <p style="font-size:11.5px;color:var(--muted);margin:4px 0 0">No painel da Meta, em Webhook, use a URL <code>${esc(gw.metaWebhookUrl||(location.origin+'/api/bot/webhook'))}</code> e o mesmo token de verificação acima. Os campos do Zapster abaixo continuam válidos para os <b>números dos salões</b>.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn small" onclick="metaSubscribe()">🔗 Vincular conta Meta</button><button class="btn small" onclick="metaTemplates()">📮 Aprovar templates</button><button class="btn small ghost" onclick="metaCheck()">🔎 Testar conexão</button></div>
+        <div id="mmOut" style="font-size:12px;color:var(--muted);margin-top:8px;white-space:pre-line"></div>
+      </div>
+      <div id="zapiFields">
+        <div class="form-field"><label>URL base da Z-API</label><input id="zaUrl" placeholder="https://api.z-api.io" value="${esc(gw.zapi.baseUrl||'')}"></div>
+        <div class="form-field"><label>ID da instância Z-API</label><input id="zaInst" placeholder="ex.: 2E5D1C..." value="${esc(gw.zapi.instance||'')}"></div>
+        <div class="form-field"><label>Token da instância Z-API</label><input id="zaTok" type="password" placeholder="token" value="${esc(gw.zapi.token||'')}"></div>
+      </div>
+      <div class="form-field" style="display:flex;align-items:flex-start;gap:8px;margin-top:12px"><input type="checkbox" id="botConcierge" style="width:18px;height:18px;margin-top:2px" ${gw.botConcierge!==false?'checked':''}><label for="botConcierge" style="font-size:13px;font-weight:700;cursor:pointer">🤝 Um número só atende todos os espaços (modo concierge)</label></div>
+      <p style="font-size:11.5px;color:var(--muted);margin:2px 0 0 26px">A cliente manda "oi" no WhatsApp da plataforma, o bot pergunta de qual espaço ela quer falar e responde com os serviços, os valores, o expediente, o endereço e o link daquele salão. Ela troca de espaço quando quiser dizendo <b>trocar de salão</b>. Você paga <b>uma</b> instância, não uma por espaço.</p>
+      ${gw.conciergeSameId?'<p style="font-size:11.5px;color:var(--amber);margin:6px 0 0 26px">⚠️ O ID acima é o mesmo do WhatsApp de <b>'+esc(gw.conciergeSameId)+'</b>. Com o concierge ligado isso é esperado: esse número atende todos os espaços, cada um com o seu catálogo. Desligando, ele vira linha exclusiva daquele espaço.</p>':''}
+      <button class="btn full" style="margin-top:14px" onclick="saveGateway()">💾 Salvar WhatsApp</button>
+      <button class="btn ghost full" style="margin-top:10px" onclick="testarConcierge()">🧪 Simular uma cliente (não envia nada)</button>
+      <button class="btn ghost full" style="margin-top:10px" onclick="registerSalonWebhooks()">🔗 Ligar webhook em todos os WhatsApp de salão</button>
+      <button class="btn ghost full" style="margin-top:10px" onclick="verWhatsLog()">📋 Ver últimas mensagens do bot</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">O bot das <b>clientes</b> só responde no WhatsApp de cada salão. Crie uma instância Zapster para o número da dona do salão, cole o ID em Meus salões → detalhes, e toque neste botão. O seu WhatsApp (plataforma) continua só para donos.</p>
+      <div class="form-field" style="margin-top:8px"><label>✨ Motor de IA das perguntas abertas (híbrido)</label>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:2px">Serve de padrão para todos os salões. Cada dona liga a IA no app dela (aba <b>Bot</b>) e, se quiser, usa um provedor próprio. Use um provedor compatível com <code>/chat/completions</code> (OpenAI, Groq, OpenRouter, etc.).</p></div>
+      <div class="form-field"><label>URL base da IA</label><input id="aiBase" placeholder="https://api.openai.com/v1" value="${esc(gw.ai&&gw.ai.baseUrl||'')}"></div>
+      <div class="form-field"><label>Modelo</label><input id="aiModel" placeholder="gpt-4o-mini" value="${esc(gw.ai&&gw.ai.model||'')}"></div>
+      <div class="form-field"><label>Chave da API da IA</label><input id="aiKey" type="password" placeholder="sk-..." value="${esc(gw.ai&&gw.ai.token||'')}"></div>
+      <button class="btn full" style="margin-top:8px" onclick="saveGateway()">💾 Salvar motor de IA</button>
+      <button class="btn ghost full" style="margin-top:10px" onclick="runRemindersNow()">⚡ Rodar lembretes agora (teste)</button>
+    </div>
+    <div class="card pad" style="max-width:560px;margin-top:16px">
+      <b style="font-size:15px">⚙️ Automações da plataforma</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Ligue o que a plataforma faz sozinha para aumentar receita e evitar que o bot fique fora do ar.</p>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px;margin-top:16px"><input type="checkbox" id="auBilling" ${gw.automations&&gw.automations.autoBilling?'checked':''} style="width:18px;height:18px"><label for="auBilling" style="font-size:13px;font-weight:600;cursor:pointer">💳 Cobrança recorrente automática (1ª vez no vencimento, depois 1 por dia; baixa sozinha em até 15 min quando o Pix cai)</label></div>
+      <p style="font-size:11px;color:var(--muted);margin:2px 0 8px 26px">Requer o Access Token do Mercado Pago acima.</p>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px;margin:2px 0 10px 26px"><input type="checkbox" id="auSuspend" ${gw.automations&&gw.automations.autoSuspend?'checked':''} style="width:18px;height:18px"><label for="auSuspend" style="font-size:13px;font-weight:600;cursor:pointer">⏸️ Pausar o acesso após 3 dias sem pagar (o Pix enviado continua válido; ao pagar, volta sozinho)</label></div>
+      <p style="font-size:12px;color:var(--muted);margin:4px 0 10px 0">O resumo da semana <b>não</b> é mais enviado no WhatsApp das donas. Relatório fica só no painel, em Relatórios.</p>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="auMonitor" ${gw.automations&&gw.automations.whatsMonitor?'checked':''} style="width:18px;height:18px"><label for="auMonitor" style="font-size:13px;font-weight:600;cursor:pointer">🚨 Monitor do WhatsApp (te avisa se uma instância cair)</label></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="auBackup" ${gw.automations&&gw.automations.autoBackup?'checked':''} style="width:18px;height:18px"><label for="auBackup" style="font-size:13px;font-weight:600;cursor:pointer">🛡️ Backup automático diário (mantém histórico de 14 dias)</label></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="auSales" ${gw.automations&&gw.automations.leadSales?'checked':''} style="width:18px;height:18px"><label for="auSales" style="font-size:13px;font-weight:600;cursor:pointer">📈 Captura de leads (registra quem se interessa em assinar)</label></div>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="auTips" ${(gw.automations&&gw.automations.divulgaTips===false)?'':'checked'} style="width:18px;height:18px"><label for="auTips" style="font-size:13px;font-weight:600;cursor:pointer">💡 Dicas de divulgação para as donas (dia sim, dia não — ciclo de 50 dicas variadas, fila lenta; teto ajustável via BOT_TIPS_MAX)</label></div>
+      <div class="form-field"><label>WhatsApp para receber os alertas do monitor (sua dona)</label><input id="adAdminWhats" placeholder="(21) 99999-9999" value="${esc(gw.adminWhats||'')}"></div>
+      <button class="btn full" style="margin-top:10px" onclick="saveGateway()">💾 Salvar automações</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="runAutomationsNow()">⚡ Rodar automações agora</button>
+    </div>
+    <div class="card pad" style="max-width:560px;margin-top:16px">
+      <b style="font-size:15px">🎁 Programa de indicação</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Quem indica uma colega ganha desconto na próxima mensalidade quando ela se tornar cliente.</p>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="rfEnabled" ${gw.referral&&gw.referral.enabled?'checked':''} style="width:18px;height:18px"><label for="rfEnabled" style="font-size:13px;font-weight:600;cursor:pointer">Ativar programa de indicação</label></div>
+      <div class="form-field"><label>Desconto para quem indica (%)</label><input id="rfPct" type="number" min="1" max="100" value="${esc((gw.referral&&gw.referral.percent)||20)}"></div>
+      <button class="btn full" style="margin-top:10px" onclick="saveGateway()">💾 Salvar indicação</button>
+      <div style="margin-top:14px"><button class="btn ghost full" onclick="go('vendas');loadReferralView()">🔗 Ver códigos de indicação dos salões</button></div>
+    </div>
+    <div class="card pad" style="max-width:560px;margin-top:16px">
+      <b style="font-size:15px">🔑 Chaves de desconto</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Crie um código. Quem entra no teste com essa chave paga o plano com <b>porcentagem de desconto</b> nas próximas <b>N cobranças</b>.</p>
+      <div class="form-field"><label>Chave</label><input id="dkCode" placeholder="Ex.: LANCA20" style="text-transform:uppercase"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="form-field" style="flex:1;min-width:120px"><label>% de desconto</label><input id="dkPct" type="number" min="1" max="100" value="20"></div>
+        <div class="form-field" style="flex:1;min-width:120px"><label>Quantas cobranças</label><input id="dkTimes" type="number" min="1" max="24" value="3"></div>
+      </div>
+      <div class="form-field"><label>Limite de salões (0 = ilimitado)</label><input id="dkMax" type="number" min="0" max="10000" value="0"></div>
+      <div class="form-field"><label>Nota (opcional)</label><input id="dkNote" placeholder="Ex.: campanha de lançamento"></div>
+      <button class="btn full" style="margin-top:10px" onclick="createDiscountKey()">＋ Criar chave</button>
+      <div id="dkList" style="margin-top:14px">${dkRows}</div>
+    </div>
+    <div class="card pad" style="max-width:560px;margin-top:16px">
+      <b style="font-size:15px">💝 Indicação entre clientes</b>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Clientes do salão ganham <b>desconto em crédito</b> quando uma amiga confirma o primeiro horário usando o código delas. Vale para todos os salões.</p>
+      <div class="form-field" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="crfEnabled" ${gw.clientReferral&&gw.clientReferral.enabled?'checked':''} style="width:18px;height:18px"><label for="crfEnabled" style="font-size:13px;font-weight:600;cursor:pointer">Ativar indicação entre clientes</label></div>
+      <div class="form-field"><label>Desconto para quem indicou (%)</label><input id="crfPct" type="number" min="1" max="100" value="${esc((gw.clientReferral&&gw.clientReferral.percent)||15)}"></div>
+      <div class="form-field"><label>🎊 Desconto de boas-vindas para quem chega por indicação (%)</label><input id="crfWelcome" type="number" min="0" max="100" value="${esc((gw.clientReferral&&gw.clientReferral.welcomePercent)||0)}"><p style="font-size:11.5px;color:var(--muted);margin-top:3px">Ofereça também um desconto na 1ª visita de quem veio pelo código. 0 = desligado.</p></div>
+      <div class="form-field"><label>⏳ Validade do crédito (dias)</label><input id="crfExpiry" type="number" min="0" max="730" value="${esc((gw.clientReferral&&gw.clientReferral.expiryDays)||0)}"><p style="font-size:11.5px;color:var(--muted);margin-top:3px">O crédito expira se não for usado nesse tempo. 0 = nunca expira.</p></div>
+      <div class="form-field"><label>💰 Limite máximo de crédito por cliente (R$)</label><input id="crfMax" type="number" min="0" max="10000" value="${esc((gw.clientReferral&&gw.clientReferral.maxCredits)||0)}"><p style="font-size:11.5px;color:var(--muted);margin-top:3px">Trava o quanto uma cliente pode acumular. 0 = sem limite.</p></div>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:4px">🛡️ Segurança: só uma cliente que <b>já foi atendida</b> (tem 1 atendimento concluído) pode indicar. Assim uma recém-cadastrada nunca indica outra e as duas não sobem a VIP sem pagar. Os códigos são curtos (ex.: <b>dudinha</b>) e a dona pode ajustá-los no app dela, na aba "Indique amigas".</p>
+      <button class="btn full" style="margin-top:12px" onclick="saveGateway()">💾 Salvar indicação entre clientes</button>
+    </div>`;
+  setTimeout(toggleWhatsProvider, 0);
+}
+function toggleWhatsProvider(){
+  const provider = $('#waProvider') ? $('#waProvider').value : 'zapi';
+  const zapster = $('#zapsterFields'), zapi = $('#zapiFields'), meta = $('#metaFields');
+  if(zapster) zapster.style.display = (provider === 'zapster' || provider === 'meta') ? 'block' : 'none';
+  if(zapi) zapi.style.display = provider === 'zapi' ? 'block' : 'none';
+  if(meta) meta.style.display = provider === 'meta' ? 'block' : 'none';
+}
+async function metaSubscribe(){
+  const out = $('#mmOut'); if(out) out.textContent = 'Vinculando a conta WhatsApp ao aplicativo Meta…';
+  try{
+    const d = await api('/api/admin/meta-subscribe', {method:'POST', body:'{}'});
+    if(out) out.textContent = d.ok ? '✅ Conta Meta vinculada. Agora as mensagens reais podem chegar ao BoraAgendar.' : ('❌ ' + (d.result||'falhou'));
+    toast(d.ok ? '🔗 Conta Meta vinculada' : 'Falhou ao vincular conta Meta');
+  }catch(e){ if(out) out.textContent = 'Erro: ' + (e.message||e); }
+}
+async function metaTemplates(){
+  const out = $('#mmOut'); if(out) out.textContent = 'Enviando templates para aprovação da Meta…';
+  try{
+    const d = await api('/api/admin/meta-templates', {method:'POST', body:'{}'});
+    const lines = (d.results||[]).map(r => '• ' + r.name + ': ' + (r.status||'') + (r.existed?' (já existia)':''));
+    if(out) out.textContent = lines.join('\n') || 'Nada a fazer.';
+    toast('📮 Templates enviados — a Meta costuma aprovar em minutos ou horas');
+  }catch(e){ if(out) out.textContent = 'Erro: ' + (e.message||e); }
+}
+async function metaCheck(){
+  const out = $('#mmOut'); if(out) out.textContent = 'Checando conexão…';
+  try{
+    const d = await api('/api/admin/meta-check', {method:'POST', body:'{}'});
+    if(out) out.textContent = d.ok ? ('✅ Conectado! Número: ' + (d.number||'—') + ' · qualidade: ' + (d.quality||'—')) : ('❌ ' + (d.error||'não respondeu'));
+  }catch(e){ if(out) out.textContent = 'Erro: ' + (e.message||e); }
+}
+async function saveGateway(){
+  const mercadopagoToken = ($('#gwToken').value||'').trim();
+  const pixKey = ($('#gwPix').value||'').trim();
+  const trialDays = parseInt($('#gwTrial').value,10)||15;
+  const whatsappProvider = $('#waProvider').value;
+  const zapi = { baseUrl: ($('#zaUrl').value||'').trim(), instance: ($('#zaInst').value||'').trim(), token: ($('#zaTok').value||'').trim() };
+  const zapster = { baseUrl: ($('#zsUrl').value||'https://api.zapsterapi.com').trim(), instance: ($('#zsInst').value||'').trim(), token: ($('#zsTok').value||'').trim() };
+  const meta = { phoneId: ($('#mmPhone') && $('#mmPhone').value || '').trim(), token: ($('#mmTok') && $('#mmTok').value || '').trim(), wabaId: ($('#mmWaba') && $('#mmWaba').value || '').trim(), verifyToken: ($('#mmVerify') && $('#mmVerify').value || '').trim(), appSecret: ($('#mmSecret') && $('#mmSecret').value || '').trim() };
+  const ai = { baseUrl: ($('#aiBase') && $('#aiBase').value || '').trim(), model: ($('#aiModel') && $('#aiModel').value || '').trim(), token: ($('#aiKey') && $('#aiKey').value || '').trim() };
+  const planPrices = { basico: parseInt($('#gpBasic') && $('#gpBasic').value,10)||69, pro: parseInt($('#gpPro') && $('#gpPro').value,10)||139, premium: parseInt($('#gpPremium') && $('#gpPremium').value,10)||249 };
+  const automations = { autoBilling: !!($('#auBilling') && $('#auBilling').checked), weeklyReport: false, whatsMonitor: !!($('#auMonitor') && $('#auMonitor').checked), autoBackup: !!($('#auBackup') && $('#auBackup').checked), leadSales: !!($('#auSales') && $('#auSales').checked), autoSuspend: !!($('#auSuspend') && $('#auSuspend').checked), divulgaTips: !!($('#auTips') && $('#auTips').checked) };
+  const adminWhats = ($('#adAdminWhats') && $('#adAdminWhats').value || '').trim();
+  const referral = { enabled: !!($('#rfEnabled') && $('#rfEnabled').checked), percent: parseInt($('#rfPct') && $('#rfPct').value, 10) || 20 };
+  const clientReferral = { enabled: !!($('#crfEnabled') && $('#crfEnabled').checked), percent: parseInt($('#crfPct') && $('#crfPct').value, 10) || 15, welcomePercent: parseInt($('#crfWelcome') && $('#crfWelcome').value, 10) || 0, expiryDays: parseInt($('#crfExpiry') && $('#crfExpiry').value, 10) || 0, maxCredits: parseInt($('#crfMax') && $('#crfMax').value, 10) || 0 };
+  try{
+    const botConcierge = !!($('#botConcierge') && $('#botConcierge').checked);
+    await api('/api/admin/gateway', {method:'PUT', body:JSON.stringify({mercadopagoToken, pixKey, trialDays, whatsappProvider, zapi, zapster, meta, ai, planPrices, automations, adminWhats, referral, clientReferral, botConcierge})});
+    toast('💾 Configurações salvas');
+    PLAN_PRICES = {'Básico':planPrices.basico,'Pro':planPrices.pro,'Premium':planPrices.premium};
+    renderConfig();
+  }catch(e){ toast(e.message); }
+}
+async function testarConcierge(){
+  const telefone = prompt('Telefone da cliente (só para simular, nada é enviado):','5521999990001');
+  if(telefone===null) return;
+  const msg = prompt('O que a cliente escreveu?','oi');
+  if(msg===null) return;
+  const reset = confirm('OK = esquecer a escolha anterior desta cliente (testar do zero).');
+  try{
+    const d = await api('/api/bot/test', {method:'POST', body:JSON.stringify({platform:true, reset:!!reset, from:String(telefone).replace(/\D/g,''), message:msg})});
+    modal(`<h3>🧪 Resposta do bot</h3>
+      <p style="font-size:12.5px;color:var(--muted)">Canal: <b>${esc(d.channel||'—')}</b> · Papel: <b>${esc(d.role||'—')}</b> · Espaço: <b>${esc(d.salon||(d.channel==='platform'?'plataforma':'—'))}</b>${d.ignored?(' · ignorado: '+esc(d.ignored)):''}</p>
+      ${d.reply?'<div class="note" style="white-space:pre-wrap;margin-top:10px">'+esc(d.reply)+'</div>':'<div class="note" style="margin-top:10px">O bot <b>ficou quieto</b> nesta mensagem ('+esc(d.ignored||'sem resposta')+'). É o esperado para conversa fiada, sticker ou áudio sem legenda.</div>'}
+      <div class="m-actions"><button class="btn" onclick="closeModal()">Fechar</button></div>`);
+  }catch(e){ toast(e.message); }
+}
+async function runRemindersNow(){
+  try{
+    const d = await api('/api/admin/run-reminders', {method:'POST', body:JSON.stringify({})});
+    toast(`⚡ Lembretes: ${d.sent} enviados · ${d.pending} pendentes de envio manual`);
+  }catch(e){ toast(e.message); }
+}
+async function registerSalonWebhooks(){
+  try{
+    const d = await api('/api/admin/whats-webhooks', {method:'POST', body:JSON.stringify({})});
+    const ok = (d.results||[]).filter(x=>x.ok).length;
+    const miss = (d.results||[]).filter(x=>!x.ok);
+    toast('🔗 Webhook: '+ok+' ligado(s)' + (miss.length ? ' · sem instância: '+miss.map(x=>x.target).join(', ') : ''));
+  }catch(e){ toast(e.message); }
+}
+function togglePass(inputId, btn){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  if(el.type === 'password'){ el.type = 'text'; if(btn) btn.textContent = '🙈'; }
+  else { el.type = 'password'; if(btn) btn.textContent = '👁️'; }
+}
+function modal(html){ $('#modalBox').innerHTML = html; $('#overlay').classList.add('show'); }
+function closeModal(){ $('#overlay').classList.remove('show'); }
+$('#overlay').addEventListener('click', e=>{ if(e.target===$('#overlay')) closeModal(); });
+
+(async function(){
+  await fetchPanelTheme();
+  if(TOKEN){
+    try{ await api('/api/admin/dashboard'); enterApp(); return; }catch(e){ TOKEN=null; localStorage.removeItem('ba_admin'); localStorage.removeItem('glowp_admin'); }
+  }
+})();
+</script>
 </body>
 </html>
