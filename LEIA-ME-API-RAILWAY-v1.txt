@@ -1,0 +1,58 @@
+Emaús — recolocar a API no Railway (serviço Emaus)
+Pacote: emaus-api-railway-v26.zip
+Data: 09/10/2026
+
+O log que você abriu prova o erro:
+
+  «BoraAgendar rodando em http://0.0.0.0:8080»
+  «Salões: (nenhum)»
+  «PUBLIC_URL: https://glow-platform-production.up.railway.app»
+
+O serviço Emaus (emaus-production-2de0.up.railway.app) está Online,
+mas com o programa errado. Por isso a plataforma da igreja caiu
+(login, dias de bônus, Failed to fetch).
+
+glow-platform = BoraAgendar. Deixe esse serviço quieto.
+attractive-spontaneity = API antiga da Emaús. Não apague ainda.
+Postgres ligado no Emaus = certo. Não desconecte.
+
+
+================================================================================
+O QUE SUBIR (só estes arquivos, na RAIZ do repositório Emaus)
+================================================================================
+
+  server.js
+  package.json
+  package-lock.json
+  schema.sql
+  billing-mercadopago.js
+  railway.json
+  .railwayignore
+
+NÃO suba index.html, admin.html, app.js, nem nada do BoraAgendar.
+
+
+================================================================================
+NO RAILWAY (serviço Emaus)
+================================================================================
+
+  1. Aba Settings
+     Start Command: node server.js
+     Root Directory: vazio
+  2. Depois do upload no GitHub: Deployments → ⋮ do ACTIVE → Redeploy
+     (ou espere o deploy automático)
+  3. Deploy Logs tem que dizer:
+
+       Emaús API online na porta …
+
+     Se ainda disser «BoraAgendar», o start command ou o package.json
+     não foi o deste zip.
+  4. No navegador:
+
+       https://emaus-production-2de0.up.railway.app/health
+
+     Tem que voltar: {"ok":true,"service":"emaus-api",...}
+
+
+Não mexa em Variables (DATABASE_URL, JWT_SECRET, senhas).
+Não mexa em glow-platform nem no Postgres.
