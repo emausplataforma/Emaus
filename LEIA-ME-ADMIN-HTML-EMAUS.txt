@@ -1,0 +1,25 @@
+Emaús — só o admin.html (o painel da igreja voltou a ser o BoraAgendar)
+
+A API no Railway já está certa:
+  https://emaus-production-2de0.up.railway.app/health
+  → {"ok":true,"service":"emaus-api"}
+
+O site da igreja (index.html) também está certo.
+
+O que está errado é UM arquivo no GitHub Pages:
+
+  https://emausplataforma.github.io/Emaus/admin.html
+  título no ar agora: "Painel — BoraAgendar"
+
+Esse arquivo foi sobrescrito pelo painel do Bora. O admin.js e o admin.css
+da Emaús continuam no ar.
+
+O QUE FAZER
+  1. No repositório GitHub Emaus, substitua SOMENTE admin.html
+     pelo admin.html deste zip (título: "Administrador · Emaús").
+  2. Não suba o admin.html do Bora nesse repositório.
+  3. Abra de novo:
+     https://emausplataforma.github.io/Emaus/admin.html
+     com Ctrl+Shift+R
+
+O Bora continua no projeto modest-grace. Não mistura os dois admin.html.
