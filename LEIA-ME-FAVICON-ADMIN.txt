@@ -1,0 +1,22 @@
+Emaús — ícone na aba do administrador
+
+O painel já é o da Emaús. A aba do Chrome ainda mostrava o ícone
+rosa do Bora porque o admin.html não tinha favicon — o navegador
+guardou o do Bora naquele endereço.
+
+Neste zip:
+  admin.html          (com o link do ícone)
+  emaus-favicon.png   (marca da Emaús, 192 px)
+  favicon.ico
+
+No GitHub do repositório Emaus, na raiz, suba os 3 arquivos
+(substituir o admin.html).
+
+Depois: FECHE a aba inteira (não só atualizar) e abra de novo
+https://emausplataforma.github.io/Emaus/admin.html
+com Ctrl+Shift+R.
+
+O Chrome é teimoso com ícone de aba. Se continuar o rosa:
+  1) feche a aba
+  2) Ctrl+Shift+Delete → imagens e arquivos em cache
+  3) abra o endereço de novo
