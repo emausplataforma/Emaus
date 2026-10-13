@@ -1,0 +1,83 @@
+Emaús — como guardar uma cópia para refazer a plataforma
+Data: 12/10/2026
+
+NÃO use o backup do BoraAgendar na Emaús. São produtos diferentes.
+
+
+================================================================================
+1. CÓDIGO (telas + API) — baixar a qualquer momento
+================================================================================
+
+O repositório GitHub JÁ é o backup dos arquivos.
+
+  1. Abra https://github.com/emausplataforma/Emaus
+  2. Botão verde  Code  →  Download ZIP
+  3. Guarde no Drive / pendrive com a data (ex.: emaus-github-2026-10-12.zip)
+
+Isso traz admin, painel da igreja, recepção, service-worker, etc.
+
+Este pacote (emaus-kit-recuperacao-v26.zip) é um retrato de hoje,
+com API + telas que estavam funcionando. Guarde junto.
+
+
+================================================================================
+2. DADOS (igrejas, visitantes, pagamentos) — é o Postgres
+================================================================================
+
+Isso NÃO está no GitHub. Está no Railway:
+
+  honest-gentleness  →  Postgres  →  Backups
+
+Ative / baixe o backup dali (plano Pro já costuma ter).
+Não mexa no volume do glow-platform.
+
+Sem esse backup, dá para subir a plataforma de novo, mas as
+igrejas e visitantes não voltam.
+
+
+================================================================================
+3. SENHAS E MERCADO PAGO — não vão no zip
+================================================================================
+
+Ficam em: Railway → Emaus → Variables
+
+  DATABASE_URL
+  JWT_SECRET
+  ADMIN_EMAIL / ADMIN_PASSWORD
+  MERCADOPAGO_ACCESS_TOKEN
+  CORS_ORIGIN
+  PUBLIC_APP_URL
+
+Anote num lugar seguro (não no WhatsApp, não neste chat).
+Se apagar o serviço e não tiver isso, o site sobe vazio / sem login.
+
+
+================================================================================
+4. SE A PLATAFORMA CAIR — ordem para refazer
+================================================================================
+
+  A. GitHub Pages (telas)
+     Suba de novo os arquivos do ZIP do GitHub (ou deste kit).
+     Não suba admin.html do Bora.
+
+  B. Railway → serviço Emaus
+     server.js, package.json, schema.sql, billing-mercadopago.js, railway.json
+     Start Command: node server.js
+     Variables: as mesmas de antes (não apague o Postgres)
+
+  C. Conferir
+     https://emaus-production-2de0.up.railway.app/health
+     tem que dizer: "emaus-api"
+
+  D. Bora
+     Não toque. É o projeto modest-grace.
+
+
+================================================================================
+5. O QUE NÃO FAZER
+================================================================================
+
+  · Restaurar boraagendar-backup-….json na Emaús
+  · Mandar o mesmo zip do Bora para o serviço Emaus
+  · Apagar o Postgres “para limpar”
+  · Colar DATABASE_URL ou token em conversa / print
