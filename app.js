@@ -614,24 +614,25 @@ function updateChurchEntryIdentity(church = getActiveChurch()) {
   const symbol = String(church?.logoSymbol || initials(name) || prettyChurchName(churchSlugFromUrl()).charAt(0) || 'I').trim().slice(0, 2).toUpperCase();
   const loginName = $('#churchLoginName');
   const loginLogo = $('#churchLoginLogo');
-  const loginMark = $('#churchLoginMark');
+  const loginSymbol = $('#churchLoginSymbol');
   if (loginName) loginName.textContent = name;
-  if (loginMark) {
-    loginMark.textContent = symbol;
-    loginMark.hidden = Boolean(resolved);
+  if (loginSymbol) {
+    loginSymbol.textContent = symbol;
+    loginSymbol.hidden = Boolean(resolved);
   }
   if (loginLogo) {
     if (resolved) {
       loginLogo.onerror = () => {
         loginLogo.hidden = true;
         loginLogo.removeAttribute('src');
-        if (loginMark) loginMark.hidden = false;
+        if (loginSymbol) loginSymbol.hidden = false;
       };
       loginLogo.src = resolved;
       loginLogo.hidden = false;
     } else {
       loginLogo.removeAttribute('src');
       loginLogo.hidden = true;
+      if (loginSymbol) loginSymbol.hidden = false;
     }
     loginLogo.alt = `Logo da ${name}`;
   }

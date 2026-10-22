@@ -1,0 +1,24 @@
+Emaús — um só quadrado na logo do login (v29)
+
+O que o print mostrava
+----------------------
+Na área da igreja a logo da Bethesda aparecia E, ao lado, um quadrado dourado
+vazio. Eram dois espaços: a letra de reserva e a imagem.
+
+Correção
+--------
+A letra e a logo ficam no MESMO quadrado. Com a imagem, a letra some;
+se a imagem falhar, volta só a letra. Não há mais um quadrado extra.
+
+Substitua no GitHub Pages (arquivos soltos, não o zip):
+
+- index.html
+- app.js
+- styles.css
+- service-worker.js
+
+Service worker: emaus-shell-v98-logo-um-quadrado
+(zip v29 = SW v98). Depois, janela anônima ou Ctrl+Shift+R.
+
+Conferência: https://emausplataforma.github.io/Emaus/
+deve mostrar Bethesda + uma única logo, sem quadrado dourado ao lado.
