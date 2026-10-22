@@ -70,7 +70,73 @@ function esc(value = '') {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
 function initials(name = '') {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'B';
+  return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+}
+
+function churchSlugFromUrl() {
+  try {
+    const query = new URLSearchParams(window.location.search || '');
+    return String(query.get('igreja') || query.get('church') || '').trim().toLowerCase();
+  } catch (error) {
+    return '';
+  }
+}
+
+function prettyChurchName(value) {
+  return String(value || '').replace(/[-_]+/g, ' ').trim().replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function isGenericChurchName(name) {
+  return !String(name || '').trim() || /^igreja$/i.test(String(name).trim());
+}
+
+function applyChurchRecord(church) {
+  if (!church) return;
+  const name = String(church.name || '').trim();
+  const settings = church.publicSettings || church.public_settings || {};
+  const current = getChurch() || {};
+  state.activeChurchId = church.id || state.activeChurchId;
+  state.churches = [{
+    id: church.id || current.id || 'local',
+    name,
+    slug: church.slug || churchSlugFromUrl(),
+    city: church.city || current.city || '',
+    initials: initials(name),
+    logoSymbol: String(settings.logoSymbol || initials(name) || '').trim().slice(0, 2),
+    logoImage: church.logo_url || church.logoImage || '',
+    pastors: church.pastors || current.pastors || ''
+  }];
+}
+
+function applySlugPlaceholder() {
+  const slug = churchSlugFromUrl();
+  const current = getChurch() || {};
+  if (!slug || (current.name && !isGenericChurchName(current.name))) return;
+  const pretty = prettyChurchName(slug);
+  if (!pretty) return;
+  state.churches = [{
+    id: current.id || 'local',
+    name: pretty,
+    slug,
+    city: current.city || '',
+    initials: initials(pretty),
+    logoSymbol: initials(pretty).slice(0, 2),
+    logoImage: current.logoImage || '',
+    pastors: current.pastors || ''
+  }];
+}
+
+async function loadPublicChurchIdentity() {
+  const slug = churchSlugFromUrl();
+  if (!slug || !API_BASE) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/public/church?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' });
+    const payload = await response.json();
+    if (!response.ok || !payload.church) return;
+    applyChurchRecord(payload.church);
+  } catch (error) {
+    console.info('Não foi possível carregar a identidade pública da igreja.', error);
+  }
 }
 
 function uniqueNames(names) {
@@ -192,11 +258,20 @@ function renderChurchIdentity() {
   document.querySelector('#churchCity').textContent = `${church.city || 'Sua cidade'} · área de acolhimento`;
   document.title = `Recepção · ${church.name || 'Igreja'}`;
   // Salva a identidade para o splash das proximas aberturas (logo desta igreja).
+  // Nao grava o rotulo generico "Igreja": isso cobria o slug e apagava o logo.
   try {
-    const logoSource = church.logoImage || '';
-    localStorage.setItem('emaus-church-splash-v1', JSON.stringify({ name: church.name || '', logo: logoSource && !/^(data:|https?:|\/|\.)/i.test(logoSource) ? `./${logoSource}` : logoSource, at: Date.now() }));
+    const splashName = String(church.name || '').trim();
+    if (splashName && !isGenericChurchName(splashName)) {
+      const logoSource = church.logoImage || '';
+      localStorage.setItem('emaus-church-splash-v1', JSON.stringify({
+        name: splashName,
+        logo: logoSource && !/^(data:|https?:|\/|\.)/i.test(logoSource) ? `./${logoSource}` : logoSource,
+        slug: church.slug || churchSlugFromUrl() || '',
+        at: Date.now()
+      }));
+    }
   } catch (error) {}
-  const fallbackSymbol = church.logoSymbol || initials(church.name);
+  const fallbackSymbol = church.logoSymbol || initials(church.name) || 'I';
   if (church.logoImage) {
     const nestedReceptionPage = /\/recepcao(?:\/|\/index\.html$)/i.test(window.location.pathname);
     const assetPrefix = nestedReceptionPage ? '../' : './';
@@ -300,6 +375,8 @@ async function handleVisitorSubmit(event) {
 }
 
 async function init() {
+  applySlugPlaceholder();
+  await loadPublicChurchIdentity();
   renderChurchIdentity();
   document.querySelector('#loginForm').addEventListener('submit', handleLogin);
   document.querySelector('#visitorForm').addEventListener('submit', handleVisitorSubmit);

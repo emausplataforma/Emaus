@@ -23,7 +23,7 @@
 <script>
 (function(){
   const base=String(window.EMAUS_API_URL||'https://emaus-production-2de0.up.railway.app').replace(/\/$/,'');
-  const slug=(new URLSearchParams(location.search).get('igreja')||'bethesda').trim().toLowerCase();
+  const slug=(new URLSearchParams(location.search).get('igreja')||'').trim().toLowerCase();
   const name=document.getElementById('churchName'), brandLabel=document.getElementById('churchBrandLabel'), mark=document.getElementById('churchMark'), form=document.getElementById('visitorForm'), message=document.getElementById('message'), button=form.querySelector('button');
   function show(text,kind){message.hidden=false;message.className='message '+kind;message.textContent=text}
   function initialsOf(value){return String(value||'').split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase()}

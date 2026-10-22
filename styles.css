@@ -71,7 +71,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand-row { display: flex; align-items: center; justify-content: center; gap: 11px; padding: 0 10px 25px; position: relative; }
 .brand-mark { position: relative; width: 37px; height: 37px; border-radius: 12px; display: grid; place-items: center; background: var(--marca, var(--gold)); color: var(--on-accent); font-family: var(--font-display); font-size: 23px; font-weight: 700; box-shadow: 0 5px 20px rgba(215,168,75,.22); }
 .brand-mark:after { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(20,20,20,.3); border-radius: 9px; pointer-events: none; }
-.brand-mark img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.brand-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #1a1814; }
 .brand-copy { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-kicker { color: #a4a29d; font-size: 8px; letter-spacing: .16em; font-weight: 700; margin-bottom: 4px; }
 .brand-copy strong { font-family: var(--font-display); font-size: 22px; letter-spacing: -.02em; font-weight: 600; }
@@ -121,7 +121,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .topbar-church { gap: 10px; margin: 0; padding: 5px 12px 5px 6px; border: 1px solid #e8e2d7; border-radius: 12px; background: rgba(255,255,255,.46); position: absolute; left: 50%; transform: translateX(-50%); }
 .topbar-church-mark { position: relative; width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px; background: var(--marca, var(--gold)); color: var(--on-accent); font-family: var(--font-display); font-size: 18px; font-weight: 700; }
 .topbar-church-mark:after { content: ""; position: absolute; inset: 3px; border: 1px solid rgba(20,20,20,.3); border-radius: 7px; pointer-events: none; }
-.topbar-church-mark img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.topbar-church-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #1a1814; }
 .topbar-church-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1; }
 .topbar-church-copy small { color: var(--muted-2); font-size: 7px; font-weight: 850; letter-spacing: .13em; }
 .topbar-church-copy strong { max-width: 130px; overflow: hidden; color: var(--ink); font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
@@ -896,7 +896,8 @@ tbody tr:hover td { background: var(--soft-flat-2); }
 .church-login-view { min-height:100vh; display:grid; place-items:center; padding:28px 16px; background:radial-gradient(circle at 80% -10%, rgba(215,168,75,.18), transparent 36%), #f8f5ef; }
 .church-login-card { width:min(100%, 430px); padding:34px; border:1px solid #e9e1d5; border-radius:24px; background:#fffdf9; box-shadow:0 24px 80px rgba(71,54,30,.12); }
 .church-login-brand { display:flex; align-items:center; gap:11px; margin-bottom:30px; }
-.church-login-brand img { width:43px; height:43px; object-fit:contain; border-radius:13px; }
+.church-login-mark { width:43px; height:43px; display:grid; place-items:center; flex:0 0 auto; overflow:hidden; border-radius:13px; color:#211a10; background:linear-gradient(135deg,#e8c477,#b86f45); font:700 22px Georgia,serif; }
+.church-login-brand img { width:43px; height:43px; object-fit:contain; border-radius:13px; background:#1a1814; }
 .church-login-brand strong { display:block; color:#27231e; font-family:Georgia,serif; font-size:22px; font-weight:500; }
 .church-login-brand span { display:block; margin-top:2px; color:#9b9082; font-size:10px; }
 .church-login-card h1 { margin:8px 0 8px; color:#27231e; font-family:Georgia,serif; font-size:29px; font-weight:500; letter-spacing:-.03em; }

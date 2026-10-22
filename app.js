@@ -328,6 +328,8 @@ async function handleChurchLogin(event) {
 }
 
 async function bootstrapChurchAuth() {
+  applyCachedChurchIdentity();
+  await loadPublicChurchIdentity();
   showChurchLogin();
   $('#churchLoginForm')?.addEventListener('submit', handleChurchLogin);
   const token = sessionStorage.getItem(CHURCH_TOKEN_KEY);
@@ -541,24 +543,108 @@ function eventStatusClass(status) {
 function getActiveChurch() {
   return state.churches.find(church => church.id === state.activeChurchId) || state.churches[0];
 }
+function churchSlugFromUrl() {
+  try {
+    const query = new URLSearchParams(window.location.search || '');
+    return String(query.get('igreja') || query.get('church') || '').trim().toLowerCase();
+  } catch (error) {
+    return '';
+  }
+}
+function resolveChurchLogo(value) {
+  const source = String(value || '').trim();
+  if (!source) return '';
+  return /^(data:|https?:|\/|\.)/i.test(source) ? source : `./${source.replace(/^\.\//, '')}`;
+}
+function prettyChurchName(value) {
+  return String(value || '').replace(/[-_]+/g, ' ').trim().replace(/\b\w/g, char => char.toUpperCase());
+}
+function isGenericChurchName(name) {
+  return !String(name || '').trim() || /^igreja$/i.test(String(name).trim());
+}
+function applyCachedChurchIdentity() {
+  if (churchSlugFromUrl()) return;
+  const current = getActiveChurch() || {};
+  if (current.name && !isGenericChurchName(current.name) && current.logoImage) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem('emaus-church-splash-v1') || 'null');
+    if (!saved || typeof saved !== 'object' || isGenericChurchName(saved.name)) return;
+    state.churches = [{
+      ...current,
+      name: saved.name,
+      slug: saved.slug || current.slug || '',
+      initials: initials(saved.name),
+      logoSymbol: initials(saved.name).slice(0, 2),
+      logoImage: saved.logo || current.logoImage || ''
+    }];
+  } catch (error) {}
+}
+async function loadPublicChurchIdentity() {
+  const slug = churchSlugFromUrl();
+  if (!slug || !API_BASE) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/public/church?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' });
+    const payload = await response.json();
+    const church = payload && payload.church;
+    if (!response.ok || !church) return;
+    const local = getActiveChurch() || {};
+    const settings = church.publicSettings || church.public_settings || {};
+    state.activeChurchId = church.id || state.activeChurchId;
+    state.churches = [{
+      ...local,
+      id: church.id || local.id,
+      name: church.name || local.name,
+      slug: church.slug || slug,
+      city: church.city || local.city || '',
+      initials: initials(church.name || local.name),
+      logoSymbol: settings.logoSymbol || initials(church.name || local.name).slice(0, 2),
+      logoImage: church.logo_url || local.logoImage || '',
+      pastors: church.pastors || local.pastors || '',
+      description: church.description || local.description || '',
+      publicSettings: { ...(local.publicSettings || {}), ...settings }
+    }];
+  } catch (error) {
+    console.info('Não foi possível carregar a identidade pública da igreja.', error);
+  }
+}
 function updateChurchEntryIdentity(church = getActiveChurch()) {
-  const name = church?.name || 'Igreja';
+  const name = church?.name || prettyChurchName(churchSlugFromUrl()) || 'Igreja';
   const logo = church?.logoImage || '';
+  const resolved = resolveChurchLogo(logo);
+  const symbol = String(church?.logoSymbol || initials(name) || prettyChurchName(churchSlugFromUrl()).charAt(0) || 'I').trim().slice(0, 2).toUpperCase();
   const loginName = $('#churchLoginName');
   const loginLogo = $('#churchLoginLogo');
+  const loginMark = $('#churchLoginMark');
   if (loginName) loginName.textContent = name;
+  if (loginMark) {
+    loginMark.textContent = symbol;
+    loginMark.hidden = Boolean(resolved);
+  }
   if (loginLogo) {
-    const resolved = logo ? (/^(data:|https?:|\/|\.)/i.test(logo) ? logo : `./${logo}`) : '';
-    if (resolved) { loginLogo.src = resolved; loginLogo.hidden = false; }
-    else { loginLogo.removeAttribute('src'); loginLogo.hidden = true; }
+    if (resolved) {
+      loginLogo.onerror = () => {
+        loginLogo.hidden = true;
+        loginLogo.removeAttribute('src');
+        if (loginMark) loginMark.hidden = false;
+      };
+      loginLogo.src = resolved;
+      loginLogo.hidden = false;
+    } else {
+      loginLogo.removeAttribute('src');
+      loginLogo.hidden = true;
+    }
     loginLogo.alt = `Logo da ${name}`;
   }
   document.title = `${name} · Área da igreja`;
   // Identidade gravada para o proximo abrir: o splash entao mostra o logo desta
   // igreja (e nao de uma igreja especifica embutida no arquivo).
+  // Nao grava o rotulo generico "Igreja": isso cobria o slug e apagava o logo.
   try {
-    const shared = { name, logo: logo ? (/^(data:|https?:|\/|\.)/i.test(logo) ? logo : `./${logo}`) : '', at: Date.now() };
-    localStorage.setItem('emaus-church-splash-v1', JSON.stringify(shared));
+    const splashName = String(church?.name || '').trim();
+    if (splashName && !isGenericChurchName(splashName)) {
+      const shared = { name: splashName, logo: resolved, slug: church?.slug || churchSlugFromUrl() || '', at: Date.now() };
+      localStorage.setItem('emaus-church-splash-v1', JSON.stringify(shared));
+    }
   } catch (error) {}
 }
 function isPlatformAdmin() {
@@ -801,10 +887,23 @@ function applyPalette(key) {
 function updateLogoMark(textId, imageId, church) {
   const text = document.getElementById(textId);
   const image = document.getElementById(imageId);
-  if (text) { text.textContent = churchLogoText(church); text.hidden = Boolean(church?.logoImage); }
+  const resolved = resolveChurchLogo(church?.logoImage);
+  const symbol = churchLogoText(church);
+  if (text) { text.textContent = symbol; text.hidden = Boolean(resolved); }
   if (image) {
-    image.hidden = !church?.logoImage;
-    if (church?.logoImage) { image.src = church.logoImage; image.alt = `${church.name} — logo`; }
+    if (resolved) {
+      image.onerror = () => {
+        image.hidden = true;
+        image.removeAttribute('src');
+        if (text) { text.hidden = false; text.textContent = symbol; }
+      };
+      image.src = resolved;
+      image.hidden = false;
+      image.alt = `${church?.name || 'Igreja'} — logo`;
+    } else {
+      image.hidden = true;
+      image.removeAttribute('src');
+    }
   }
 }
 function visitorCountByStatus(status) {
@@ -1601,7 +1700,7 @@ function closeModal() {
 
 function updateLogoPreview() {
   const church = getActiveChurch();
-  const symbol = ($('#churchLogoSymbol')?.value || churchLogoText(church)).trim().slice(0, 2).toUpperCase() || 'B';
+  const symbol = ($('#churchLogoSymbol')?.value || churchLogoText(church)).trim().slice(0, 2).toUpperCase() || 'I';
   const text = $('#settingsLogoSymbol');
   const image = $('#settingsLogoImage');
   const source = pendingLogoImage !== null ? pendingLogoImage : (church?.logoImage || '');

@@ -1,6 +1,6 @@
 const API_BASE = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
 const query = new URLSearchParams(window.location.search);
-const slug = (query.get('igreja') || query.get('church') || 'bethesda').trim().toLowerCase();
+const slug = (query.get('igreja') || query.get('church') || '').trim().toLowerCase();
 
 function esc(value = '') {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
@@ -181,6 +181,7 @@ function renderPage(payload) {
   setText('footerYear', String(new Date().getFullYear()));
 }
 async function init() {
+  if (!slug) return showError('Página pública', 'Informe a igreja no endereço.');
   if (!API_BASE) return showError('Página pública', 'A URL da API da plataforma ainda não foi configurada.');
   try {
     const response = await fetch(`${API_BASE}/api/public/church?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' });

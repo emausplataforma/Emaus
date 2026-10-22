@@ -1076,7 +1076,8 @@ app.post('/api/admin/expenses', auth(['platform_admin']), async (req, res) => {
 });
 
 app.get('/api/public/church', async (req, res) => {
-  const requestedSlug = String(req.query.slug || 'bethesda').trim().toLowerCase();
+  const requestedSlug = String(req.query.slug || '').trim().toLowerCase();
+  if (!requestedSlug) return res.status(400).json({ error: 'Informe a igreja.' });
   const result = await query("SELECT id, name, slug, city, phone, pastors, description, logo_url, public_settings, status FROM churches WHERE slug = $1 AND status IN ('active', 'trial')", [requestedSlug]);
   const church = result.rows[0];
   if (!church) return res.status(404).json({ error: 'Igreja não encontrada.' });

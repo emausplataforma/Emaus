@@ -7,7 +7,7 @@
   <meta name="description" content="Área da igreja: acolhimento, membros, visitantes e agenda." />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="splash.css?v=1" />
-  <link rel="stylesheet" href="styles.css?v=63" />
+  <link rel="stylesheet" href="styles.css?v=64" />
   <title>Área da igreja</title>
 </head>
 <body>
@@ -16,7 +16,7 @@
       <div class="splash-halo" aria-hidden="true"></div>
       <div class="splash-logo-wrap">
         <img id="splashLogo" class="splash-logo" alt="Logo da igreja" hidden>
-        <span id="splashLogoText" class="splash-logo-text" hidden>E</span>
+        <span id="splashLogoText" class="splash-logo-text" hidden>I</span>
       </div>
       <span id="splashKicker" class="splash-kicker">Área da igreja</span>
       <strong class="splash-title">Seja bem-vindo</strong>
@@ -26,13 +26,13 @@
 
   <section class="church-login-view" id="churchLoginView">
     <div class="church-login-card">
-      <div class="church-login-brand"><img id="churchLoginLogo" alt="Logo da igreja" hidden><div><strong id="churchLoginName">Igreja</strong><span>Área da igreja</span></div></div>
+      <div class="church-login-brand"><span class="church-login-mark" id="churchLoginMark">I</span><img id="churchLoginLogo" alt="Logo da igreja" hidden><div><strong id="churchLoginName">Igreja</strong><span>Área da igreja</span></div></div>
       <span class="eyebrow">ACESSO PROTEGIDO</span>
       <h1>Entrar na área da igreja</h1>
       <p>Use o acesso do pastor, administrador local ou recepção autorizada para acompanhar o acolhimento e a vida da igreja.</p>
       <form id="churchLoginForm">
         <label for="churchLoginEmail">E-mail</label>
-        <input id="churchLoginEmail" name="email" type="email" autocomplete="username" placeholder="evandro@bethesda.com.br" required>
+        <input id="churchLoginEmail" name="email" type="email" autocomplete="username" placeholder="pastor@igreja.com.br" required>
         <label for="churchLoginPassword">Senha</label>
         <input id="churchLoginPassword" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
         <button class="church-login-button" type="submit">Entrar na área da igreja</button>
@@ -84,7 +84,7 @@
   <div class="app-shell is-hidden" id="appShell">
     <aside class="sidebar" id="sidebar">
       <div class="brand-row">
-        <div class="brand-mark" id="sidebarLogoMark"><span id="sidebarLogoSymbol">B</span><img id="sidebarLogoImage" alt="" hidden></div>
+        <div class="brand-mark" id="sidebarLogoMark"><span id="sidebarLogoSymbol">I</span><img id="sidebarLogoImage" alt="" hidden></div>
         <div class="brand-copy">
           <span class="brand-kicker">IGREJA</span>
           <strong id="sidebarBrandName">Igreja</strong>
@@ -93,7 +93,7 @@
       </div>
 
       <button class="church-switcher" id="churchSwitcher" aria-label="Trocar igreja">
-        <span class="church-avatar" id="sidebarChurchSymbol">BT</span>
+        <span class="church-avatar" id="sidebarChurchSymbol">I</span>
         <span class="church-switcher-copy"><small>Igreja ativa</small><strong id="activeChurchName">Igreja</strong></span>
         <svg class="icon icon-muted"><use href="#icon-chevron-down"></use></svg>
       </button>
@@ -138,7 +138,7 @@
           <div class="breadcrumb"><strong id="breadcrumbCurrent">Início</strong></div>
         </div>
         <div class="topbar-church" aria-label="Igreja ativa">
-          <span class="topbar-church-mark" id="topbarChurchMark"><span id="topbarLogoSymbol">B</span><img id="topbarLogoImage" alt="" hidden></span>
+          <span class="topbar-church-mark" id="topbarChurchMark"><span id="topbarLogoSymbol">I</span><img id="topbarLogoImage" alt="" hidden></span>
           <span class="topbar-church-copy"><small>IGREJA</small><strong id="topbarChurchName">Igreja</strong></span>
         </div>
         <div class="topbar-actions">
@@ -157,15 +157,15 @@
 
   <div class="modal-backdrop hidden" id="modalBackdrop">
     <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-header"><div><span class="eyebrow" id="modalEyebrow">BETHESDA</span><h2 id="modalTitle">Novo cadastro</h2></div><button class="icon-btn" id="modalClose" aria-label="Fechar"><svg class="icon"><use href="#icon-x"></use></svg></button></div>
+      <div class="modal-header"><div><span class="eyebrow" id="modalEyebrow">IGREJA</span><h2 id="modalTitle">Novo cadastro</h2></div><button class="icon-btn" id="modalClose" aria-label="Fechar"><svg class="icon"><use href="#icon-x"></use></svg></button></div>
       <div id="modalBody"></div>
     </section>
   </div>
 
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-  <script src="splash.js"></script>
-  <script src="api-config.js?v=58"></script>
-  <script src="app.js?v=69"></script>
+  <script src="api-config.js?v=61"></script>
+  <script src="splash.js?v=62"></script>
+  <script src="app.js?v=71"></script>
 </body>
 </html>

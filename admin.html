@@ -9,10 +9,22 @@
   <link rel="icon" type="image/png" href="emaus-favicon.png?v=26">
   <link rel="apple-touch-icon" href="emaus-favicon.png?v=26">
   <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="splash.css?v=1">
   <link rel="stylesheet" href="admin.css?v=63">
   <title>Administrador · Emaús</title>
 </head>
 <body>
+  <section id="emausSplash" role="status" aria-label="Abrindo o administrador da Emaús">
+    <div class="splash-inner">
+      <div class="splash-halo" aria-hidden="true"></div>
+      <div class="splash-logo-wrap">
+        <img class="splash-logo" src="emaus-admin-logo.png" alt="Logo da Emaús">
+      </div>
+      <span class="splash-kicker">Emaús</span>
+      <strong class="splash-title">Administrador</strong>
+      <p class="splash-subtitle">Controle central das igrejas na plataforma.</p>
+    </div>
+  </section>
   <section class="admin-auth" id="adminLoginView">
     <div class="auth-card">
       <div class="auth-brand">
@@ -64,5 +76,15 @@
   <div class="toast hidden" id="adminToast"></div>
   <script src="api-config.js"></script>
   <script src="admin.js?v=62"></script>
+  <script>
+    (function () {
+      const splash = document.getElementById('emausSplash');
+      if (!splash) return;
+      window.setTimeout(function () {
+        splash.classList.add('is-leaving');
+        window.setTimeout(function () { splash.remove(); }, 650);
+      }, 4000);
+    })();
+  </script>
 </body>
 </html>
