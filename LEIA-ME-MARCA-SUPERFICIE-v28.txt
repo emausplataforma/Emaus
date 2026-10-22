@@ -1,0 +1,52 @@
+Emaús — marca por superfície (v28)
+
+Regra
+-----
+- Área do pastor e recepção: sempre a logo da igreja que está logando
+  (a do endereço ?igreja=… e, depois de entrar, a do cadastro dela).
+- Administrador: sempre a logo da Emaús.
+- Cadastro/pagamento do cliente (pagamento.html): sempre a logo da Emaús.
+
+O que mudou
+-----------
+Painel do pastor
+- O login mostra a logo da igreja (ou as iniciais dela se a imagem falhar).
+- Barra lateral e topo passam a resolver o arquivo da logo (./bethesda-logo.png)
+  e não ficam mais com a letra B de outra marca no HTML.
+- Sem ?igreja= na URL, usa o último splash válido daquela igreja no navegador
+  até o login trazer o cadastro certo.
+
+Recepção
+- Continua buscando a igreja pública pelo slug, como no v27.
+
+Administrador
+- Cartão de espera próprio, com emaus-admin-logo.png. Não usa splash.js da igreja.
+
+Pagamento / assinatura
+- Troca o “E” solto pela logo da Emaús.
+- Não assume mais Bethesda quando o endereço não traz a igreja.
+
+Como publicar
+-------------
+GitHub Pages, substitua:
+
+- index.html
+- app.js
+- styles.css
+- recepcao.html
+- splash.js
+- admin.html
+- pagamento.html
+- service-worker.js
+
+(reception.js, publica.html, publica.js, visita.html e server.js
+já vão no zip; republicar juntos evita arquivo velho no ar.)
+
+Service worker: emaus-shell-v97-marca-por-superficie
+(zip v28 = SW v97). Depois de publicar, Ctrl+Shift+R ou janela anônima.
+
+Conferência
+-----------
+node teste-marca-superficie.js
+node teste-identidade-login-recepcao.js
+node teste-recepcao-cadastro.js

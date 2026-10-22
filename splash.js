@@ -13,15 +13,25 @@
     if (!source) return '';
     return /^(data:|https?:|\/|\.)/i.test(source) ? source : `./${source}`;
   };
+  const isGenericName = name => !String(name || '').trim() || /^igreja$/i.test(String(name).trim());
   const symbolFor = name => {
     const parts = String(name || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
-    return (parts.slice(0, 2).map(part => part[0] || '').join('') || 'I').toUpperCase();
+    return (parts.slice(0, 2).map(part => part[0] || '').join('') || pretty(slugFromUrl).charAt(0) || 'I').toUpperCase();
   };
 
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('emaus-church-splash-v1') || 'null'); } catch (error) { saved = null; }
   const fresh = saved && Date.now() - Number(saved.at || 0) < 1000 * 60 * 60 * 24 * 30 ? saved : null;
-  const church = { name: (fresh && fresh.name) || (slugFromUrl.length > 2 ? pretty(slugFromUrl) : ''), logoImage: (fresh && fresh.logo) || '' };
+  const cacheMatches = Boolean(
+    fresh &&
+    !isGenericName(fresh.name) &&
+    (!slugFromUrl || !fresh.slug || String(fresh.slug).toLowerCase() === slugFromUrl)
+  );
+  const church = {
+    name: (cacheMatches && fresh.name) || (slugFromUrl.length > 1 ? pretty(slugFromUrl) : ''),
+    logoImage: (cacheMatches && fresh.logo) || '',
+    slug: slugFromUrl || (cacheMatches && fresh.slug) || ''
+  };
 
   const logo = document.querySelector('#splashLogo');
   const logoText = document.querySelector('#splashLogoText');
@@ -50,23 +60,36 @@
   }
   apply();
 
-  // Quem abriu a pagina sem login (visitante) ainda nao tem identidade salva: busca
-  // a identidade dessa igreja no proprio endereco (?igreja=<slug>) para o logo ja
-  // aparecer no cartao de espera. Se a rede demorar, o cartao sai no tempo mesmo.
-  if (!church.logoImage && slugFromUrl) {
+  function persist() {
+    if (isGenericName(church.name)) return;
+    try {
+      localStorage.setItem('emaus-church-splash-v1', JSON.stringify({
+        name: church.name || '',
+        logo: resolveLogo(church.logoImage),
+        slug: church.slug || slugFromUrl || '',
+        at: Date.now()
+      }));
+    } catch (error) {}
+  }
+
+  // Quem abriu a pagina ainda sem login precisa da identidade publica desta igreja
+  // (?igreja=<slug>). O cache "Igreja" de aberturas antigas e ignorado. A API so
+  // e consultada depois de api-config.js ter definido EMAUS_API_URL.
+  if (slugFromUrl) {
     const api = String(window.EMAUS_API_URL || '').replace(/\/$/, '');
     if (api && typeof fetch === 'function') {
-      const wait = new Promise(resolve => window.setTimeout(() => resolve(null), 2500));
-      const request = fetch(`${api}/api/public/church?slug=${encodeURIComponent(slugFromUrl)}`, { cache: 'no-store' })
-        .then(response => (response.ok ? response.json() : null)).catch(() => null);
-      Promise.race([request, wait]).then(payload => {
-        const found = payload && payload.church;
-        if (!found) return;
-        church.name = found.name || church.name;
-        church.logoImage = found.logo_url || '';
-        apply();
-        try { localStorage.setItem('emaus-church-splash-v1', JSON.stringify({ name: church.name || '', logo: resolveLogo(found.logo_url), at: Date.now() })); } catch (error) {}
-      });
+      fetch(`${api}/api/public/church?slug=${encodeURIComponent(slugFromUrl)}`, { cache: 'no-store' })
+        .then(response => (response.ok ? response.json() : null))
+        .then(payload => {
+          const found = payload && payload.church;
+          if (!found) return;
+          church.name = found.name || church.name;
+          church.logoImage = found.logo_url || church.logoImage;
+          church.slug = found.slug || slugFromUrl;
+          apply();
+          persist();
+        })
+        .catch(() => {});
     }
   }
 
@@ -86,7 +109,9 @@
       if (!next) return;
       church.name = next.name || church.name;
       church.logoImage = next.logo || church.logoImage;
+      if (next.slug) church.slug = next.slug;
       apply();
+      persist();
     },
     dismiss
   };
