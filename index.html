@@ -1,171 +1,1713 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#111111" />
-  <meta name="description" content="Área da igreja: acolhimento, membros, visitantes e agenda." />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="splash.css?v=1" />
-  <link rel="stylesheet" href="styles.css?v=65" />
-  <title>Área da igreja</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>MomoEquilibrio · Acompanhamento para canetas GLP-1</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0E7C66">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Montserrat:wght@400;500;600&family=Cormorant+Garamond:wght@400;500;600;700&family=Lato:wght@400;700&family=DM+Serif+Display&family=Jost:wght@400;500;600&family=Fraunces:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Bodoni+Moda:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.dataset.tema = localStorage.getItem("eq_tema") || "champagne";</script>
+<style>
+  :root {
+    --bg: #F5F7F6; --card: #FFFFFF; --ink: #14201D; --muted: #66786F;
+    --brand: #0E7C66; --brand-2: #0A5D4D; --brand-soft: #E7F4F0;
+    --line: #E3EBE8; --warn: #B45309; --warn-soft: #FEF3E2;
+    --danger: #B42318; --danger-soft: #FEE4E2; --ok-soft: #E7F6EE;
+    --radius: 16px; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 20px rgba(16,24,40,.06);
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: relative; color: #fff; padding: 22px 20px 26px;
+    background: linear-gradient(135deg, #12907A 0%, var(--brand-2) 100%);
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  header p { margin: 4px 0 0; color: #CFEFE6; font-size: 13.5px; max-width: 560px; }
+  .disc {
+    background: var(--warn-soft); color: #7A4A00; padding: 10px 20px;
+    font-size: 12.5px; line-height: 1.45; border-bottom: 1px solid #F5DDB1;
+  }
+
+  nav {
+    display: flex; gap: 6px; padding: 10px 20px; position: sticky; top: 0; z-index: 5;
+    background: rgba(255,255,255,.92); backdrop-filter: saturate(1.4) blur(10px);
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  nav button {
+    border: 0; background: transparent; color: var(--muted); padding: 8px 14px; border-radius: 999px;
+    cursor: pointer; font: inherit; font-weight: 600; font-size: 14px; white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  nav button:hover { color: var(--ink); background: #EEF4F2; }
+  nav button.on { background: var(--brand); color: #fff; }
+
+  main { padding: 20px 20px 72px; max-width: 1120px; margin: 0 auto; }
+  .tab { display: none; }
+  .tab.on { display: block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h2 { color: var(--ink); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin: 4px 0 12px; }
+  h3 { color: var(--ink); font-size: 15px; font-weight: 650; margin: 20px 0 8px; }
+  h4 { font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--card); border-radius: var(--radius); padding: 18px;
+    box-shadow: var(--shadow); border: 1px solid #EDF2F0;
+  }
+  .card .lbl { color: var(--muted); font-size: 12.5px; font-weight: 500; }
+  .card .val { font-size: 26px; font-weight: 700; color: var(--ink); margin-top: 4px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .card .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+
+  label { display: block; font-size: 13px; font-weight: 550; color: #3A4F48; margin-top: 14px; }
+  input, select, textarea {
+    width: 100%; padding: 11px 12px; margin-top: 6px; font: inherit; font-size: 16px;
+    color: var(--ink); background: #fff; border: 1px solid #D5E0DB; border-radius: 12px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--brand); box-shadow: 0 0 0 4px rgba(14,124,102,.14);
+  }
+  .checks label { display: inline-flex; align-items: center; gap: 8px; margin: 6px 16px 0 0; font-weight: 500; }
+  .checks input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand); }
+
+  button.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--brand); color: #fff; border: 0; padding: 11px 18px; border-radius: 12px;
+    cursor: pointer; font: inherit; font-weight: 600; font-size: 14.5px; margin: 6px 6px 6px 0;
+    transition: background .15s, transform .08s, box-shadow .15s;
+    box-shadow: 0 1px 2px rgba(14,124,102,.25);
+  }
+  button.btn:hover { background: var(--brand-2); }
+  button.btn:active { transform: scale(.98); }
+  button.btn:disabled { opacity: .6; cursor: default; }
+  button.btn.sec { background: var(--brand-soft); color: var(--brand-2); box-shadow: none; }
+  button.btn.sec:hover { background: #D5EDE6; }
+  button.btn.warn { background: var(--warn); box-shadow: none; }
+  button.btn:focus-visible, nav button:focus-visible { outline: 3px solid rgba(14,124,102,.35); outline-offset: 2px; }
+
+  .bar { height: 10px; background: #E9F1EE; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #2BB39A, var(--brand)); width: 0%; border-radius: 999px; transition: width .4s ease; }
+  .bar.over > div { background: linear-gradient(90deg, #F59E0B, var(--warn)); }
+
+  .alert, .ok {
+    padding: 12px 14px; border-radius: 12px; margin: 10px 0; font-size: 13.5px; line-height: 1.45;
+  }
+  .alert { background: var(--danger-soft); color: #7A1A12; }
+  .ok { background: var(--ok-soft); color: #145C3A; }
+
+  .recipe {
+    background: var(--card); border-radius: var(--radius); padding: 18px;
+    box-shadow: var(--shadow); border: 1px solid #EDF2F0; transition: transform .15s, box-shadow .15s;
+  }
+  .recipe:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(16,24,40,.05), 0 12px 28px rgba(16,24,40,.08); }
+  .recipe h4 { margin: 0 0 4px; color: var(--ink); font-size: 15.5px; font-weight: 650; }
+  .recipe ul { margin: 8px 0; padding-left: 18px; font-size: 13.5px; color: #3A4F48; }
+  .recipe small { color: var(--muted); }
+
+  .tag {
+    display: inline-block; font-size: 11.5px; font-weight: 600; background: #EEF4F2; color: var(--muted);
+    padding: 3px 9px; border-radius: 999px; margin: 3px 4px 3px 0;
+  }
+  .tag.rec { background: var(--brand); color: #fff; }
+
+  .muted { color: var(--muted); font-size: 13px; }
+
+  table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card); border-radius: 12px; overflow: hidden; font-size: 13.5px; box-shadow: var(--shadow); }
+  th { background: #F1F6F4; color: var(--muted); text-align: left; padding: 10px 12px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  td { padding: 10px 12px; border-top: 1px solid var(--line); }
+
+  .toast {
+    position: fixed; right: 16px; bottom: 16px; z-index: 20; display: none; max-width: 340px;
+    background: var(--ink); color: #fff; padding: 14px 16px; border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(16,24,40,.25); font-size: 14px;
+  }
+  .toast b { display: block; margin-bottom: 2px; color: #7FE0C4; }
+
+  @media (max-width: 720px) {
+    header { padding: 18px 16px 20px; }
+    header h1 { font-size: 20px; }
+    main { padding: 16px 14px 96px; }
+    nav {
+      position: fixed; top: auto; bottom: 0; left: 0; right: 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+      justify-content: space-around; border-bottom: 0; border-top: 1px solid var(--line); overflow: visible;
+    }
+    nav button { flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 12px; text-align: center; }
+    nav button.on { background: var(--brand-soft); color: var(--brand-2); }
+    nav button.on::before { content: ""; }
+    .toast { left: 12px; right: 12px; bottom: 84px; max-width: none; }
+    .card .val { font-size: 23px; }
+    h2 { font-size: 18px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* ===== refinamentos visuais ===== */
+  body { background: #F4F7F6; background-image: radial-gradient(1200px 500px at 10% -10%, #DDF3EC 0%, transparent 60%); background-attachment: fixed; }
+  header { padding: 26px 22px 30px; border-bottom-left-radius: 28px; border-bottom-right-radius: 28px; box-shadow: 0 10px 30px rgba(10,93,77,.18); }
+  .hd { display: flex; align-items: center; gap: 14px; max-width: 1120px; margin: 0 auto; }
+  .hd h1 { font-size: 24px; }
+  .hd p { font-size: 13.5px; }
+  .logo { width: 46px; height: 46px; flex: none; padding: 9px; border-radius: 14px; background: rgba(255,255,255,.16); color: #fff; }
+  .acoes { position: absolute; top: 14px; right: 16px; display: flex; gap: 8px; align-items: center; }
+  header .ghost { background: rgba(255,255,255,.18); color: #fff; box-shadow: none; }
+  .tema-sel { width: auto; margin: 0; padding: 7px 30px 7px 12px; font-size: 13px; border-radius: 999px; }
+  header .ghost:hover { background: rgba(255,255,255,.28); }
+  .disc { background: #FFF8E6; border-bottom: 0; color: #6B4A10; font-size: 12px; max-width: 1120px; margin: 14px auto 0; border-radius: 12px; padding: 10px 14px; }
+  nav { border-bottom: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; justify-content: center; padding: 14px 20px 4px; overflow: visible; }
+  nav button { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #E3EBE8; box-shadow: 0 1px 2px rgba(16,24,40,.04); padding: 9px 16px; }
+  nav button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  nav button:hover { background: #F1F7F5; }
+  nav button.on { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 6px 16px rgba(14,124,102,.28); }
+  main { padding-top: 22px; }
+  h2 { font-size: 22px; letter-spacing: -0.02em; }
+  .card { border-color: #E9F0ED; }
+  .card .val { font-size: 28px; }
+  input, select, textarea { background: #FBFDFC; }
+  button.btn { padding: 12px 20px; border-radius: 14px; }
+  button.btn.block { display: flex; width: 100%; margin: 14px 0 0; }
+  .tab.on { animation: fade .3s ease; }
+
+  /* tela de entrada */
+  .auth { position: fixed; inset: 0; z-index: 999; overflow: auto; padding: 20px; display: none; align-items: center; justify-content: center;
+    background: radial-gradient(900px 500px at 50% -10%, #CDEEE4 0%, #F4F7F6 60%); }
+  .auth-card { width: 100%; max-width: 400px; margin: auto; background: #fff; border-radius: 24px; padding: 30px 26px; box-shadow: 0 24px 60px rgba(10,93,77,.16); border: 1px solid #E9F0ED; }
+  .auth-logo { width: 60px; height: 60px; border-radius: 18px; background: linear-gradient(135deg,#12907A,#0A5D4D); color: #fff; display: grid; place-items: center; margin-bottom: 14px; }
+  .auth-logo .logo { width: 38px; height: 38px; padding: 0; background: none; }
+  .auth-card h2 { margin: 0 0 4px; }
+  .auth-card label { margin-top: 16px; }
+  .auth-alt { text-align: center; margin: 18px 0 0; }
+  .auth-alt a { color: var(--brand-2); font-weight: 600; text-decoration: none; }
+  .erro { color: var(--danger); min-height: 1.2em; font-size: 13.5px; margin: 10px 0 0; }
+
+  /* ajustes de mobile: barra inferior com ícones */
+  @media (max-width: 720px) {
+    header { padding: 20px 16px 24px; border-radius: 0 0 24px 24px; }
+    .acoes { top: 12px; right: 12px; } header .ghost { padding: 7px 12px; font-size: 13px; }
+    .hd h1 { font-size: 21px; }
+    .disc { margin: 12px 14px 0; font-size: 11.5px; }
+    nav { position: fixed; left: 12px; right: 12px; bottom: 12px; top: auto; padding: 6px; border-radius: 22px; background: rgba(255,255,255,.94);
+      backdrop-filter: saturate(1.5) blur(14px); -webkit-backdrop-filter: saturate(1.5) blur(14px); border: 1px solid #E3EBE8; box-shadow: 0 10px 30px rgba(16,24,40,.14);
+      justify-content: space-between; gap: 2px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+    nav button { flex: 1; flex-direction: column; gap: 3px; padding: 7px 2px; font-size: 11px; border-radius: 16px; border: 0; background: transparent; box-shadow: none; line-height: 1.1; }
+    nav button svg { width: 20px; height: 20px; }
+    nav button.on { background: var(--brand-soft); color: var(--brand-2); box-shadow: none; }
+    main { padding: 16px 14px 110px; }
+    .toast { bottom: 96px; }
+  }
+
+  /* ===== logo do app ===== */
+  .logo-img { width: 50px; height: 50px; border-radius: 14px; flex: none; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .logo-completo { display: block; width: 170px; height: auto; margin: 0 auto; border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(212,175,115,.25); }
+  html body .auth-logo.full { background: none !important; border: 0 !important; width: auto !important; height: auto !important; margin-bottom: 6px; }
+  @media (max-width: 720px) { .logo-img { width: 44px; height: 44px; } }
+
+  /* ===== temas visuais (escolha da cliente) ===== */
+  html:not([data-tema]), html[data-tema="noir"] { --bg:#0E0E10; --card:#2B2B30; --ink:#F5F2EA; --muted:#A9A7A0; --brand:#17B8AD; --brand-2:#2ED3C6; --brand-soft:#17B8AD22; --line:#3E3E45; --radius:6px; }
+  html:not([data-tema]) body, html[data-tema="noir"] body { background:#0E0E10; background-image:none; font-family:'Montserrat', system-ui, sans-serif; color:#F5F2EA; }
+  html:not([data-tema]) header, html[data-tema="noir"] header { background:#2B2B30; color:#F5F2EA; border-bottom:1px solid #17B8AD; box-shadow:none; border-radius:0; }
+  html:not([data-tema]) header h1, html[data-tema="noir"] header h1 { font-family:'Playfair Display', Georgia, serif; font-weight:500; text-transform:uppercase; letter-spacing:.16em; color:#F5F2EA; }
+  html:not([data-tema]) header p, html[data-tema="noir"] header p { text-transform:uppercase; letter-spacing:.25em; font-size:10.5px; color:#A9A7A0; }
+  html:not([data-tema]) .logo, html[data-tema="noir"] .logo { background:transparent; color:#17B8AD; border:1px solid currentColor; border-radius:50%; }
+  html:not([data-tema]) header .ghost, html[data-tema="noir"] header .ghost { background:transparent; color:#F5F2EA; border:1px solid #A9A7A0; box-shadow:none; text-transform:uppercase; letter-spacing:.12em; font-size:11px; }
+  html:not([data-tema]) .tema-sel, html[data-tema="noir"] .tema-sel { background:#2B2B30; color:#F5F2EA; border:1px solid #A9A7A0; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:600; }
+  html:not([data-tema]) .disc, html[data-tema="noir"] .disc { background:#232327; color:#A9A7A0; border:1px solid #3E3E45; }
+  html:not([data-tema]) nav button, html[data-tema="noir"] nav button { background:transparent; border:1px solid #3E3E45; color:#A9A7A0; text-transform:uppercase; letter-spacing:.12em; font-size:11.5px; border-radius:999px; box-shadow:none; }
+  html:not([data-tema]) nav button:hover, html[data-tema="noir"] nav button:hover { color:#F5F2EA; background:#232327; }
+  html:not([data-tema]) nav button.on, html[data-tema="noir"] nav button.on { background:#17B8AD; border-color:#17B8AD; color:#0E0E10; box-shadow:none; }
+  html:not([data-tema]) h2, html[data-tema="noir"] h2 { font-family:'Playfair Display', Georgia, serif; font-weight:500; text-transform:uppercase; letter-spacing:.16em; color:#F5F2EA; }
+  html:not([data-tema]) h3, html[data-tema="noir"] h3 { font-family:'Playfair Display', Georgia, serif; color:#17B8AD; text-transform:uppercase; letter-spacing:.12em; font-size:13px; }
+  html:not([data-tema]) .card, html:not([data-tema]) .recipe, html[data-tema="noir"] .card, html[data-tema="noir"] .recipe { background:#2B2B30; border:1px solid #3E3E45; box-shadow:none; }
+  html:not([data-tema]) .recipe:hover, html[data-tema="noir"] .recipe:hover { transform:none; border-color:#17B8AD; }
+  html:not([data-tema]) .recipe h4, html[data-tema="noir"] .recipe h4 { font-family:'Playfair Display', Georgia, serif; color:#F5F2EA; font-size:17px; }
+  html:not([data-tema]) .recipe ul, html[data-tema="noir"] .recipe ul { color:#A9A7A0; }
+  html:not([data-tema]) .card .lbl, html[data-tema="noir"] .card .lbl { text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:#A9A7A0; }
+  html:not([data-tema]) .card .val, html[data-tema="noir"] .card .val { font-family:'Playfair Display', Georgia, serif; font-weight:500; color:#F5F2EA; }
+  html:not([data-tema]) .card .sub, html:not([data-tema]) .muted, html[data-tema="noir"] .card .sub, html[data-tema="noir"] .muted { color:#A9A7A0; }
+  html:not([data-tema]) label, html[data-tema="noir"] label { color:#A9A7A0; font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; }
+  html:not([data-tema]) input, html:not([data-tema]) select, html:not([data-tema]) textarea, html[data-tema="noir"] input, html[data-tema="noir"] select, html[data-tema="noir"] textarea { background:#37373E; color:#F5F2EA; border:1px solid #3E3E45; border-radius:10px; }
+  html:not([data-tema]) input:focus, html:not([data-tema]) select:focus, html:not([data-tema]) textarea:focus, html[data-tema="noir"] input:focus, html[data-tema="noir"] select:focus, html[data-tema="noir"] textarea:focus { border-color:#17B8AD; box-shadow:0 0 0 3px #17B8AD22; }
+  html:not([data-tema]) select option, html[data-tema="noir"] select option { background:#2B2B30; color:#F5F2EA; }
+  html:not([data-tema]) button.btn, html[data-tema="noir"] button.btn { background:#17B8AD; color:#0E0E10; box-shadow:none; text-transform:uppercase; letter-spacing:.14em; font-size:11.5px; font-weight:600; border-radius:999px; }
+  html:not([data-tema]) button.btn:hover, html[data-tema="noir"] button.btn:hover { background:#2ED3C6; }
+  html:not([data-tema]) button.btn.sec, html[data-tema="noir"] button.btn.sec { background:transparent; color:#17B8AD; border:1px solid #17B8AD; }
+  html:not([data-tema]) button.btn.sec:hover, html[data-tema="noir"] button.btn.sec:hover { background:#17B8AD22; }
+  html:not([data-tema]) button.btn.warn, html[data-tema="noir"] button.btn.warn { background:#C97B3A; color:#fff; }
+  html:not([data-tema]) .bar, html[data-tema="noir"] .bar { background:#3E3E45; }
+  html:not([data-tema]) .bar > div, html[data-tema="noir"] .bar > div { background:#17B8AD; }
+  html:not([data-tema]) .bar.over > div, html[data-tema="noir"] .bar.over > div { background:#C97B3A; }
+  html:not([data-tema]) .alert, html[data-tema="noir"] .alert { background:#3A1F1F; color:#FFB4A8; border:1px solid #6B2E2E; }
+  html:not([data-tema]) .ok, html[data-tema="noir"] .ok { background:#13332F; color:#9FE8D9; border:1px solid #1F5A50; }
+  html:not([data-tema]) .tag, html[data-tema="noir"] .tag { background:transparent; border:1px solid #3E3E45; color:#A9A7A0; text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; }
+  html:not([data-tema]) .tag.rec, html[data-tema="noir"] .tag.rec { background:#17B8AD; color:#0E0E10; border-color:#17B8AD; }
+  html:not([data-tema]) table, html[data-tema="noir"] table { background:#2B2B30; box-shadow:none; border:1px solid #3E3E45; }
+  html:not([data-tema]) th, html[data-tema="noir"] th { background:#232327; color:#A9A7A0; }
+  html:not([data-tema]) td, html[data-tema="noir"] td { border-top:1px solid #3E3E45; color:#F5F2EA; }
+  html:not([data-tema]) .toast, html[data-tema="noir"] .toast { background:#232327; color:#F5F2EA; border:1px solid #17B8AD; box-shadow:none; }
+  html:not([data-tema]) .toast b, html[data-tema="noir"] .toast b { color:#17B8AD; }
+  html:not([data-tema]) .auth, html[data-tema="noir"] .auth { background:#0E0E10; }
+  html:not([data-tema]) .auth-card, html[data-tema="noir"] .auth-card { background:#2B2B30; border:1px solid #3E3E45; box-shadow:none; }
+  html:not([data-tema]) .auth-logo, html[data-tema="noir"] .auth-logo { background:transparent; color:#17B8AD; border:1px solid #17B8AD; }
+  html:not([data-tema]) .auth-alt a, html[data-tema="noir"] .auth-alt a { color:#17B8AD; }
+  html:not([data-tema]) .erro, html[data-tema="noir"] .erro { color:#FF8A7A; }
+  @media (max-width: 720px) {
+    html:not([data-tema]) nav, html[data-tema="noir"] nav { background:#2B2B30; border:1px solid #3E3E45; box-shadow:none; }
+    html:not([data-tema]) nav button, html[data-tema="noir"] nav button { border:0; }
+    html:not([data-tema]) nav button.on, html[data-tema="noir"] nav button.on { background:#17B8AD22; color:#17B8AD; }
+  }
+  html[data-tema="salvia"] { --bg:#141C19; --card:#1E2A26; --ink:#EFEBE1; --muted:#A8B5AC; --brand:#9CC5A1; --brand-2:#B9D9BC; --brand-soft:#9CC5A122; --line:#33443E; --radius:18px; }
+  html[data-tema="salvia"] body { background:#141C19; background-image:none; font-family:'Lato', system-ui, sans-serif; color:#EFEBE1; }
+  html[data-tema="salvia"] header { background:#1E2A26; color:#EFEBE1; border-bottom:1px solid #9CC5A1; box-shadow:none; border-radius:0; }
+  html[data-tema="salvia"] header h1 { font-family:'Cormorant Garamond', Georgia, serif; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:#EFEBE1; }
+  html[data-tema="salvia"] header p { text-transform:uppercase; letter-spacing:.25em; font-size:10.5px; color:#A8B5AC; }
+  html[data-tema="salvia"] .logo { background:transparent; color:#9CC5A1; border:1px solid currentColor; border-radius:50%; }
+  html[data-tema="salvia"] header .ghost { background:transparent; color:#EFEBE1; border:1px solid #A8B5AC; box-shadow:none; text-transform:uppercase; letter-spacing:.12em; font-size:11px; }
+  html[data-tema="salvia"] .tema-sel { background:#1E2A26; color:#EFEBE1; border:1px solid #A8B5AC; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:600; }
+  html[data-tema="salvia"] .disc { background:#18221F; color:#A8B5AC; border:1px solid #33443E; }
+  html[data-tema="salvia"] nav button { background:transparent; border:1px solid #33443E; color:#A8B5AC; text-transform:uppercase; letter-spacing:.12em; font-size:11.5px; border-radius:999px; box-shadow:none; }
+  html[data-tema="salvia"] nav button:hover { color:#EFEBE1; background:#18221F; }
+  html[data-tema="salvia"] nav button.on { background:#9CC5A1; border-color:#9CC5A1; color:#141C19; box-shadow:none; }
+  html[data-tema="salvia"] h2 { font-family:'Cormorant Garamond', Georgia, serif; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:#EFEBE1; }
+  html[data-tema="salvia"] h3 { font-family:'Cormorant Garamond', Georgia, serif; color:#9CC5A1; text-transform:uppercase; letter-spacing:.12em; font-size:13px; }
+  html[data-tema="salvia"] .card, html[data-tema="salvia"] .recipe { background:#1E2A26; border:1px solid #33443E; box-shadow:none; }
+  html[data-tema="salvia"] .recipe:hover { transform:none; border-color:#9CC5A1; }
+  html[data-tema="salvia"] .recipe h4 { font-family:'Cormorant Garamond', Georgia, serif; color:#EFEBE1; font-size:17px; }
+  html[data-tema="salvia"] .recipe ul { color:#A8B5AC; }
+  html[data-tema="salvia"] .card .lbl { text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:#A8B5AC; }
+  html[data-tema="salvia"] .card .val { font-family:'Cormorant Garamond', Georgia, serif; font-weight:600; color:#EFEBE1; }
+  html[data-tema="salvia"] .card .sub, html[data-tema="salvia"] .muted { color:#A8B5AC; }
+  html[data-tema="salvia"] label { color:#A8B5AC; font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; }
+  html[data-tema="salvia"] input, html[data-tema="salvia"] select, html[data-tema="salvia"] textarea { background:#24332E; color:#EFEBE1; border:1px solid #33443E; border-radius:10px; }
+  html[data-tema="salvia"] input:focus, html[data-tema="salvia"] select:focus, html[data-tema="salvia"] textarea:focus { border-color:#9CC5A1; box-shadow:0 0 0 3px #9CC5A122; }
+  html[data-tema="salvia"] select option { background:#1E2A26; color:#EFEBE1; }
+  html[data-tema="salvia"] button.btn { background:#9CC5A1; color:#141C19; box-shadow:none; text-transform:uppercase; letter-spacing:.14em; font-size:11.5px; font-weight:600; border-radius:999px; }
+  html[data-tema="salvia"] button.btn:hover { background:#B9D9BC; }
+  html[data-tema="salvia"] button.btn.sec { background:transparent; color:#9CC5A1; border:1px solid #9CC5A1; }
+  html[data-tema="salvia"] button.btn.sec:hover { background:#9CC5A122; }
+  html[data-tema="salvia"] button.btn.warn { background:#C9A063; color:#fff; }
+  html[data-tema="salvia"] .bar { background:#33443E; }
+  html[data-tema="salvia"] .bar > div { background:#9CC5A1; }
+  html[data-tema="salvia"] .bar.over > div { background:#C9A063; }
+  html[data-tema="salvia"] .alert { background:#3A2A1F; color:#F5C9A8; border:1px solid #6B4A2E; }
+  html[data-tema="salvia"] .ok { background:#1B3226; color:#B9E3C2; border:1px solid #2E5A41; }
+  html[data-tema="salvia"] .tag { background:transparent; border:1px solid #33443E; color:#A8B5AC; text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; }
+  html[data-tema="salvia"] .tag.rec { background:#9CC5A1; color:#141C19; border-color:#9CC5A1; }
+  html[data-tema="salvia"] table { background:#1E2A26; box-shadow:none; border:1px solid #33443E; }
+  html[data-tema="salvia"] th { background:#18221F; color:#A8B5AC; }
+  html[data-tema="salvia"] td { border-top:1px solid #33443E; color:#EFEBE1; }
+  html[data-tema="salvia"] .toast { background:#18221F; color:#EFEBE1; border:1px solid #9CC5A1; box-shadow:none; }
+  html[data-tema="salvia"] .toast b { color:#9CC5A1; }
+  html[data-tema="salvia"] .auth { background:#141C19; }
+  html[data-tema="salvia"] .auth-card { background:#1E2A26; border:1px solid #33443E; box-shadow:none; }
+  html[data-tema="salvia"] .auth-logo { background:transparent; color:#9CC5A1; border:1px solid #9CC5A1; }
+  html[data-tema="salvia"] .auth-alt a { color:#9CC5A1; }
+  html[data-tema="salvia"] .erro { color:#FF9A8A; }
+  @media (max-width: 720px) {
+    html[data-tema="salvia"] nav { background:#1E2A26; border:1px solid #33443E; box-shadow:none; }
+    html[data-tema="salvia"] nav button { border:0; }
+    html[data-tema="salvia"] nav button.on { background:#9CC5A122; color:#9CC5A1; }
+  }
+  html[data-tema="champagne"] { --bg:#15120F; --card:#26211B; --ink:#F7F0E3; --muted:#B3A893; --brand:#D4AF73; --brand-2:#E6C48E; --brand-soft:#D4AF7322; --line:#463C2E; --radius:4px; }
+  html[data-tema="champagne"] body { background:#15120F; background-image:none; font-family:'Jost', system-ui, sans-serif; color:#F7F0E3; }
+  html[data-tema="champagne"] header { background:#26211B; color:#F7F0E3; border-bottom:1px solid #D4AF73; box-shadow:none; border-radius:0; }
+  html[data-tema="champagne"] header h1 { font-family:'DM Serif Display', Georgia, serif; font-weight:400; text-transform:uppercase; letter-spacing:.08em; color:#F7F0E3; }
+  html[data-tema="champagne"] header p { text-transform:uppercase; letter-spacing:.25em; font-size:10.5px; color:#B3A893; }
+  html[data-tema="champagne"] .logo { background:transparent; color:#D4AF73; border:1px solid currentColor; border-radius:50%; }
+  html[data-tema="champagne"] header .ghost { background:transparent; color:#F7F0E3; border:1px solid #B3A893; box-shadow:none; text-transform:uppercase; letter-spacing:.12em; font-size:11px; }
+  html[data-tema="champagne"] .tema-sel { background:#26211B; color:#F7F0E3; border:1px solid #B3A893; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:600; }
+  html[data-tema="champagne"] .disc { background:#1E1A16; color:#B3A893; border:1px solid #463C2E; }
+  html[data-tema="champagne"] nav button { background:transparent; border:1px solid #463C2E; color:#B3A893; text-transform:uppercase; letter-spacing:.12em; font-size:11.5px; border-radius:2px; box-shadow:none; }
+  html[data-tema="champagne"] nav button:hover { color:#F7F0E3; background:#1E1A16; }
+  html[data-tema="champagne"] nav button.on { background:#D4AF73; border-color:#D4AF73; color:#15120F; box-shadow:none; }
+  html[data-tema="champagne"] h2 { font-family:'DM Serif Display', Georgia, serif; font-weight:400; text-transform:uppercase; letter-spacing:.08em; color:#F7F0E3; }
+  html[data-tema="champagne"] h3 { font-family:'DM Serif Display', Georgia, serif; color:#D4AF73; text-transform:uppercase; letter-spacing:.12em; font-size:13px; }
+  html[data-tema="champagne"] .card, html[data-tema="champagne"] .recipe { background:#26211B; border:1px solid #463C2E; box-shadow:none; }
+  html[data-tema="champagne"] .recipe:hover { transform:none; border-color:#D4AF73; }
+  html[data-tema="champagne"] .recipe h4 { font-family:'DM Serif Display', Georgia, serif; color:#F7F0E3; font-size:17px; }
+  html[data-tema="champagne"] .recipe ul { color:#B3A893; }
+  html[data-tema="champagne"] .card .lbl { text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:#B3A893; }
+  html[data-tema="champagne"] .card .val { font-family:'DM Serif Display', Georgia, serif; font-weight:400; color:#F7F0E3; }
+  html[data-tema="champagne"] .card .sub, html[data-tema="champagne"] .muted { color:#B3A893; }
+  html[data-tema="champagne"] label { color:#B3A893; font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; }
+  html[data-tema="champagne"] input, html[data-tema="champagne"] select, html[data-tema="champagne"] textarea { background:#2D271F; color:#F7F0E3; border:1px solid #463C2E; border-radius:2px; }
+  html[data-tema="champagne"] input:focus, html[data-tema="champagne"] select:focus, html[data-tema="champagne"] textarea:focus { border-color:#D4AF73; box-shadow:0 0 0 3px #D4AF7322; }
+  html[data-tema="champagne"] select option { background:#26211B; color:#F7F0E3; }
+  html[data-tema="champagne"] button.btn { background:#D4AF73; color:#15120F; box-shadow:none; text-transform:uppercase; letter-spacing:.14em; font-size:11.5px; font-weight:600; border-radius:2px; }
+  html[data-tema="champagne"] button.btn:hover { background:#E6C48E; }
+  html[data-tema="champagne"] button.btn.sec { background:transparent; color:#D4AF73; border:1px solid #D4AF73; }
+  html[data-tema="champagne"] button.btn.sec:hover { background:#D4AF7322; }
+  html[data-tema="champagne"] button.btn.warn { background:#C9803A; color:#fff; }
+  html[data-tema="champagne"] .bar { background:#463C2E; }
+  html[data-tema="champagne"] .bar > div { background:#D4AF73; }
+  html[data-tema="champagne"] .bar.over > div { background:#C9803A; }
+  html[data-tema="champagne"] .alert { background:#3A2A1F; color:#F5C9A8; border:1px solid #6B4A2E; }
+  html[data-tema="champagne"] .ok { background:#1F2A1E; color:#CFE6B8; border:1px solid #3E5A35; }
+  html[data-tema="champagne"] .tag { background:transparent; border:1px solid #463C2E; color:#B3A893; text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; }
+  html[data-tema="champagne"] .tag.rec { background:#D4AF73; color:#15120F; border-color:#D4AF73; }
+  html[data-tema="champagne"] table { background:#26211B; box-shadow:none; border:1px solid #463C2E; }
+  html[data-tema="champagne"] th { background:#1E1A16; color:#B3A893; }
+  html[data-tema="champagne"] td { border-top:1px solid #463C2E; color:#F7F0E3; }
+  html[data-tema="champagne"] .toast { background:#1E1A16; color:#F7F0E3; border:1px solid #D4AF73; box-shadow:none; }
+  html[data-tema="champagne"] .toast b { color:#D4AF73; }
+  html[data-tema="champagne"] .auth { background:#15120F; }
+  html[data-tema="champagne"] .auth-card { background:#26211B; border:1px solid #463C2E; box-shadow:none; }
+  html[data-tema="champagne"] .auth-logo { background:transparent; color:#D4AF73; border:1px solid #D4AF73; }
+  html[data-tema="champagne"] .auth-alt a { color:#D4AF73; }
+  html[data-tema="champagne"] .erro { color:#FF9A8A; }
+  @media (max-width: 720px) {
+    html[data-tema="champagne"] nav { background:#26211B; border:1px solid #463C2E; box-shadow:none; }
+    html[data-tema="champagne"] nav button { border:0; }
+    html[data-tema="champagne"] nav button.on { background:#D4AF7322; color:#D4AF73; }
+  }
+  html[data-tema="grafite"] { --bg:#0D1320; --card:#172033; --ink:#E9EFF9; --muted:#93A0B8; --brand:#7AA7FF; --brand-2:#9DBEFF; --brand-soft:#7AA7FF22; --line:#26344F; --radius:14px; }
+  html[data-tema="grafite"] body { background:#0D1320; background-image:none; font-family:'Manrope', system-ui, sans-serif; color:#E9EFF9; }
+  html[data-tema="grafite"] header { background:#172033; color:#E9EFF9; border-bottom:1px solid #7AA7FF; box-shadow:none; border-radius:0; }
+  html[data-tema="grafite"] header h1 { font-family:'Fraunces', Georgia, serif; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:#E9EFF9; }
+  html[data-tema="grafite"] header p { text-transform:uppercase; letter-spacing:.25em; font-size:10.5px; color:#93A0B8; }
+  html[data-tema="grafite"] .logo { background:transparent; color:#7AA7FF; border:1px solid currentColor; border-radius:50%; }
+  html[data-tema="grafite"] header .ghost { background:transparent; color:#E9EFF9; border:1px solid #93A0B8; box-shadow:none; text-transform:uppercase; letter-spacing:.12em; font-size:11px; }
+  html[data-tema="grafite"] .tema-sel { background:#172033; color:#E9EFF9; border:1px solid #93A0B8; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:600; }
+  html[data-tema="grafite"] .disc { background:#121A2A; color:#93A0B8; border:1px solid #26344F; }
+  html[data-tema="grafite"] nav button { background:transparent; border:1px solid #26344F; color:#93A0B8; text-transform:uppercase; letter-spacing:.12em; font-size:11.5px; border-radius:999px; box-shadow:none; }
+  html[data-tema="grafite"] nav button:hover { color:#E9EFF9; background:#121A2A; }
+  html[data-tema="grafite"] nav button.on { background:#7AA7FF; border-color:#7AA7FF; color:#0D1320; box-shadow:none; }
+  html[data-tema="grafite"] h2 { font-family:'Fraunces', Georgia, serif; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:#E9EFF9; }
+  html[data-tema="grafite"] h3 { font-family:'Fraunces', Georgia, serif; color:#7AA7FF; text-transform:uppercase; letter-spacing:.12em; font-size:13px; }
+  html[data-tema="grafite"] .card, html[data-tema="grafite"] .recipe { background:#172033; border:1px solid #26344F; box-shadow:none; }
+  html[data-tema="grafite"] .recipe:hover { transform:none; border-color:#7AA7FF; }
+  html[data-tema="grafite"] .recipe h4 { font-family:'Fraunces', Georgia, serif; color:#E9EFF9; font-size:17px; }
+  html[data-tema="grafite"] .recipe ul { color:#93A0B8; }
+  html[data-tema="grafite"] .card .lbl { text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:#93A0B8; }
+  html[data-tema="grafite"] .card .val { font-family:'Fraunces', Georgia, serif; font-weight:500; color:#E9EFF9; }
+  html[data-tema="grafite"] .card .sub, html[data-tema="grafite"] .muted { color:#93A0B8; }
+  html[data-tema="grafite"] label { color:#93A0B8; font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; }
+  html[data-tema="grafite"] input, html[data-tema="grafite"] select, html[data-tema="grafite"] textarea { background:#1D2940; color:#E9EFF9; border:1px solid #26344F; border-radius:10px; }
+  html[data-tema="grafite"] input:focus, html[data-tema="grafite"] select:focus, html[data-tema="grafite"] textarea:focus { border-color:#7AA7FF; box-shadow:0 0 0 3px #7AA7FF22; }
+  html[data-tema="grafite"] select option { background:#172033; color:#E9EFF9; }
+  html[data-tema="grafite"] button.btn { background:#7AA7FF; color:#0D1320; box-shadow:none; text-transform:uppercase; letter-spacing:.14em; font-size:11.5px; font-weight:600; border-radius:999px; }
+  html[data-tema="grafite"] button.btn:hover { background:#9DBEFF; }
+  html[data-tema="grafite"] button.btn.sec { background:transparent; color:#7AA7FF; border:1px solid #7AA7FF; }
+  html[data-tema="grafite"] button.btn.sec:hover { background:#7AA7FF22; }
+  html[data-tema="grafite"] button.btn.warn { background:#E0A05A; color:#fff; }
+  html[data-tema="grafite"] .bar { background:#26344F; }
+  html[data-tema="grafite"] .bar > div { background:#7AA7FF; }
+  html[data-tema="grafite"] .bar.over > div { background:#E0A05A; }
+  html[data-tema="grafite"] .alert { background:#3A2430; color:#FFC2CF; border:1px solid #6B3446; }
+  html[data-tema="grafite"] .ok { background:#17301F; color:#A9E8BE; border:1px solid #2A5A3B; }
+  html[data-tema="grafite"] .tag { background:transparent; border:1px solid #26344F; color:#93A0B8; text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; }
+  html[data-tema="grafite"] .tag.rec { background:#7AA7FF; color:#0D1320; border-color:#7AA7FF; }
+  html[data-tema="grafite"] table { background:#172033; box-shadow:none; border:1px solid #26344F; }
+  html[data-tema="grafite"] th { background:#121A2A; color:#93A0B8; }
+  html[data-tema="grafite"] td { border-top:1px solid #26344F; color:#E9EFF9; }
+  html[data-tema="grafite"] .toast { background:#121A2A; color:#E9EFF9; border:1px solid #7AA7FF; box-shadow:none; }
+  html[data-tema="grafite"] .toast b { color:#7AA7FF; }
+  html[data-tema="grafite"] .auth { background:#0D1320; }
+  html[data-tema="grafite"] .auth-card { background:#172033; border:1px solid #26344F; box-shadow:none; }
+  html[data-tema="grafite"] .auth-logo { background:transparent; color:#7AA7FF; border:1px solid #7AA7FF; }
+  html[data-tema="grafite"] .auth-alt a { color:#7AA7FF; }
+  html[data-tema="grafite"] .erro { color:#FF9AAA; }
+  @media (max-width: 720px) {
+    html[data-tema="grafite"] nav { background:#172033; border:1px solid #26344F; box-shadow:none; }
+    html[data-tema="grafite"] nav button { border:0; }
+    html[data-tema="grafite"] nav button.on { background:#7AA7FF22; color:#7AA7FF; }
+  }
+  html[data-tema="claro"] { --bg:#F6F3EE; --card:#FFFFFF; --ink:#1E1B18; --muted:#7A726A; --brand:#1F6F5C; --brand-2:#164F42; --brand-soft:#1F6F5C22; --line:#E4DED5; --radius:16px; }
+  html[data-tema="claro"] body { background:#F6F3EE; background-image:none; font-family:'Inter', system-ui, sans-serif; color:#1E1B18; }
+  html[data-tema="claro"] header { background:#1F6F5C; color:#FFFFFF; border-bottom:1px solid #1F6F5C; box-shadow:none; border-radius:0; }
+  html[data-tema="claro"] header h1 { font-family:'Bodoni Moda', Georgia, serif; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:#FFFFFF; }
+  html[data-tema="claro"] header p { text-transform:uppercase; letter-spacing:.25em; font-size:10.5px; color:#CFEFE6; }
+  html[data-tema="claro"] .logo { background:transparent; color:#FFFFFF; border:1px solid currentColor; border-radius:50%; }
+  html[data-tema="claro"] header .ghost { background:transparent; color:#FFFFFF; border:1px solid #CFEFE6; box-shadow:none; text-transform:uppercase; letter-spacing:.12em; font-size:11px; }
+  html[data-tema="claro"] .tema-sel { background:#FFFFFF; color:#FFFFFF; border:1px solid #CFEFE6; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:600; }
+  html[data-tema="claro"] .disc { background:#FBF9F5; color:#7A726A; border:1px solid #E4DED5; }
+  html[data-tema="claro"] nav button { background:transparent; border:1px solid #E4DED5; color:#7A726A; text-transform:uppercase; letter-spacing:.12em; font-size:11.5px; border-radius:999px; box-shadow:none; }
+  html[data-tema="claro"] nav button:hover { color:#1E1B18; background:#FBF9F5; }
+  html[data-tema="claro"] nav button.on { background:#1F6F5C; border-color:#1F6F5C; color:#FFFFFF; box-shadow:none; }
+  html[data-tema="claro"] h2 { font-family:'Bodoni Moda', Georgia, serif; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:#1E1B18; }
+  html[data-tema="claro"] h3 { font-family:'Bodoni Moda', Georgia, serif; color:#1F6F5C; text-transform:uppercase; letter-spacing:.12em; font-size:13px; }
+  html[data-tema="claro"] .card, html[data-tema="claro"] .recipe { background:#FFFFFF; border:1px solid #E4DED5; box-shadow:none; }
+  html[data-tema="claro"] .recipe:hover { transform:none; border-color:#1F6F5C; }
+  html[data-tema="claro"] .recipe h4 { font-family:'Bodoni Moda', Georgia, serif; color:#1E1B18; font-size:17px; }
+  html[data-tema="claro"] .recipe ul { color:#7A726A; }
+  html[data-tema="claro"] .card .lbl { text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:#7A726A; }
+  html[data-tema="claro"] .card .val { font-family:'Bodoni Moda', Georgia, serif; font-weight:500; color:#1E1B18; }
+  html[data-tema="claro"] .card .sub, html[data-tema="claro"] .muted { color:#7A726A; }
+  html[data-tema="claro"] label { color:#7A726A; font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; }
+  html[data-tema="claro"] input, html[data-tema="claro"] select, html[data-tema="claro"] textarea { background:#FBF9F5; color:#1E1B18; border:1px solid #E4DED5; border-radius:10px; }
+  html[data-tema="claro"] input:focus, html[data-tema="claro"] select:focus, html[data-tema="claro"] textarea:focus { border-color:#1F6F5C; box-shadow:0 0 0 3px #1F6F5C22; }
+  html[data-tema="claro"] select option { background:#FFFFFF; color:#1E1B18; }
+  html[data-tema="claro"] button.btn { background:#1F6F5C; color:#FFFFFF; box-shadow:none; text-transform:uppercase; letter-spacing:.14em; font-size:11.5px; font-weight:600; border-radius:999px; }
+  html[data-tema="claro"] button.btn:hover { background:#164F42; }
+  html[data-tema="claro"] button.btn.sec { background:transparent; color:#1F6F5C; border:1px solid #1F6F5C; }
+  html[data-tema="claro"] button.btn.sec:hover { background:#1F6F5C22; }
+  html[data-tema="claro"] button.btn.warn { background:#B45309; color:#fff; }
+  html[data-tema="claro"] .bar { background:#E4DED5; }
+  html[data-tema="claro"] .bar > div { background:#1F6F5C; }
+  html[data-tema="claro"] .bar.over > div { background:#B45309; }
+  html[data-tema="claro"] .alert { background:#FDECEA; color:#7A1A12; border:1px solid #F5C2BA; }
+  html[data-tema="claro"] .ok { background:#E7F6EE; color:#145C3A; border:1px solid #BFE5D1; }
+  html[data-tema="claro"] .tag { background:transparent; border:1px solid #E4DED5; color:#7A726A; text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; }
+  html[data-tema="claro"] .tag.rec { background:#1F6F5C; color:#FFFFFF; border-color:#1F6F5C; }
+  html[data-tema="claro"] table { background:#FFFFFF; box-shadow:none; border:1px solid #E4DED5; }
+  html[data-tema="claro"] th { background:#FBF9F5; color:#7A726A; }
+  html[data-tema="claro"] td { border-top:1px solid #E4DED5; color:#1E1B18; }
+  html[data-tema="claro"] .toast { background:#FBF9F5; color:#1E1B18; border:1px solid #1F6F5C; box-shadow:none; }
+  html[data-tema="claro"] .toast b { color:#1F6F5C; }
+  html[data-tema="claro"] .auth { background:#F6F3EE; }
+  html[data-tema="claro"] .auth-card { background:#FFFFFF; border:1px solid #E4DED5; box-shadow:none; }
+  html[data-tema="claro"] .auth-logo { background:transparent; color:#1F6F5C; border:1px solid #1F6F5C; }
+  html[data-tema="claro"] .auth-alt a { color:#1F6F5C; }
+  html[data-tema="claro"] .erro { color:#B42318; }
+  @media (max-width: 720px) {
+    html[data-tema="claro"] nav { background:#FFFFFF; border:1px solid #E4DED5; box-shadow:none; }
+    html[data-tema="claro"] nav button { border:0; }
+    html[data-tema="claro"] nav button.on { background:#1F6F5C22; color:#1F6F5C; }
+  }
+  /* ---- conta, paywall e troca de senha ---- */
+  .bloqueio { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; overflow: auto; background: rgba(40,30,20,.55); backdrop-filter: blur(4px); }
+  .bloqueio-card { width: 100%; max-width: 440px; margin: auto; background: #fff; border-radius: 24px; padding: 28px 24px; box-shadow: 0 24px 60px rgba(40,30,20,.3); }
+  .aviso-venc { position: sticky; top: 0; z-index: 50; margin: 10px 14px 0; padding: 12px 14px; border-radius: 14px; background: #FFF6E5; border: 1px solid #E9C98C; color: #5A4420; font-size: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .aviso-venc.urgente { background: #FBE9E6; border-color: #E5B3AB; color: #7A2E25; }
+  .aviso-venc button { background: transparent; border: 0; color: inherit; font-size: 18px; cursor: pointer; line-height: 1; }
+  .bloqueio-card { color: #3A322B; }
+  .bloqueio-card h2 { margin: 0 0 6px; color: #3A322B; }
+  .bloqueio-card b { color: #3A322B; }
+  .plano-op { border: 1px solid #E9DFD0; border-radius: 16px; padding: 14px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .plano-op b { display: block; }
+  .plano-op small { color: #7A6E62; }
+  .badge-msg { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: #B08D57; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+  .msg-item { border-bottom: 1px solid #EFE7DB; padding: 10px 0; }
+  .msg-item:last-child { border-bottom: 0; }
+  .msg-item.nova { border-left: 3px solid #B08D57; padding-left: 10px; }
+  .msg-item small { color: #7A6E62; }
+</style>
 </head>
 <body>
-  <section id="emausSplash" role="status" aria-label="Abrindo a área da igreja">
-    <div class="splash-inner">
-      <div class="splash-halo" aria-hidden="true"></div>
-      <div class="splash-logo-wrap">
-        <img id="splashLogo" class="splash-logo" alt="Logo da igreja" hidden>
-        <span id="splashLogoText" class="splash-logo-text" hidden>I</span>
-      </div>
-      <span id="splashKicker" class="splash-kicker">Área da igreja</span>
-      <strong class="splash-title">Seja bem-vindo</strong>
-      <p class="splash-subtitle">Um lugar para pertencer, crescer e viver a fé em comunidade.</p>
+<div id="auth" class="auth" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo full"><img class="logo-completo" src="logo-completo.png" alt="MomoEquilibrio"></div>
+    <h2 id="authTitulo">Entrar</h2>
+    <p class="muted">Seus dados ficam vinculados à sua conta.</p>
+    <form id="authForm">
+      <label>E-mail<input type="email" id="authEmail" required autocomplete="email"></label>
+      <label>Senha <span class="muted">(mínimo 8 caracteres)</span><input type="password" id="authSenha" required minlength="8" autocomplete="current-password"></label>
+      <p id="authErro" class="erro"></p>
+      <button class="btn block" type="submit" id="authBtn">Entrar</button>
+    </form>
+    <p class="auth-alt"><a href="#" id="authAlterna">Não tem conta? Criar conta</a></p>
+  </div>
+</div>
+<header>
+  <div class="hd">
+    <img class="logo-img" src="icon-192.png" alt="">
+    <div>
+      <h1>MomoEquilibrio</h1>
+      <p>Seu acompanhamento diário com canetas GLP-1</p>
     </div>
-  </section>
+  </div>
+  <div class="acoes">
+    <select id="temaSel" class="tema-sel" aria-label="Escolher tema visual">
+      <option value="champagne">Champagne Chic</option>
+      <option value="noir">Noir Glow</option>
+      <option value="salvia">Sálvia Clássico</option>
+      <option value="grafite">Grafite Azul</option>
+      <option value="claro">Claro Clean</option>
+    </select>
+    <button class="btn sec ghost" id="sairBtn" style="display:none">Sair</button>
+  </div>
+</header>
+<div class="aviso-venc" id="avisoVenc" style="display:none"><span id="avisoVencTexto"></span><span><button id="avisoVencFechar" aria-label="Fechar aviso">&times;</button></span></div>
+<div class="disc">Este app não substitui médico ou nutricionista e não prescreve medicamentos. Siga sempre a orientação da sua equipe de saúde. Procure atendimento se tiver vômito persistente, dor abdominal forte, tontura, desmaio ou urina muito escassa.</div>
 
-  <section class="church-login-view" id="churchLoginView">
-    <div class="church-login-card">
-      <div class="church-login-brand"><span class="church-login-mark" id="churchLoginMark"><span id="churchLoginSymbol">I</span><img id="churchLoginLogo" alt="Logo da igreja" hidden></span><div><strong id="churchLoginName">Igreja</strong><span>Área da igreja</span></div></div>
-      <span class="eyebrow">ACESSO PROTEGIDO</span>
-      <h1>Entrar na área da igreja</h1>
-      <p>Use o acesso do pastor, administrador local ou recepção autorizada para acompanhar o acolhimento e a vida da igreja.</p>
-      <form id="churchLoginForm">
-        <label for="churchLoginEmail">E-mail</label>
-        <input id="churchLoginEmail" name="email" type="email" autocomplete="username" placeholder="pastor@igreja.com.br" required>
-        <label for="churchLoginPassword">Senha</label>
-        <input id="churchLoginPassword" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
-        <button class="church-login-button" type="submit">Entrar na área da igreja</button>
-        <p class="church-login-error is-hidden" id="churchLoginError"></p>
-      </form>
-      <small class="church-login-note">A autenticação é feita pela API segura da plataforma. Os dados da igreja não ficam somente no navegador.<br><a href="privacidade.html" target="_blank" rel="noopener">Leia a política de privacidade</a></small>
+<nav>
+  <button data-tab="perfil" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span>Perfil</span></button>
+  <button data-tab="hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Hoje</span></button>
+  <button data-tab="lembretes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span>Lembretes</span></button>
+  <button data-tab="receitas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/></svg><span>Receitas</span></button>
+  <button data-tab="aplic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg><span>Aplicações</span></button>
+  <button data-tab="conta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h4"/></svg><span>Conta</span><span class="badge-msg" id="badgeMsg" style="display:none"></span></button>
+</nav>
+
+<main>
+
+<!-- ======== PERFIL ======== -->
+<section id="perfil" class="tab on">
+  <h2>Seu perfil</h2>
+  <div class="card" style="max-width:760px">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr))">
+      <div><label>Nome</label><input id="nome"></div>
+      <div><label>Sexo</label><select id="sexo"><option value="f">Feminino</option><option value="m">Masculino</option></select></div>
+      <div><label>Idade (anos)</label><input id="idade" type="number" min="18" max="100"></div>
+      <div><label>Altura (cm)</label><input id="altura" type="number" min="120" max="230"></div>
+      <div><label>Peso atual (kg)</label><input id="peso" type="number" step="0.1" min="30" max="300"></div>
+      <div><label>Peso meta (kg)</label><input id="pesoMeta" type="number" step="0.1" min="30" max="300"></div>
+      <div><label>Cintura (cm)</label><input id="cintura" type="number" min="40" max="200"></div>
+      <div><label>Quadril (cm)</label><input id="quadril" type="number" min="40" max="200"></div>
+      <div><label>Nível de atividade</label>
+        <select id="atividade">
+          <option value="sed">Sedentário</option><option value="leve">Leve (1 a 3 dias/semana)</option>
+          <option value="mod">Moderado (3 a 5 dias/semana)</option><option value="int">Intenso (6 a 7 dias/semana)</option>
+        </select></div>
     </div>
-  </section>
-  <svg aria-hidden="true" class="svg-sprite" xmlns="http://www.w3.org/2000/svg">
-    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
-    <symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
-    <symbol id="icon-message" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></symbol>
-    <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
-    <symbol id="icon-user-round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
-    <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4V19a2 2 0 1 1-4 0v-.2A2 2 0 0 0 5.8 17l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 11.7H2a2 2 0 1 1 0-4h-.2A2 2 0 0 1 3.2 4.3l.1.1A2 2 0 0 0 6.7 3V3a2 2 0 1 1 4 0v.2A2 2 0 0 0 14.2 5l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a2 2 0 0 0 1.4 3.4h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.4 3.4Z" transform="scale(.9) translate(1.3 1.3)"/></symbol>
-    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
-    <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
-    <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
-    <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
-    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-    <symbol id="icon-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
-    <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
-    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
-    <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
-    <symbol id="icon-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
-    <symbol id="icon-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
-    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></symbol>
-    <symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
-    <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
-    <symbol id="icon-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
-    <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
-    <symbol id="icon-megaphone" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 13v-2ZM3 13l2 7h4l-2-6M15 8v8"/></symbol>
-    <symbol id="icon-clipboard-check" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8 13l2.5 2.5L16 10"/></symbol>
-    <symbol id="icon-smartphone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></symbol>
-    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5.2-3.4 8.5-8 10-4.6-1.5-8-4.8-8-10V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></symbol>
-    <symbol id="icon-building" viewBox="0 0 24 24"><path d="M4 21V5l8-3 8 3v16M2 21h20M9 21v-4h6v4M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01"/></symbol>
-    <symbol id="icon-crown" viewBox="0 0 24 24"><path d="m3 7 4 4 5-7 5 7 4-4-2 12H5L3 7Z"/><path d="M5 19h14"/></symbol>
-    <symbol id="icon-log-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
-    <symbol id="icon-external" viewBox="0 0 24 24"><path d="M14 3h7v7M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
-    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-14.8-3L3 11M3 5v6h6M4 13a8.1 8.1 0 0 0 14.8 3L21 13m0 6v-6h-6"/></symbol>
-    <symbol id="icon-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
-    <symbol id="icon-whatsapp" viewBox="0 0 24 24"><path d="M20 11.5a8.3 8.3 0 0 1-12.3 7.3L4 20l1.2-3.5A8.3 8.3 0 1 1 20 11.5Z"/><path d="M8.5 8.6c.2-.4.4-.4.7-.4h.5c.2 0 .4.1.5.4l.6 1.3c.1.2.1.4 0 .6l-.4.5c-.1.1-.1.3 0 .5.4.7 1.1 1.3 1.8 1.7.2.1.4.1.5-.1l.5-.6c.1-.2.3-.2.5-.1l1.4.6c.2.1.3.3.3.5-.1.6-.3 1.1-.7 1.4-.4.3-1 .4-1.6.2-2.9-.8-5-2.8-5.9-5.5-.2-.5-.1-1 .1-1.5l.2-.5Z"/></symbol>
-    <symbol id="icon-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
-    <symbol id="icon-sparkle" viewBox="0 0 24 24"><path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4L12 3ZM19 16l.7 2.3L22 19l-.7 2.3L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></symbol>
-    <symbol id="icon-heart" viewBox="0 0 24 24"><path d="M20.8 8.8c0 5.5-8.8 10.7-8.8 10.7S3.2 14.3 3.2 8.8A4.8 4.8 0 0 1 12 6a4.8 4.8 0 0 1 8.8 2.8Z"/></symbol>
-    <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></symbol>
-  </svg>
+    <h3>Medicamento</h3>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr))">
+      <div><label>Medicamento</label>
+        <select id="medicamento"><option value="tirzepatida">Tirzepatida (Mounjaro)</option><option value="semaglutida">Semaglutida (Ozempic/Wegovy)</option><option value="outro">Outro</option></select></div>
+      <div><label>Dose atual (mg, conforme prescrição)</label><input id="dose" type="number" step="0.5" min="0"></div>
+      <div><label>Data de início do tratamento</label><input id="inicio" type="date"></div>
+      <div><label>Dia da semana da aplicação</label>
+        <select id="diaAplic"><option value="1">Segunda</option><option value="2">Terça</option><option value="3">Quarta</option><option value="4">Quinta</option><option value="5">Sexta</option><option value="6">Sábado</option><option value="0">Domingo</option></select></div>
+      <div><label>Hora da aplicação</label><input id="horaAplic" type="time" value="08:00"></div>
+    </div>
+    <h3>Restrições alimentares</h3>
+    <div class="checks">
+      <label><input type="checkbox" id="rVeg"> Vegetariano</label>
+      <label><input type="checkbox" id="rVegano"> Vegano</label>
+      <label><input type="checkbox" id="rSemLact"> Sem lactose</label>
+      <label><input type="checkbox" id="rSemGlu"> Sem glúten</label>
+    </div>
+    <label>Alergias ou outras restrições</label><input id="alergias" placeholder="Ex.: amendoim, frutos do mar">
+    <div style="margin-top:12px"><button class="btn" id="salvarPerfil">Salvar perfil e calcular minhas metas</button></div>
+  </div>
+  <div id="resultadoPerfil"></div>
+</section>
 
-  <div class="app-shell is-hidden" id="appShell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand-row">
-        <div class="brand-mark" id="sidebarLogoMark"><span id="sidebarLogoSymbol">I</span><img id="sidebarLogoImage" alt="" hidden></div>
-        <div class="brand-copy">
-          <span class="brand-kicker">IGREJA</span>
-          <strong id="sidebarBrandName">Igreja</strong>
-        </div>
-        <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Fechar menu"><svg class="icon"><use href="#icon-x"></use></svg></button>
-      </div>
+<!-- ======== HOJE ======== -->
+<section id="hoje" class="tab">
+  <h2>Hoje <span class="muted" id="dataHoje"></span></h2>
+  <div id="avisoHoje"></div>
+  <div class="grid">
+    <div class="card"><div class="lbl">💧 Água</div><div class="val" id="vAgua">0 ml</div><div class="bar"><div id="bAgua"></div></div><div class="sub" id="sAgua"></div>
+      <button class="btn sec" data-add="agua" data-q="250">+250 ml</button><button class="btn sec" data-add="agua" data-q="500">+500 ml</button></div>
+    <div class="card"><div class="lbl">🥩 Proteína</div><div class="val" id="vProt">0 g</div><div class="bar"><div id="bProt"></div></div><div class="sub" id="sProt"></div>
+      <button class="btn sec" data-add="prot" data-q="10">+10 g</button><button class="btn sec" data-add="prot" data-q="25">+25 g</button></div>
+    <div class="card"><div class="lbl">🦴 Cálcio</div><div class="val" id="vCa">0 mg</div><div class="bar"><div id="bCa"></div></div><div class="sub" id="sCa"></div>
+      <button class="btn sec" data-add="ca" data-q="200">+200 mg</button><button class="btn sec" data-add="ca" data-q="300">+300 mg</button></div>
+    <div class="card"><div class="lbl">🍬 Açúcar adicionado</div><div class="val" id="vAc">0 g</div><div class="bar"><div id="bAc"></div></div><div class="sub" id="sAc"></div>
+      <button class="btn sec" data-add="acucar" data-q="5">+5 g</button><button class="btn sec" data-add="acucar" data-q="10">+10 g</button></div>
+    <div class="card"><div class="lbl">🌾 Fibra</div><div class="val" id="vFi">0 g</div><div class="bar"><div id="bFi"></div></div><div class="sub" id="sFi"></div>
+      <button class="btn sec" data-add="fibra" data-q="5">+5 g</button></div>
+    <div class="card"><div class="lbl">🍽️ Refeições</div><div class="val" id="vRef">0</div><div class="sub">Registre cada refeição feita, mesmo pequena.</div>
+      <button class="btn sec" data-add="refeicoes" data-q="1">+1 refeição</button></div>
+  </div>
+  <div style="margin-top:14px"><button class="btn warn" id="zerarDia">Zerar o dia</button></div>
 
-      <button class="church-switcher" id="churchSwitcher" aria-label="Trocar igreja">
-        <span class="church-avatar" id="sidebarChurchSymbol">I</span>
-        <span class="church-switcher-copy"><small>Igreja ativa</small><strong id="activeChurchName">Igreja</strong></span>
-        <svg class="icon icon-muted"><use href="#icon-chevron-down"></use></svg>
-      </button>
-
-      <nav class="main-nav" aria-label="Navegação principal">
-        <span class="nav-label">VISÃO GERAL</span>
-        <button class="nav-item active" data-view="dashboard"><svg class="icon"><use href="#icon-grid"></use></svg><span>Início</span></button>
-        <button class="nav-item" data-view="acolhimento"><svg class="icon"><use href="#icon-heart"></use></svg><span>Acolhimento</span></button>
-        <button class="nav-item" data-view="members"><svg class="icon"><use href="#icon-users"></use></svg><span>Membros</span></button>
-        <button class="nav-item" data-view="visitors"><svg class="icon"><use href="#icon-users"></use></svg><span>Visitantes</span><em class="nav-count" id="visitorNavCount">0</em></button>
-        <button class="nav-item nav-pulpit" data-view="pulpit"><svg class="icon"><use href="#icon-megaphone"></use></svg><span>Modo púlpito</span><em class="nav-live">AO VIVO</em></button>
-        <button class="nav-item" data-view="communication"><svg class="icon"><use href="#icon-message"></use></svg><span>Comunicação</span></button>
-        <button class="nav-item" data-view="agenda"><svg class="icon"><use href="#icon-calendar"></use></svg><span>Agenda</span></button>
-
-        <span class="nav-label nav-label-spaced">ADMINISTRAÇÃO</span>
-        <button class="nav-item" data-view="leaders"><svg class="icon"><use href="#icon-user-round"></use></svg><span>Lideranças</span></button>
-        <button class="nav-item" data-view="settings"><svg class="icon"><use href="#icon-settings"></use></svg><span>Configurações</span></button>
-        <button class="nav-item" data-action="export"><svg class="icon"><use href="#icon-download"></use></svg><span>Exportar dados</span></button>
-      </nav>
-
-      <div class="sidebar-promo">
-        <div class="promo-icon"><svg class="icon"><use href="#icon-crown"></use></svg></div>
-        <div>
-          <strong>Pronto para crescer?</strong>
-          <p>Tenha sua igreja organizada em um só lugar.</p>
-          <button data-view="settings" class="text-link">Conhecer recursos <svg class="icon"><use href="#icon-arrow-up-right"></use></svg></button>
-        </div>
-      </div>
-
-      <div class="sidebar-user">
-        <div class="avatar avatar-gold" id="sidebarUserInitials">P</div>
-        <div class="sidebar-user-copy"><strong id="sidebarUserName">Pastor</strong><span id="sidebarUserRole">Pastor da igreja</span></div>
-        <button class="icon-btn" id="logoutBtn" aria-label="Sair"><svg class="icon"><use href="#icon-log-out"></use></svg></button>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="icon-btn mobile-menu" id="mobileMenu" aria-label="Abrir menu"><svg class="icon"><use href="#icon-menu"></use></svg></button>
-          <button class="icon-btn back-btn is-hidden" id="backBtn" data-action="go-back" aria-label="Voltar para a página anterior" title="Voltar"><svg class="icon"><use href="#icon-arrow-left"></use></svg></button>
-          <div class="breadcrumb"><strong id="breadcrumbCurrent">Início</strong></div>
-        </div>
-        <div class="topbar-church" aria-label="Igreja ativa">
-          <span class="topbar-church-mark" id="topbarChurchMark"><span id="topbarLogoSymbol">I</span><img id="topbarLogoImage" alt="" hidden></span>
-          <span class="topbar-church-copy"><small>IGREJA</small><strong id="topbarChurchName">Igreja</strong></span>
-        </div>
-        <div class="topbar-actions">
-          <span class="sync-status is-idle" id="syncStatus" title="Estado da conexão com o banco"><span></span><b>Banco</b></span>
-          <button class="search-trigger icon-btn" id="searchTrigger" aria-label="Buscar" title="Buscar"><svg class="icon"><use href="#icon-search"></use></svg></button>
-          <button class="icon-btn notification-btn" id="notificationBtn" aria-label="Notificações"><svg class="icon"><use href="#icon-bell"></use></svg><span class="notification-dot" id="notificationCount">0</span></button>
-          <div class="topbar-divider"></div>
-          <div class="top-profile"><div class="avatar avatar-gold" id="topProfileInitials">P</div><div><strong id="topProfileName">Pastor</strong><span id="topProfileRole">Pastor da igreja</span></div><svg class="icon icon-muted"><use href="#icon-chevron-down"></use></svg></div>
-        </div>
-      </header>
-
-      <div class="page-container" id="appContent"></div>
-    </main>
+  <h2 style="margin-top:26px">Sintomas de hoje</h2>
+  <div class="card" style="max-width:none">
+    <p class="muted" style="font-size:13px">Registre o que sentir. Esses registros ajudam você a conversar com sua equipe de saúde.</p>
+    <div id="alertaSint"></div>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px,1fr))">
+      <div><label>O que sentiu</label><select id="sintTipo"></select></div>
+      <div><label>Intensidade</label><select id="sintGrau"><option value="leve">Leve</option><option value="moderado">Moderado</option><option value="forte">Forte</option></select></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn" id="registrarSint">Registrar sintoma</button></div>
+    <ul id="listaSint" style="margin-top:12px;padding-left:18px"></ul>
   </div>
 
-
-  <div class="modal-backdrop hidden" id="modalBackdrop">
-    <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-header"><div><span class="eyebrow" id="modalEyebrow">IGREJA</span><h2 id="modalTitle">Novo cadastro</h2></div><button class="icon-btn" id="modalClose" aria-label="Fechar"><svg class="icon"><use href="#icon-x"></use></svg></button></div>
-      <div id="modalBody"></div>
-    </section>
+  <h2 style="margin-top:26px">Peso</h2>
+  <div class="card" style="max-width:none">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px,1fr))">
+      <div><label>Data</label><input id="pesoData" type="date"></div>
+      <div><label>Peso (kg)</label><input id="pesoKg" type="number" step="0.1" min="30" max="300"></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn" id="registrarPeso">Registrar peso</button></div>
+    <p id="pesoResumo" class="muted" style="margin-top:12px"></p>
+    <div id="pesoGrafico"></div>
+    <div class="wrap"><table id="tabPesos" style="margin-top:10px"></table></div>
   </div>
 
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <h2 style="margin-top:26px">Últimos 7 dias</h2>
+  <div class="card" style="max-width:none"><div class="wrap"><table id="tabSemana"></table></div></div>
+</section>
 
-  <script src="api-config.js?v=61"></script>
-  <script src="splash.js?v=62"></script>
-  <script src="app.js?v=72"></script>
+<!-- ======== LEMBRETES ======== -->
+<section id="lembretes" class="tab">
+  <h2>Lembretes sonoros</h2>
+  <div class="card" style="max-width:760px">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr))">
+      <div><label>Lembrar de beber água a cada (min)</label><input id="cfgAgua" type="number" min="30" max="240" step="10"></div>
+      <div><label>Café da manhã</label><input id="hCafe" type="time"></div>
+      <div><label>Almoço</label><input id="hAlmoco" type="time"></div>
+      <div><label>Lanche</label><input id="hLanche" type="time"></div>
+      <div><label>Jantar</label><input id="hJantar" type="time"></div>
+    </div>
+    <div class="checks" style="margin-top:10px"><label><input type="checkbox" id="cfgSom"> Som ativado</label></div>
+    <div style="margin-top:10px">
+      <button class="btn" id="salvarLembretes">Salvar lembretes</button>
+      <button class="btn sec" id="testarSom">Testar som</button>
+      <button class="btn sec" id="pedirNotif">Ativar notificações do navegador</button>
+    </div>
+    <p class="muted">Os lembretes tocam enquanto o app estiver aberto nesta aba. Água: entre 7h e 21h. Aplicação: no dia e hora configurados no perfil.</p>
+  </div>
+  <h3>Próximos lembretes de hoje</h3>
+  <div class="card" id="proximos" style="max-width:760px"></div>
+  <h3>Histórico de lembretes disparados</h3>
+  <div class="card" id="historicoLembretes" style="max-width:760px"><span class="muted">Nenhum lembrete disparado ainda.</span></div>
+</section>
+
+<!-- ======== RECEITAS ======== -->
+<section id="receitas" class="tab">
+  <h2>Receitas por fase</h2>
+  <p class="muted">Valores nutricionais aproximados por porção, para referência. Confirme com seu nutricionista.</p>
+  <div class="checks">
+    <label><input type="checkbox" id="fCompat" checked> Mostrar só receitas compatíveis com meu perfil</label>
+    <select id="fFase" style="width:auto;display:inline-block">
+      <option value="auto">Fase atual (automático)</option><option value="1">Fase 1 · semanas 1 a 4</option>
+      <option value="2">Fase 2 · semanas 5 a 8</option><option value="3">Fase 3 em diante · 9+ semanas</option><option value="todas">Todas as fases</option>
+    </select>
+  </div>
+  <div id="faseInfo" class="ok"></div>
+  <div class="grid" id="listaReceitas"></div>
+</section>
+
+<!-- ======== APLICAÇÕES ======== -->
+<section id="aplic" class="tab">
+  <h2>Aplicações</h2>
+  <div class="card" style="max-width:760px">
+    <div id="proxAplic"></div>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); margin-top:10px">
+      <div><label>Data da aplicação</label><input id="dataAplic" type="date"></div>
+      <div><label>Dose aplicada (mg)</label><input id="doseAplic" type="number" step="0.5" min="0"></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn" id="registrarAplic">Registrar aplicação</button></div>
+  </div>
+  <h3>Histórico</h3>
+  <div class="card" style="max-width:760px"><table id="tabAplic"><tr><th>Data</th><th>Dose (mg)</th></tr></table></div>
+</section>
+
+<section id="conta" class="tab">
+  <h2>Sua conta</h2>
+  <div class="card" style="max-width:760px">
+    <div id="resumoConta"></div>
+  </div>
+  <h3>Planos</h3>
+  <div class="card" style="max-width:760px">
+    <div id="listaPlanosConta"></div>
+    <p class="muted" id="avisoPgto" style="font-size:13px"></p>
+  </div>
+  <h3>Mensagens e dicas</h3>
+  <div class="card" style="max-width:760px">
+    <div id="listaMensagens"><p class="muted">Nenhuma mensagem ainda.</p></div>
+  </div>
+  <h3>Meus dados</h3>
+  <div class="card" style="max-width:760px">
+    <p class="muted" style="font-size:14px">Seu perfil, registros, peso e sintomas ficam salvos neste aparelho. Faça uma cópia antes de trocar de celular ou limpar o navegador.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="exportarDados">Baixar meus dados</button>
+      <button class="btn sec" id="btnRestaurar">Restaurar cópia</button>
+      <input type="file" id="importarDados" accept="application/json" hidden>
+    </div>
+    <p style="margin-top:14px"><button class="btn sec" id="pedirExclusao">Pedir exclusão da minha conta</button></p>
+    <p class="muted" id="msgDados" style="font-size:13px"></p>
+  </div>
+  <p style="max-width:760px;font-size:14px"><a href="privacidade" target="_blank" rel="noopener">Privacidade e termos de uso</a></p>
+  <h3>Trocar senha</h3>
+  <div class="card" style="max-width:760px">
+    <form id="formTrocaSenha">
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr))">
+        <div><label>Senha atual</label><input type="password" id="senhaAtual" autocomplete="current-password"></div>
+        <div><label>Nova senha <span class="muted">(mínimo 8)</span></label><input type="password" id="senhaNova" minlength="8" autocomplete="new-password" required></div>
+      </div>
+      <p id="erroTroca" class="erro"></p>
+      <button class="btn" type="submit">Salvar nova senha</button>
+    </form>
+  </div>
+</section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- Bloqueio por vencimento -->
+<div class="bloqueio" id="paywall">
+  <div class="bloqueio-card">
+    <h2>Seu acesso venceu</h2>
+    <p class="muted">Seus dados continuam guardados. Escolha um plano para liberar o app novamente.</p>
+    <div id="paywallPlanos"></div>
+    <p class="muted" id="paywallAviso" style="font-size:13px"></p>
+    <p id="paywallErro" class="erro"></p>
+    <button class="btn sec ghost block" id="paywallSair" style="margin-top:10px">Sair da conta</button>
+  </div>
+</div>
+
+<!-- Boas-vindas: aparece uma vez, para quem ainda não preencheu o perfil -->
+<div class="bloqueio" id="boasVindas">
+  <div class="bloqueio-card">
+    <h2>Bem-vindo(a) ao MomoEquilibrio</h2>
+    <p class="muted">Em 4 passos você deixa tudo pronto. Leva cerca de 3 minutos.</p>
+    <div class="plano-op"><div><b>1. Conte sobre você</b><small>Idade, altura e peso. Calculamos suas metas de água, proteína, cálcio e fibra.</small></div></div>
+    <div class="plano-op"><div><b>2. Ative os lembretes</b><small>Som e avisos para beber água e nos horários das refeições.</small></div></div>
+    <div class="plano-op"><div><b>3. Registre o dia</b><small>Toque nos botões da aba Hoje ao beber água ou comer. Anote também o peso e os sintomas.</small></div></div>
+    <div class="plano-op"><div><b>4. Leve para o celular</b><small>Adicione o app à tela inicial para abrir como um aplicativo.</small></div></div>
+    <p class="muted" style="font-size:12px;margin-top:12px">O app não substitui médico ou nutricionista e não indica doses. Siga sempre a orientação da sua equipe de saúde.</p>
+    <button class="btn block" id="bvComecar" style="margin-top:12px">Começar pelo meu perfil</button>
+    <button class="btn sec ghost block" id="bvDepois" style="margin-top:8px">Fazer depois</button>
+  </div>
+</div>
+
+<!-- Troca de senha obrigatória (após redefinição pelo suporte) -->
+<div class="bloqueio" id="trocaSenha">
+  <div class="bloqueio-card">
+    <h2>Crie uma nova senha</h2>
+    <p class="muted">Sua senha foi redefinida pela equipe. Crie uma nova para continuar.</p>
+    <form id="formTrocaObrigatoria">
+      <label>Nova senha <span class="muted">(mínimo 8)</span><input type="password" id="senhaObrigatoria" minlength="8" required autocomplete="new-password"></label>
+      <p id="erroTrocaObrigatoria" class="erro"></p>
+      <button class="btn block" type="submit">Salvar e continuar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+// ---------- armazenamento (com fallback se o navegador bloquear) ----------
+const memStore = {};
+function load(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return memStore[k] !== undefined ? memStore[k] : def; } }
+function save(k, v) { memStore[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+// ---------- estado ----------
+let perfil = load('eq_perfil', null);
+let cfg = load('eq_cfg', { agua: 120, som: true, refs: { cafe: '08:00', almoco: '12:30', lanche: '16:00', jantar: '19:30' } });
+let aplics = load('eq_aplic', []);
+const pad = n => String(n).padStart(2, '0');
+const localKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hojeKey = () => localKey(new Date());
+let dia = load('eq_dia_' + hojeKey(), { agua: 0, prot: 0, ca: 0, acucar: 0, fibra: 0, refeicoes: 0 });
+const fmt = n => Math.round(n).toLocaleString('pt-BR');
+
+// ---------- cálculos individuais ----------
+function calc(p) {
+  const h = p.altura / 100;
+  const imc = p.peso / (h * h);
+  const cls = imc < 18.5 ? 'abaixo do peso' : imc < 25 ? 'faixa normal' : imc < 30 ? 'sobrepeso' : 'obesidade';
+  const rcq = p.cintura ? p.cintura / p.altura : null;
+  const tmb = 10 * p.peso + 6.25 * p.altura - 5 * p.idade + (p.sexo === 'm' ? 5 : -161);
+  const fator = { sed: 1.2, leve: 1.375, mod: 1.55, int: 1.725 }[p.atividade];
+  const get = tmb * fator;
+  const minCal = p.sexo === 'm' ? 1500 : 1200;
+  const kcalBruto = get - 500;
+  const kcal = Math.max(minCal, Math.round(kcalBruto / 10) * 10);
+  const pesoIdeal = 22 * h * h;
+  const pesoAj = imc >= 30 ? pesoIdeal + 0.4 * (p.peso - pesoIdeal) : p.peso;
+  const prot = Math.round(1.2 * pesoAj);
+  const agua = Math.round((35 * p.peso + (p.atividade === 'mod' || p.atividade === 'int' ? 500 : 0)) / 100) * 100;
+  const ca = p.idade > 50 ? 1200 : 1000;
+  const acucar = p.sexo === 'm' ? 36 : 25;
+  const fibra = p.sexo === 'm' ? 38 : 25;
+  const semanas = p.inicio ? Math.max(1, Math.floor((new Date() - new Date(p.inicio + 'T00:00:00')) / (7 * 86400000)) + 1) : 1;
+  const fase = semanas <= 4 ? 1 : semanas <= 8 ? 2 : 3;
+  const alertas = [];
+  if (imc < 18.5) alertas.push('IMC abaixo de 18,5. Converse com seu médico antes de seguir qualquer redução de calorias.');
+  if (kcalBruto < minCal) alertas.push(`Para sua altura e peso, a meta mínima de ${minCal} kcal foi usada. Não reduza abaixo disso sem orientação.`);
+  if (rcq && rcq > 0.5) alertas.push('Relação cintura/altura acima de 0,5. Vale conversar com seu médico sobre risco metabólico.');
+  if (p.pesoMeta && p.pesoMeta < p.peso && p.pesoMeta < 0.8 * p.peso) alertas.push('A meta de peso está bem abaixo do atual. Defina um objetivo com sua equipe de saúde.');
+  return { imc, cls, rcq, tmb, get, kcal, pesoIdeal, pesoAj, prot, agua, ca, acucar, fibra, semanas, fase, alertas };
+}
+
+const FASES = {
+  1: 'Fase 1 (semanas 1 a 4): início e adaptação. Refeições pequenas, leves e frequentes. Se houver náusea, prefira alimentos simples e evite gordura em excesso.',
+  2: 'Fase 2 (semanas 5 a 8): ajuste de dose. Mantenha a proteína alta em todas as refeições para preservar massa muscular.',
+  3: 'Fase 3 em diante (9+ semanas): manutenção e ganho de força. Inclua treino de força, variedade de alimentos e fibras.'
+};
+
+// ---------- receitas (estimativas por porção) ----------
+const RECEITAS = [
+  { nome: 'Iogurte natural com aveia e frutas vermelhas', fases: [1], kcal: 280, prot: 20, ca: 250, acucar: 8, fibra: 5,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: false },
+    ingr: ['150 g de iogurte natural', '2 colheres de sopa de aveia', '80 g de frutas vermelhas', 'canela a gosto'],
+    modo: 'Misture tudo e sirva em pequenas porções. Se houver náusea, divida em duas vezes.' },
+  { nome: 'Caldo de frango com legumes e arroz', fases: [1], kcal: 230, prot: 18, ca: 60, acucar: 3, fibra: 3,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['120 g de peito de frango', '1 cenoura', '1 abobrinha', '3 colheres de arroz cozido', 'sal e cheiro-verde'],
+    modo: 'Cozinhe o frango com legumes picados em água, desfie e sirva com o arroz. Tempere pouco.' },
+  { nome: 'Omelete leve com espinafre', fases: [1], kcal: 220, prot: 18, ca: 200, acucar: 2, fibra: 2,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: true },
+    ingr: ['2 ovos', 'punhado de espinafre', '30 g de queijo minas frescal', 'sal e pimenta'],
+    modo: 'Bata os ovos, junte o espinafre picado e o queijo. Frite em frigideira antiaderente com pouco óleo.' },
+  { nome: 'Mingau de aveia com whey e canela', fases: [1], kcal: 260, prot: 25, ca: 220, acucar: 4, fibra: 4,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: false },
+    ingr: ['30 g de aveia', '200 ml de leite (ou bebida vegetal)', '1 dose de whey', 'canela'],
+    modo: 'Cozinhe a aveia no leite até engrossar. Desligue o fogo e misture o whey. Sem açúcar adicionado.' },
+  { nome: 'Frango grelhado com legumes assados', fases: [2, 3], kcal: 340, prot: 38, ca: 60, acucar: 5, fibra: 6,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['150 g de peito de frango', 'brócolis', 'cenoura', 'abobrinha', 'azeite (1 colher de chá)'],
+    modo: 'Tempere o frango com limão e ervas. Grelhe e asse os legumes a 200 °C por 20 minutos.' },
+  { nome: 'Ovos cozidos com salada de grão-de-bico', fases: [2], kcal: 350, prot: 24, ca: 90, acucar: 4, fibra: 8,
+    tags: { vegetariano: true, vegano: false, semLact: true, semGlu: true },
+    ingr: ['2 ovos cozidos', '60 g de grão-de-bico cozido', 'rúcula', 'tomate-cereja', 'limão e azeite'],
+    modo: 'Monte a salada com grão-de-bico, rúcula e tomate. Finalize com limão e azeite. Sirva com os ovos.' },
+  { nome: 'Tofu salteado com brócolis e gengibre', fases: [2, 3], kcal: 300, prot: 22, ca: 350, acucar: 4, fibra: 6,
+    tags: { vegetariano: true, vegano: true, semLact: true, semGlu: true },
+    ingr: ['150 g de tofu firme', 'brócolis', 'gengibre ralado', 'tamari (sem trigo)', '1 colher de chá de óleo'],
+    modo: 'Corte o tofu em cubos e doure. Acrescente o brócolis e o gengibre, finalize com tamari.' },
+  { nome: 'Atum em lata com salada de tomate e pepino', fases: [2], kcal: 260, prot: 30, ca: 40, acucar: 3, fibra: 2,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['1 lata de atum em água (drenada)', 'tomate', 'pepino', 'cebola roxa', 'limão'],
+    modo: 'Misture o atum com os legumes picados e tempere com limão. Prefira atum em água, com pouco sal.' },
+  { nome: 'Salmão assado com batata-doce e brócolis', fases: [3], kcal: 420, prot: 34, ca: 80, acucar: 6, fibra: 7,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['120 g de salmão', '150 g de batata-doce', 'brócolis', 'limão e ervas'],
+    modo: 'Asse o salmão e a batata-doce a 200 °C por 20 minutos. Cozinhe o brócolis no vapor.' },
+  { nome: 'Panqueca de aveia e claras com morango', fases: [3], kcal: 310, prot: 26, ca: 180, acucar: 8, fibra: 5,
+    tags: { vegetariano: true, vegano: false, semLact: true, semGlu: false },
+    ingr: ['40 g de aveia', '4 claras', '1 banana pequena', '100 g de morango', 'canela'],
+    modo: 'Bata aveia, claras e canela no liquidificador. Frite em frigideira antiaderente e sirva com morango.' },
+  { nome: 'Frango desfiado com feijão e couve', fases: [3], kcal: 400, prot: 35, ca: 120, acucar: 4, fibra: 12,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['120 g de frango desfiado', '4 colheres de sopa de feijão', 'couve refogada', 'arroz integral (2 colheres)'],
+    modo: 'Refogue a couve com alho e pouco óleo. Sirva com o frango, o feijão e o arroz.' },
+  { nome: 'Tapioca com ovo e queijo branco', fases: [3], kcal: 330, prot: 20, ca: 230, acucar: 1, fibra: 2,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: true },
+    ingr: ['3 colheres de goma de tapioca', '1 ovo', '40 g de queijo branco', 'orégano'],
+    modo: 'Espalhe a goma em frigideira, cubra com o ovo mexido e o queijo e dobre.' },
+  { nome: 'Lentilha com legumes e quinoa', fases: [2, 3], kcal: 380, prot: 20, ca: 90, acucar: 3, fibra: 14,
+    tags: { vegetariano: true, vegano: true, semLact: true, semGlu: true },
+    ingr: ['100 g de lentilha cozida', '3 colheres de quinoa cozida', 'cenoura', 'abobrinha', 'azeite'],
+    modo: 'Refogue os legumes, junte a lentilha e a quinoa. Finalize com azeite e ervas.' },
+
+  // ---- Fase 1 (refeições leves, líquidas ou pastosas) ----
+  { nome: 'Sopa de abóbora com frango desfiado', fases: [1], kcal: 220, prot: 16, ca: 60, acucar: 4, fibra: 4,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['120 g de abóbora cozida', '80 g de frango desfiado', 'cebola e alho', 'sal e cheiro-verde'],
+    modo: 'Refogue cebola e alho, junte a abóbora e água, cozinhe e bata. Sirva com o frango desfiado por cima.' },
+  { nome: 'Vitamina de banana com whey e aveia', fases: [1], kcal: 280, prot: 24, ca: 230, acucar: 8, fibra: 4,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: false },
+    ingr: ['1 banana pequena', '200 ml de leite', '1 dose de whey', '1 colher de sopa de aveia', 'canela'],
+    modo: 'Bata tudo no liquidificador. Sirva gelada em pequenos volumes ao longo do dia.' },
+  { nome: 'Caldo de legumes com ovo', fases: [1], kcal: 180, prot: 12, ca: 50, acucar: 3, fibra: 4,
+    tags: { vegetariano: true, vegano: false, semLact: true, semGlu: true },
+    ingr: ['1 cenoura', '1 abobrinha', '1 ovo', 'cheiro-verde', 'sal pouco'],
+    modo: 'Cozinhe os legumes em água, escalfe o ovo no caldo e finalize com cheiro-verde.' },
+  { nome: 'Iogurte grego com pera e canela', fases: [1], kcal: 200, prot: 18, ca: 200, acucar: 10, fibra: 3,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: true },
+    ingr: ['150 g de iogurte grego natural', '1 pera cozida em cubos', 'canela'],
+    modo: 'Monte em um pote com a pera cozida e canela. Sirva gelado.' },
+
+  // ---- Fase 2 (proteína alta em cada refeição) ----
+  { nome: 'Frango ao curry leve com grão-de-bico', fases: [2, 3], kcal: 380, prot: 36, ca: 80, acucar: 5, fibra: 9,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['150 g de peito de frango', '60 g de grão-de-bico cozido', 'tomate', 'curry, cebola e alho', 'azeite (1 colher de chá)'],
+    modo: 'Doure a cebola e o alho, junte o frango em cubos e o curry. Acrescente o tomate e o grão-de-bico e cozinhe por 15 minutos.' },
+  { nome: 'Ovos mexidos com cogumelos e tomate', fases: [2], kcal: 270, prot: 22, ca: 110, acucar: 3, fibra: 3,
+    tags: { vegetariano: true, vegano: false, semLact: true, semGlu: true },
+    ingr: ['3 ovos', '80 g de cogumelos fatiados', '1 tomate picado', 'sal e ervas'],
+    modo: 'Refogue os cogumelos e o tomate com pouco óleo. Junte os ovos batidos e mexa em fogo baixo.' },
+  { nome: 'Almôndegas de carne magra com abobrinha', fases: [2, 3], kcal: 360, prot: 34, ca: 70, acucar: 4, fibra: 5,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['150 g de carne bovina magra moída', '1 ovo', 'abobrinha ralada', 'alho e cebolinha', 'molho de tomate natural'],
+    modo: 'Misture a carne com ovo, abobrinha e temperos. Modele bolinhas e asse a 200 °C por 20 minutos. Sirva com molho natural.' },
+  { nome: 'Salada de frango com abacate e pepino', fases: [2], kcal: 340, prot: 30, ca: 70, acucar: 3, fibra: 6,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['120 g de frango grelhado em tiras', '1/4 de abacate', 'pepino', 'folhas verdes', 'limão e azeite'],
+    modo: 'Misture as folhas, o pepino, o abacate e o frango. Tempere com limão e azeite.' },
+  { nome: 'Hambúrguer de feijão preto com salada', fases: [2, 3], kcal: 320, prot: 18, ca: 90, acucar: 3, fibra: 12,
+    tags: { vegetariano: true, vegano: true, semLact: true, semGlu: false },
+    ingr: ['1/2 xícara de feijão preto cozido', '2 colheres de sopa de aveia', 'cebola e alho', 'cominho', 'salada de folhas'],
+    modo: 'Amasse o feijão com aveia e temperos, modele hambúrgueres e grelhe. Sirva com salada.' },
+  { nome: 'Tilápia com purê de mandioquinha e espinafre', fases: [2, 3], kcal: 340, prot: 32, ca: 90, acucar: 3, fibra: 5,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['150 g de filé de tilápia', '150 g de mandioquinha cozida', 'espinafre refogado', 'limão e ervas'],
+    modo: 'Asse a tilápia com limão e ervas a 200 °C por 15 minutos. Amasse a mandioquinha com pouco azeite e sirva com o espinafre.' },
+  { nome: 'Iogurte proteico com castanhas', fases: [2], kcal: 240, prot: 22, ca: 230, acucar: 6, fibra: 3,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: true },
+    ingr: ['200 g de iogurte proteico natural', '20 g de castanhas picadas', 'canela'],
+    modo: 'Misture o iogurte com as castanhas e a canela. Sirva como lanche.' },
+
+  // ---- Fase 3 em diante (manutenção, força e variedade) ----
+  { nome: 'Strogonoff de frango light com arroz integral', fases: [3], kcal: 450, prot: 36, ca: 120, acucar: 5, fibra: 6,
+    tags: { vegetariano: false, vegano: false, semLact: false, semGlu: true },
+    ingr: ['150 g de frango em tiras', '80 g de cogumelos', 'cebola e alho', '2 colheres de sopa de creme de leite light', 'arroz integral (3 colheres)'],
+    modo: 'Doure o frango com cebola e alho, junte os cogumelos e, por último, o creme light fora do fogo forte. Sirva com arroz integral.' },
+  { nome: 'Quinoa com grão-de-bico e legumes assados', fases: [3], kcal: 360, prot: 18, ca: 80, acucar: 4, fibra: 12,
+    tags: { vegetariano: true, vegano: true, semLact: true, semGlu: true },
+    ingr: ['3 colheres de quinoa cozida', '80 g de grão-de-bico', 'berinjela', 'pimentão', 'azeite e limão'],
+    modo: 'Asse berinjela e pimentão a 200 °C por 20 minutos. Misture com a quinoa, o grão-de-bico e o tempero.' },
+  { nome: 'Sanduíche natural de frango com cenoura', fases: [3], kcal: 380, prot: 28, ca: 120, acucar: 5, fibra: 8,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: false },
+    ingr: ['2 fatias de pão integral', '100 g de frango desfiado', 'cenoura ralada', 'folhas verdes', 'mostarda'],
+    modo: 'Monte o sanduíche com frango, cenoura e folhas. Use pão integral e pouca mostarda.' },
+  { nome: 'Carne bovina magra com legumes na chapa e arroz', fases: [3], kcal: 410, prot: 35, ca: 60, acucar: 4, fibra: 6,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['150 g de patinho ou alcatra', 'abobrinha', 'pimentão', 'cebola', 'arroz (3 colheres)'],
+    modo: 'Grelhe a carne em chapa quente. Refogue os legumes em tiras. Sirva com arroz e tempere com ervas.' },
+  { nome: 'Bowl de atum com edamame e arroz integral', fases: [3], kcal: 370, prot: 34, ca: 90, acucar: 4, fibra: 7,
+    tags: { vegetariano: false, vegano: false, semLact: true, semGlu: true },
+    ingr: ['1 lata de atum em água', '50 g de edamame', 'arroz integral (3 colheres)', 'pepino', 'molho de soja sem trigo (tamari)'],
+    modo: 'Monte o bowl com arroz, atum, edamame e pepino. Finalize com tamari e gergelim.' },
+  { nome: 'Overnight oats de iogurte com chia e frutas', fases: [3], kcal: 330, prot: 20, ca: 260, acucar: 9, fibra: 9,
+    tags: { vegetariano: true, vegano: false, semLact: false, semGlu: false },
+    ingr: ['40 g de aveia', '150 g de iogurte natural', '1 colher de sopa de chia', '80 g de frutas', 'canela'],
+    modo: 'Misture aveia, iogurte e chia no pote e deixe na geladeira de um dia para o outro. Sirva com frutas.' }
+];
+
+// ---------- perfil: formulário ----------
+function preencherForm(p) {
+  if (!p) return;
+  ['nome', 'sexo', 'idade', 'altura', 'peso', 'pesoMeta', 'cintura', 'quadril', 'atividade', 'medicamento', 'dose', 'inicio', 'diaAplic', 'horaAplic', 'alergias']
+    .forEach(id => { const el = document.getElementById(id); if (el && p[id] !== undefined) el.value = p[id]; });
+  document.getElementById('rVeg').checked = !!p.rVeg;
+  document.getElementById('rVegano').checked = !!p.rVegano;
+  document.getElementById('rSemLact').checked = !!p.rSemLact;
+  document.getElementById('rSemGlu').checked = !!p.rSemGlu;
+}
+function lerForm() {
+  const v = id => document.getElementById(id).value;
+  return {
+    nome: v('nome'), sexo: v('sexo'), idade: +v('idade'), altura: +v('altura'), peso: +v('peso'),
+    pesoMeta: +v('pesoMeta') || null, cintura: +v('cintura') || null, quadril: +v('quadril') || null,
+    atividade: v('atividade'), medicamento: v('medicamento'), dose: +v('dose') || 0, inicio: v('inicio'),
+    diaAplic: +v('diaAplic'), horaAplic: v('horaAplic'), alergias: v('alergias'),
+    rVeg: document.getElementById('rVeg').checked, rVegano: document.getElementById('rVegano').checked,
+    rSemLact: document.getElementById('rSemLact').checked, rSemGlu: document.getElementById('rSemGlu').checked
+  };
+}
+function renderPerfil() {
+  const box = document.getElementById('resultadoPerfil');
+  if (!perfil) { box.innerHTML = '<div class="alert">Preencha seu perfil e salve para ver suas metas personalizadas.</div>'; return; }
+  const m = calc(perfil);
+  const alert = m.alertas.map(a => `<div class="alert">${a}</div>`).join('');
+  box.innerHTML = `
+    <h2 style="margin-top:20px">Suas metas diárias</h2>
+    <div class="grid">
+      <div class="card"><div class="lbl">Água</div><div class="val">${fmt(m.agua)} ml</div><div class="sub">35 ml por kg${perfil.atividade === 'mod' || perfil.atividade === 'int' ? ' + 500 ml pelo treino' : ''}</div></div>
+      <div class="card"><div class="lbl">Proteína</div><div class="val">${m.prot} g</div><div class="sub">1,2 g por kg (peso ajustado)</div></div>
+      <div class="card"><div class="lbl">Cálcio</div><div class="val">${fmt(m.ca)} mg</div><div class="sub">${perfil.idade > 50 ? 'acima de 50 anos' : 'até 50 anos'}</div></div>
+      <div class="card"><div class="lbl">Açúcar adicionado (máximo)</div><div class="val">${m.acucar} g</div><div class="sub">limite diário recomendado</div></div>
+      <div class="card"><div class="lbl">Fibra</div><div class="val">${m.fibra} g</div><div class="sub">mínimo diário</div></div>
+      <div class="card"><div class="lbl">Calorias (alvo)</div><div class="val">${fmt(m.kcal)} kcal</div><div class="sub">gasto estimado ${fmt(m.get)} kcal</div></div>
+      <div class="card"><div class="lbl">IMC</div><div class="val">${m.imc.toFixed(1).replace('.', ',')}</div><div class="sub">${m.cls}</div></div>
+      <div class="card"><div class="lbl">Relação cintura/altura</div><div class="val">${m.rcq ? m.rcq.toFixed(2).replace('.', ',') : '–'}</div><div class="sub">ideal abaixo de 0,5</div></div>
+      <div class="card"><div class="lbl">Fase atual</div><div class="val">Fase ${m.fase}</div><div class="sub">semana ${m.semanas} de uso</div></div>
+    </div>
+    <p class="muted" style="margin-top:10px">${FASES[m.fase]}</p>
+    ${alert}
+    <div class="muted">Estas metas são estimativas com base em fórmulas padrão. Ajuste conforme orientação do seu médico e nutricionista.</div>`;
+  document.getElementById('avisoHoje').innerHTML = '';
+}
+
+document.getElementById('salvarPerfil').onclick = () => {
+  const p = lerForm();
+  if (!p.idade || !p.altura || !p.peso) { toast('Preencha idade, altura e peso.', 'Atenção'); return; }
+  perfil = p; save('eq_perfil', perfil); resyncPush();
+  renderPerfil(); renderHoje(); renderLembretes(); renderReceitas(); renderAplic();
+  toast('Perfil salvo. Suas metas foram recalculadas.', 'Pronto');
+};
+
+// ---------- hoje ----------
+function barra(id, val, meta) {
+  const pct = meta ? Math.min(100, (val / meta) * 100) : 0;
+  const el = document.getElementById(id);
+  el.style.width = pct + '%';
+  el.parentElement.classList.toggle('over', meta && val > meta);
+}
+function renderHoje() {
+  document.getElementById('dataHoje').textContent = new Date().toLocaleDateString('pt-BR');
+  if (!perfil) { document.getElementById('avisoHoje').innerHTML = '<div class="alert">Cadastre seu perfil para ver as metas do dia.</div>'; return; }
+  const m = calc(perfil);
+  const set = (k, v, unit, meta) => {
+    document.getElementById('v' + k).textContent = fmt(v) + ' ' + unit;
+    barra('b' + k, v, meta);
+  };
+  set('Agua', dia.agua, 'ml', m.agua);
+  set('Prot', dia.prot, 'g', m.prot);
+  set('Ca', dia.ca, 'mg', m.ca);
+  set('Ac', dia.acucar, 'g', m.acucar);
+  set('Fi', dia.fibra, 'g', m.fibra);
+  document.getElementById('vRef').textContent = dia.refeicoes;
+  document.getElementById('sAgua').textContent = dia.agua >= m.agua ? 'Meta de água atingida hoje.' : `Faltam ${fmt(m.agua - dia.agua)} ml.`;
+  document.getElementById('sProt').textContent = dia.prot >= m.prot ? 'Meta de proteína atingida.' : `Faltam ${fmt(m.prot - dia.prot)} g.`;
+  document.getElementById('sCa').textContent = dia.ca >= m.ca ? 'Meta de cálcio atingida.' : `Faltam ${fmt(m.ca - dia.ca)} mg.`;
+  document.getElementById('sAc').textContent = dia.acucar <= m.acucar ? `Limite: ${m.acucar} g. Restam ${fmt(m.acucar - dia.acucar)} g.` : 'Acima do limite de hoje.';
+  document.getElementById('sFi').textContent = dia.fibra >= m.fibra ? 'Meta de fibra atingida.' : `Faltam ${fmt(m.fibra - dia.fibra)} g.`;
+  document.getElementById('avisoHoje').innerHTML = dia.prot < m.prot * 0.5 && new Date().getHours() >= 15
+    ? '<div class="alert">Sua proteína está abaixo da metade da meta e já é tarde. Inclua uma fonte de proteína na próxima refeição.</div>' : '';
+  renderSintomas();
+  renderPeso();
+  renderSemana();
+}
+document.querySelectorAll('[data-add]').forEach(b => {
+  b.onclick = () => {
+    const k = b.dataset.add, q = +b.dataset.q;
+    dia[k] = (dia[k] || 0) + q;
+    save('eq_dia_' + hojeKey(), dia);
+    renderHoje();
+  };
+});
+document.getElementById('zerarDia').onclick = () => {
+  if (!confirm('Zerar todos os registros de hoje (água, proteína, cálcio, açúcar, fibra, refeições e sintomas)?')) return;
+  dia = { agua: 0, prot: 0, ca: 0, acucar: 0, fibra: 0, refeicoes: 0, sintomas: [] };
+  save('eq_dia_' + hojeKey(), dia); renderHoje();
+};
+if (!Array.isArray(dia.sintomas)) dia.sintomas = [];
+
+// ---------- lembretes ----------
+function renderLembretes() {
+  document.getElementById('cfgAgua').value = cfg.agua;
+  document.getElementById('hCafe').value = cfg.refs.cafe;
+  document.getElementById('hAlmoco').value = cfg.refs.almoco;
+  document.getElementById('hLanche').value = cfg.refs.lanche;
+  document.getElementById('hJantar').value = cfg.refs.jantar;
+  document.getElementById('cfgSom').checked = cfg.som;
+  const agora = new Date();
+  const lista = [];
+  lista.push(`💧 Água: a cada ${cfg.agua} min, entre 7h e 21h`);
+  Object.entries(cfg.refs).forEach(([n, h]) => lista.push(`🍽️ ${n[0].toUpperCase() + n.slice(1)}: ${h}`));
+  if (perfil) {
+    const dias = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+    lista.push(`💉 Aplicação: toda ${dias[perfil.diaAplic]} às ${perfil.horaAplic}${perfil.dose ? ' (dose ' + perfil.dose + ' mg, confira a prescrição)' : ''}`);
+  }
+  document.getElementById('proximos').innerHTML = lista.map(x => `<div style="padding:4px 0">${x}</div>`).join('') +
+    `<div class="muted" style="margin-top:6px">Agora são ${pad(agora.getHours())}:${pad(agora.getMinutes())}.</div>`;
+  const hist = load('eq_hist_' + hojeKey(), []);
+  document.getElementById('historicoLembretes').innerHTML = hist.length
+    ? hist.map(x => `<div style="padding:3px 0">${x}</div>`).join('') : '<span class="muted">Nenhum lembrete disparado ainda.</span>';
+}
+document.getElementById('salvarLembretes').onclick = () => {
+  cfg.agua = Math.max(30, +document.getElementById('cfgAgua').value || 120);
+  cfg.refs = { cafe: document.getElementById('hCafe').value, almoco: document.getElementById('hAlmoco').value,
+               lanche: document.getElementById('hLanche').value, jantar: document.getElementById('hJantar').value };
+  cfg.som = document.getElementById('cfgSom').checked;
+  save('eq_cfg', cfg); renderLembretes(); resyncPush(); toast('Lembretes salvos.', 'Pronto');
+};
+let audioCtx = null;
+function bip(freq, t0) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination); o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t0);
+  g.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime + t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t0 + 0.4);
+  o.start(audioCtx.currentTime + t0); o.stop(audioCtx.currentTime + t0 + 0.45);
+}
+function tocarSom() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    bip(880, 0); bip(1175, 0.5);
+    return true;
+  } catch (e) { return false; }
+}
+document.getElementById('testarSom').onclick = () => {
+  const ok = tocarSom();
+  toast(ok ? 'Som de teste tocado.' : 'Seu navegador bloqueou o som. Clique de novo e permita o áudio.', 'Teste de som');
+};
+document.getElementById('pedirNotif').onclick = async () => {
+  if (!('Notification' in window)) { toast('Este navegador não suporta notificações.', 'Aviso'); return; }
+  const r = await Notification.requestPermission();
+  if (r === 'granted') await ativarPush().catch(() => {});
+  toast(r === 'granted' ? 'Notificações ativadas.' : 'Notificações não permitidas. Os lembretes sonoros continuam funcionando com o app aberto.', 'Notificações');
+};
+
+function toast(msg, titulo) {
+  const t = document.getElementById('toast');
+  t.innerHTML = `<b>${titulo || 'Lembrete'}</b>${msg}`;
+  t.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.style.display = 'none', 6000);
+}
+function alertar(titulo, msg) {
+  if (cfg.som) tocarSom();
+  toast(msg, titulo);
+  const hist = load('eq_hist_' + hojeKey(), []);
+  hist.push(`${pad(new Date().getHours())}:${pad(new Date().getMinutes())} · ${titulo}: ${msg}`);
+  save('eq_hist_' + hojeKey(), hist);
+  renderLembretes();
+  // a notificação do sistema é enviada pelo servidor (push), mesmo com o app fechado
+}
+
+const disparados = {};
+let ultimaAgua = Date.now();
+function verificarLembretes() {
+  if (!perfil) return;
+  const now = new Date();
+  const hhmm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const k = localKey(now);
+  const m = calc(perfil);
+  // água: entre 7h e 21h, a cada intervalo configurado
+  if (now.getHours() >= 7 && now.getHours() < 21 && Date.now() - ultimaAgua >= cfg.agua * 60000) {
+    ultimaAgua = Date.now();
+    alertar('💧 Hora de beber água', `Você precisa de ${fmt(m.agua)} ml hoje. Já tomou ${fmt(dia.agua)} ml.`);
+  }
+  // refeições
+  Object.entries(cfg.refs).forEach(([nome, hora]) => {
+    const chave = k + nome;
+    if (hora === hhmm && !disparados[chave]) {
+      disparados[chave] = true;
+      alertar('🍽️ ' + nome[0].toUpperCase() + nome.slice(1), `Hora de ${nome}. Meta de proteína hoje: ${m.prot} g.`);
+    }
+  });
+  // aplicação
+  const chaveA = k + 'aplic';
+  if (now.getDay() === perfil.diaAplic && perfil.horaAplic === hhmm && !disparados[chaveA]) {
+    disparados[chaveA] = true;
+    alertar('💉 Dia da aplicação', `Dose prescrita: ${perfil.dose} mg. Confirme com sua equipe de saúde.`);
+  }
+}
+setInterval(verificarLembretes, 30000);
+
+// ---------- receitas ----------
+function renderReceitas() {
+  const m = perfil ? calc(perfil) : null;
+  const faseSel = document.getElementById('fFase').value;
+  const faseAtual = m ? m.fase : 1;
+  const faseFiltro = faseSel === 'auto' ? faseAtual : faseSel === 'todas' ? null : +faseSel;
+  const soCompat = document.getElementById('fCompat').checked;
+  document.getElementById('faseInfo').textContent = m
+    ? FASES[faseAtual] + ` Você está na fase ${faseAtual}.`
+    : 'Cadastre seu perfil para receber sugestões personalizadas.';
+  const lista = RECEITAS.filter(r => {
+    if (faseFiltro && !r.fases.includes(faseFiltro)) return false;
+    if (perfil && soCompat) {
+      if (perfil.rVegano && !r.tags.vegano) return false;
+      if (perfil.rVeg && !r.tags.vegetariano) return false;
+      if (perfil.rSemLact && !r.tags.semLact) return false;
+      if (perfil.rSemGlu && !r.tags.semGlu) return false;
+    }
+    return true;
+  });
+  const html = lista.map(r => {
+    const rec = m && r.fases.includes(m.fase);
+    const pctProt = m ? Math.round((r.prot / m.prot) * 100) : null;
+    const acOk = m ? r.acucar <= m.acucar / 3 : true;
+    const tags = [
+      rec ? '<span class="tag rec">Indicada para sua fase</span>' : '',
+      r.tags.vegetariano ? '<span class="tag">Vegetariano</span>' : '',
+      r.tags.vegano ? '<span class="tag">Vegano</span>' : '',
+      r.tags.semLact ? '<span class="tag">Sem lactose</span>' : '<span class="tag">Contém lactose</span>',
+      r.tags.semGlu ? '<span class="tag">Sem glúten</span>' : '<span class="tag">Contém glúten</span>'
+    ].join('');
+    return `<div class="recipe">
+      <h4>${r.nome}</h4>
+      <div>${tags}</div>
+      <p class="muted" style="margin:6px 0">Por porção (aprox.): ${r.kcal} kcal · ${r.prot} g proteína · ${r.ca} mg cálcio · ${r.acucar} g açúcar · ${r.fibra} g fibra</p>
+      ${m ? `<p style="font-size:13px;margin:4px 0"><b>${pctProt}%</b> da sua proteína diária · açúcar ${acOk ? 'dentro' : 'acima'} da parte da sua meta para uma refeição</p>` : ''}
+      <h3>Ingredientes</h3>
+      <ul>${r.ingr.map(i => `<li>${i}</li>`).join('')}</ul>
+      <h3>Modo de preparo</h3>
+      <p style="font-size:13px;margin:0">${r.modo}</p>
+    </div>`;
+  }).join('');
+  document.getElementById('listaReceitas').innerHTML = html || '<div class="alert">Nenhuma receita compatível com as restrições marcadas. Ajuste o filtro ou seu perfil.</div>';
+}
+['fCompat', 'fFase'].forEach(id => document.getElementById(id).addEventListener('change', renderReceitas));
+
+// ---------- aplicações ----------
+function proximaAplic() {
+  if (!perfil) return null;
+  if (aplics.length) {
+    const ult = new Date(aplics[aplics.length - 1].data + 'T00:00:00');
+    ult.setDate(ult.getDate() + 7);
+    return ult;
+  }
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  const diff = (perfil.diaAplic - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function renderAplic() {
+  const p = proximaAplic();
+  const prox = document.getElementById('proxAplic');
+  prox.innerHTML = p
+    ? `<div class="ok">Próxima aplicação: <b>${p.toLocaleDateString('pt-BR')}</b> às ${perfil.horaAplic}${perfil.dose ? ` · dose prescrita ${perfil.dose} mg` : ''}.</div>`
+    : '<div class="alert">Cadastre seu perfil para ver a data da próxima aplicação.</div>';
+  const tab = document.getElementById('tabAplic');
+  tab.innerHTML = '<tr><th>Data</th><th>Dose (mg)</th></tr>' +
+    aplics.slice().reverse().map(a => `<tr><td>${new Date(a.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${a.dose}</td></tr>`).join('');
+  document.getElementById('dataAplic').value = hojeKey();
+  document.getElementById('doseAplic').value = perfil ? perfil.dose : '';
+}
+document.getElementById('registrarAplic').onclick = () => {
+  const data = document.getElementById('dataAplic').value;
+  const dose = +document.getElementById('doseAplic').value;
+  if (!data || !dose) { toast('Informe a data e a dose aplicada.', 'Atenção'); return; }
+  aplics.push({ data, dose }); save('eq_aplic', aplics);
+  renderAplic(); toast('Aplicação registrada. A próxima data foi recalculada.', 'Pronto');
+};
+
+// ---------- abas ----------
+document.querySelectorAll('nav button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('nav button').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById(b.dataset.tab).classList.add('on');
+    if (b.dataset.tab === 'hoje') renderHoje();
+    if (b.dataset.tab === 'receitas') renderReceitas();
+    if (b.dataset.tab === 'lembretes') renderLembretes();
+    if (b.dataset.tab === 'aplic') renderAplic();
+    if (b.dataset.tab === 'conta') renderConta();
+  };
+});
+
+// ---------- notificações push (servidor envia mesmo com o app fechado) ----------
+function urlB64ToUint8(base64) {
+  const pad = '='.repeat((4 - base64.length % 4) % 4);
+  const b64 = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+async function enviarAgenda(sub) {
+  if (!sub) return;
+  const corpo = {
+    subscription: sub.toJSON(),
+    schedule: {
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      aguaIntervalo: cfg.agua,
+      refs: cfg.refs,
+      aplic: perfil ? { dia: perfil.diaAplic, hora: perfil.horaAplic } : null
+    }
+  };
+  try {
+    const r = await fetch('api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+    if (r.status === 401) toast('Entre na sua conta para ativar os lembretes com o app fechado.', 'Atenção');
+  } catch (e) {}
+}
+async function ativarPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const r = await fetch('api/vapid-public-key').then(x => x.json());
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(r.publicKey) });
+  }
+  await enviarAgenda(sub);
+}
+async function resyncPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  const reg = await navigator.serviceWorker.ready;
+  await enviarAgenda(await reg.pushManager.getSubscription());
+}
+
+// ---------- PWA: service worker (cache offline e notificações) ----------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+// ---------- inicialização ----------
+preencherForm(perfil);
+document.getElementById('cfgSom').onchange = () => {};
+const temaSel = document.getElementById('temaSel');
+temaSel.value = document.documentElement.dataset.tema || 'champagne';
+temaSel.onchange = () => {
+  document.documentElement.dataset.tema = temaSel.value;
+  localStorage.setItem('eq_tema', temaSel.value);
+};
+// (inicialização movida para o fim do script, depois das novas seções)
+
+// ---------- conta: entrar, cadastrar, sair ----------
+const authEl = document.getElementById('auth');
+let modoCadastro = false;
+let emailLogado = null;
+
+document.getElementById('authAlterna').onclick = (e) => {
+  e.preventDefault();
+  modoCadastro = !modoCadastro;
+  document.getElementById('authTitulo').textContent = modoCadastro ? 'Criar conta' : 'Entrar';
+  document.getElementById('authBtn').textContent = modoCadastro ? 'Criar conta' : 'Entrar';
+  document.getElementById('authAlterna').textContent = modoCadastro ? 'Já tenho conta' : 'Não tem conta? Criar conta';
+  document.getElementById('authSenha').autocomplete = modoCadastro ? 'new-password' : 'current-password';
+  document.getElementById('authErro').textContent = '';
+};
+
+document.getElementById('authForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const erroEl = document.getElementById('authErro');
+  const btn = document.getElementById('authBtn');
+  const senhaEl = document.getElementById('authSenha');
+  erroEl.textContent = '';
+  btn.disabled = true;
+  try {
+    const r = await fetch(modoCadastro ? 'api/auth/cadastro' : 'api/auth/entrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('authEmail').value, senha: senhaEl.value })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { erroEl.textContent = j.erro || 'Não foi possível entrar.'; return; }
+    senhaEl.value = '';
+    trocarConta(j.email);
+  } catch (err) {
+    erroEl.textContent = 'Sem conexão com o servidor. Tente de novo.';
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// Dados locais (perfil, diário, lembretes) são por aparelho. Se outra conta entrar
+// no mesmo navegador, limpa os dados da conta anterior antes de carregar a nova.
+function trocarConta(email) {
+  const anterior = localStorage.getItem('eq_conta');
+  if (anterior && anterior !== email) {
+    Object.keys(localStorage).filter(k => k.startsWith('eq_') && k !== 'eq_tema').forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('eq_conta', email);
+    location.reload();
+    return;
+  }
+  localStorage.setItem('eq_conta', email);
+  emailLogado = email;
+  authEl.style.display = 'none';
+  const sair = document.getElementById('sairBtn');
+  sair.style.display = 'inline-block';
+  sair.title = email;
+  resyncPush().catch(() => {});
+  carregarConta().then((c) => { if (c && !c.trocarSenha && c.status === 'ativo') mostrarBoasVindas(email); });
+}
+
+document.getElementById('sairBtn').onclick = async () => {
+  await fetch('api/auth/sair', { method: 'POST' }).catch(() => {});
+  location.reload();
+};
+
+fetch('api/auth/eu', { credentials: 'same-origin' })
+  .then((r) => (r.ok ? r.json() : Promise.reject()))
+  .then((j) => trocarConta(j.email))
+  .catch(() => { authEl.style.display = 'block'; });
+
+// ---------- conta: plano, paywall, troca de senha e mensagens ----------
+let contaInfo = null;
+const escHtml = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const reaisTxt = (v) => 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
+const dataTxt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
+
+async function carregarConta() {
+  try {
+    const r = await fetch('api/conta', { credentials: 'same-origin' });
+    if (!r.ok) return null;
+    contaInfo = await r.json();
+    aplicarBloqueios(contaInfo);
+    atualizarBadge(contaInfo);
+    mostrarAvisoVencimento(contaInfo);
+    return contaInfo;
+  } catch (e) { return null; }
+}
+
+function aplicarBloqueios(c) {
+  const paywall = document.getElementById('paywall');
+  const troca = document.getElementById('trocaSenha');
+  if (c.trocarSenha) {
+    troca.style.display = 'flex';
+    paywall.style.display = 'none';
+    return;
+  }
+  troca.style.display = 'none';
+  if (c.status === 'ativo') {
+    paywall.style.display = 'none';
+  } else {
+    paywall.style.display = 'flex';
+    renderPaywall(c);
+  }
+}
+
+function renderPlanosHtml(c, comBotao) {
+  return c.planos.map(p => `
+    <div class="plano-op">
+      <div>
+        <b>${escHtml(p.nome)} · ${p.dias} dias</b>
+        <small>${c.desconto ? `<s>${reaisTxt(p.preco)}</s> ` : ''}${reaisTxt(p.precoFinal)}${c.desconto ? ` (${c.desconto}% de desconto)` : ''}</small>
+      </div>
+      ${comBotao ? `<button class="btn" data-pagar="${escHtml(p.id)}" ${c.pagamentoAutomatico ? '' : 'disabled'}>Assinar</button>` : ''}
+    </div>`).join('');
+}
+
+function renderPaywall(c) {
+  document.getElementById('paywallPlanos').innerHTML = renderPlanosHtml(c, true);
+  document.getElementById('paywallAviso').textContent = c.pagamentoAutomatico
+    ? 'Pagamento seguro pelo Mercado Pago. O acesso é liberado logo após a confirmação.'
+    : 'A renovação automática ainda não está disponível. Fale com a equipe para renovar seu acesso.';
+}
+
+function renderConta() {
+  const c = contaInfo;
+  if (!c) { carregarConta(); return; }
+  const ativo = c.status === 'ativo';
+  document.getElementById('resumoConta').innerHTML = `
+    <p><b>E-mail:</b> ${escHtml(c.email)}</p>
+    <p><b>Plano:</b> ${c.planoNome ? escHtml(c.planoNome) : 'Período de teste'}</p>
+    <p><b>Situação:</b> <span style="color:${ativo ? '#2E7D5B' : '#A8493F'};font-weight:600">${ativo ? 'Ativo' : 'Vencido'}</span></p>
+    <p><b>Acesso até:</b> ${dataTxt(c.acessoAte)}</p>
+    ${c.desconto ? `<p><b>Desconto especial:</b> ${c.desconto}%</p>` : ''}`;
+  document.getElementById('listaPlanosConta').innerHTML = renderPlanosHtml(c, true);
+  document.getElementById('avisoPgto').textContent = c.pagamentoAutomatico
+    ? 'Pagamento seguro pelo Mercado Pago. Você pode renovar a qualquer momento; os dias são somados ao seu acesso atual.'
+    : 'A renovação automática ainda não está disponível. Fale com a equipe para renovar seu acesso.';
+  const lista = document.getElementById('listaMensagens');
+  if (!c.mensagens || !c.mensagens.length) {
+    lista.innerHTML = '<p class="muted">Nenhuma mensagem ainda.</p>';
+  } else {
+    lista.innerHTML = c.mensagens.map(m => `
+      <div class="msg-item ${m.lida ? '' : 'nova'}">
+        <b>${escHtml(m.titulo)}</b> ${m.lida ? '' : '<span class="badge-msg">nova</span>'}
+        <div>${escHtml(m.texto)}</div>
+        <small>${dataTxt(m.data)}</small>
+      </div>`).join('');
+    if (c.mensagens.some(m => !m.lida)) {
+      fetch('api/conta/mensagens/lidas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'same-origin' })
+        .then(() => { c.mensagens.forEach(m => m.lida = true); atualizarBadge(c); })
+        .catch(() => {});
+    }
+  }
+  atualizarBadge(c);
+}
+
+function mostrarAvisoVencimento(c) {
+  const box = document.getElementById('avisoVenc');
+  const a = c.aviso;
+  const chave = a ? 'eq_aviso_' + c.email + '_' + c.acessoAte + '_' + a.nivel : null;
+  if (!a || (localStorage.getItem(chave) === hojeKey())) { box.style.display = 'none'; return; }
+  document.getElementById('avisoVencTexto').textContent = a.texto;
+  box.classList.toggle('urgente', a.nivel <= 2);
+  box.style.display = 'flex';
+  document.getElementById('avisoVencFechar').onclick = () => { localStorage.setItem(chave, hojeKey()); box.style.display = 'none'; };
+}
+
+function atualizarBadge(c) {
+  const b = document.getElementById('badgeMsg');
+  const n = c && c.mensagens ? c.mensagens.filter(m => !m.lida).length : 0;
+  b.textContent = n; b.style.display = n ? 'inline-block' : 'none';
+}
+
+async function pagar(plano, erroEl) {
+  erroEl.textContent = '';
+  try {
+    const r = await fetch('api/pagamento/criar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plano }), credentials: 'same-origin' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) { erroEl.textContent = j.erro || 'Não foi possível iniciar o pagamento.'; return; }
+    location.href = j.url;
+  } catch (e) { erroEl.textContent = 'Sem conexão com o servidor. Tente de novo.'; }
+}
+
+document.getElementById('paywallPlanos').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-pagar]'); if (b) pagar(b.dataset.pagar, document.getElementById('paywallErro'));
+});
+document.getElementById('listaPlanosConta').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-pagar]'); if (b) pagar(b.dataset.pagar, document.getElementById('avisoPgto'));
+});
+document.getElementById('paywallSair').onclick = () => document.getElementById('sairBtn').click();
+
+async function enviarNovaSenha(atual, nova) {
+  const r = await fetch('api/conta/trocar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ atual, nova }), credentials: 'same-origin' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.erro || 'Não foi possível trocar a senha.');
+}
+
+document.getElementById('formTrocaObrigatoria').onsubmit = async (e) => {
+  e.preventDefault();
+  const erro = document.getElementById('erroTrocaObrigatoria');
+  erro.textContent = '';
+  try {
+    await enviarNovaSenha(undefined, document.getElementById('senhaObrigatoria').value);
+    document.getElementById('senhaObrigatoria').value = '';
+    await carregarConta();
+  } catch (err) { erro.textContent = err.message; }
+};
+
+document.getElementById('formTrocaSenha').onsubmit = async (e) => {
+  e.preventDefault();
+  const erro = document.getElementById('erroTroca');
+  erro.textContent = '';
+  try {
+    await enviarNovaSenha(document.getElementById('senhaAtual').value, document.getElementById('senhaNova').value);
+    document.getElementById('senhaAtual').value = ''; document.getElementById('senhaNova').value = '';
+    erro.style.color = '#2E7D5B'; erro.textContent = 'Senha alterada com sucesso.';
+    toast('Sua nova senha foi salva.', 'Pronto');
+  } catch (err) { erro.style.color = ''; erro.textContent = err.message; }
+};
+
+// Retorno do Mercado Pago (?pagamento=ok|pendente|falhou)
+(function tratarRetornoPagamento() {
+  const p = new URLSearchParams(location.search).get('pagamento');
+  if (!p) return;
+  history.replaceState(null, '', location.pathname);
+  if (p === 'ok') { toast('Pagamento recebido. Seu acesso será liberado em instantes.', 'Obrigado!'); setTimeout(carregarConta, 4000); }
+  if (p === 'pendente') toast('Pagamento em análise. Assim que for aprovado, o acesso é liberado.', 'Quase lá');
+  if (p === 'falhou') toast('O pagamento não foi concluído. Tente novamente.', 'Atenção');
+})();
+
+// ---------- sintomas, peso, últimos 7 dias, meus dados e exclusão ----------
+const brData = (iso) => iso ? iso.split('-').reverse().join('/') : '—';
+const SINTOMAS = ['Náusea', 'Vômito', 'Constipação (prisão de ventre)', 'Diarreia', 'Refluxo ou azia', 'Dor abdominal', 'Tontura', 'Cansaço', 'Dor de cabeça', 'Outro'];
+const SINTOMAS_URGENTES = ['Vômito', 'Dor abdominal', 'Tontura'];
+const escTxt = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+document.getElementById('sintTipo').innerHTML = SINTOMAS.map(t => `<option>${escTxt(t)}</option>`).join('');
+
+function renderSintomas() {
+  const lista = document.getElementById('listaSint');
+  const itens = dia.sintomas || [];
+  lista.innerHTML = itens.length
+    ? itens.map((x, i) => `<li>${escTxt(x.tipo)} · <b>${escTxt(x.grau)}</b> · ${escTxt(x.hora)} <button class="btn sec" data-del-sint="${i}" style="margin-left:6px;padding:2px 8px">remover</button></li>`).join('')
+    : '<li class="muted">Nenhum sintoma registrado hoje.</li>';
+  const alerta = document.getElementById('alertaSint');
+  const urgentes = itens.filter(x => SINTOMAS_URGENTES.includes(x.tipo) && x.grau === 'forte');
+  const vomitos = itens.filter(x => x.tipo === 'Vômito').length;
+  if (urgentes.length) alerta.innerHTML = '<div class="alert"><b>Procure atendimento médico agora</b> se o sintoma continuar ou piorar (dor abdominal forte, vômito persistente, tontura ou desmaio). Não espere o próximo dia.</div>';
+  else if (vomitos >= 3) alerta.innerHTML = '<div class="alert">Vômitos repetidos hoje. Procure seu médico ou a equipe de saúde ainda hoje.</div>';
+  else if (itens.some(x => x.grau === 'forte')) alerta.innerHTML = '<div class="alert">Você registrou um sintoma forte. Conte para sua equipe de saúde.</div>';
+  else alerta.innerHTML = '';
+}
+
+document.getElementById('registrarSint').onclick = () => {
+  const tipo = document.getElementById('sintTipo').value;
+  const grau = document.getElementById('sintGrau').value;
+  const agora = new Date();
+  dia.sintomas = dia.sintomas || [];
+  dia.sintomas.push({ tipo, grau, hora: pad(agora.getHours()) + ':' + pad(agora.getMinutes()) });
+  save('eq_dia_' + hojeKey(), dia);
+  renderSintomas(); renderSemana();
+  toast('Sintoma registrado.', 'Anotado');
+};
+document.getElementById('listaSint').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-del-sint]'); if (!b) return;
+  dia.sintomas.splice(+b.dataset.delSint, 1);
+  save('eq_dia_' + hojeKey(), dia); renderSintomas(); renderSemana();
+});
+
+// ----- peso -----
+let pesos = load('eq_peso', []);
+function salvarPesos() { save('eq_peso', pesos); }
+function desenharGrafico(arr) {
+  const box = document.getElementById('pesoGrafico');
+  if (arr.length < 2) { box.innerHTML = '<p class="muted" style="font-size:13px">Registre pelo menos 2 pesos para ver o gráfico.</p>'; return; }
+  const W = 600, H = 150, P = 20;
+  const vals = arr.map(p => p.kg);
+  const min = Math.min(...vals), max = Math.max(...vals), faixa = (max - min) || 1;
+  const pts = arr.map((p, i) => {
+    const x = P + (i * (W - 2 * P)) / (arr.length - 1);
+    const y = H - P - ((p.kg - min) / faixa) * (H - 2 * P);
+    return [x.toFixed(1), y.toFixed(1)];
+  });
+  const linha = pts.map(p => p.join(',')).join(' ');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Gráfico de peso">
+    <polyline fill="none" stroke="var(--brand, #0F5C4D)" stroke-width="3" points="${linha}"/>
+    ${pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--brand, #0F5C4D)"/>`).join('')}
+    <text x="4" y="14" font-size="12" fill="#7A6E62">${max.toFixed(1).replace('.', ',')} kg</text>
+    <text x="4" y="${H - 4}" font-size="12" fill="#7A6E62">${min.toFixed(1).replace('.', ',')} kg</text>
+  </svg>`;
+}
+function renderPeso() {
+  const dataEl = document.getElementById('pesoData');
+  if (!dataEl.value) dataEl.value = hojeKey();
+  const ord = [...pesos].sort((a, b) => a.data.localeCompare(b.data));
+  const ult = ord[ord.length - 1], pri = ord[0];
+  const resumo = document.getElementById('pesoResumo');
+  if (!ult) resumo.textContent = 'Nenhum peso registrado ainda.';
+  else {
+    let txt = `Último registro: <b>${ult.kg.toFixed(1).replace('.', ',')} kg</b> em ${brData(ult.data)}`;
+    if (pri !== ult) {
+      const dif = ult.kg - pri.kg;
+      txt += ` · Variação desde ${brData(pri.data)}: <b>${dif > 0 ? '+' : ''}${dif.toFixed(1).replace('.', ',')} kg</b>`;
+    }
+    resumo.innerHTML = txt;
+  }
+  desenharGrafico(ord.slice(-30));
+  const tab = document.getElementById('tabPesos');
+  tab.innerHTML = '<tr><th>Data</th><th>Peso</th><th></th></tr>' + (ord.length
+    ? ord.slice().reverse().slice(0, 10).map(p => `<tr><td>${brData(p.data)}</td><td>${p.kg.toFixed(1).replace('.', ',')} kg</td><td><button class="btn sec" data-del-peso="${p.data}" style="padding:2px 8px">remover</button></td></tr>`).join('')
+    : '<tr><td colspan="3">Sem registros.</td></tr>');
+}
+document.getElementById('registrarPeso').onclick = () => {
+  const data = document.getElementById('pesoData').value;
+  const kg = parseFloat(document.getElementById('pesoKg').value);
+  if (!data || !(kg >= 30 && kg <= 300)) { toast('Informe a data e um peso entre 30 e 300 kg.', 'Atenção'); return; }
+  pesos = pesos.filter(p => p.data !== data);
+  pesos.push({ data, kg: Math.round(kg * 10) / 10 });
+  salvarPesos();
+  document.getElementById('pesoKg').value = '';
+  renderPeso();
+  toast('Peso registrado.', 'Anotado');
+};
+document.getElementById('tabPesos').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-del-peso]'); if (!b) return;
+  if (!confirm('Remover o registro de ' + brData(b.dataset.delPeso) + '?')) return;
+  pesos = pesos.filter(p => p.data !== b.dataset.delPeso);
+  salvarPesos(); renderPeso();
+});
+
+// ----- últimos 7 dias -----
+function renderSemana() {
+  const linhas = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const k = localKey(d);
+    const x = k === hojeKey() ? dia : load('eq_dia_' + k, null);
+    const sint = x && Array.isArray(x.sintomas) ? x.sintomas.length : 0;
+    linhas.push(`<tr><td>${brData(k)}${i === 0 ? ' (hoje)' : ''}</td><td>${x ? fmt(x.agua || 0) + ' ml' : '—'}</td><td>${x ? (x.prot || 0) + ' g' : '—'}</td><td>${x ? (x.refeicoes || 0) : '—'}</td><td>${sint || '—'}</td></tr>`);
+  }
+  document.getElementById('tabSemana').innerHTML = '<tr><th>Dia</th><th>Água</th><th>Proteína</th><th>Refeições</th><th>Sintomas</th></tr>' + linhas.join('');
+}
+
+// ----- meus dados: baixar, restaurar -----
+document.getElementById('exportarDados').onclick = () => {
+  const dados = {};
+  Object.keys(localStorage).filter(k => k.startsWith('eq_') && k !== 'eq_conta' && k !== 'eq_tema').forEach(k => { dados[k] = localStorage.getItem(k); });
+  const pacote = { app: 'MomoEquilibrio', versao: 1, gerado: new Date().toISOString(), dados };
+  const blob = new Blob([JSON.stringify(pacote, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'momoequilibrio-meus-dados-' + hojeKey() + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  document.getElementById('msgDados').textContent = 'Arquivo baixado. Guarde em local seguro.';
+};
+document.getElementById('btnRestaurar').onclick = () => document.getElementById('importarDados').click();
+document.getElementById('importarDados').onchange = async (e) => {
+  const arq = e.target.files[0]; if (!arq) return;
+  const msg = document.getElementById('msgDados');
+  try {
+    const pacote = JSON.parse(await arq.text());
+    if (pacote.app !== 'MomoEquilibrio' || pacote.versao !== 1 || !pacote.dados) throw new Error('arquivo inválido');
+    if (!confirm('Restaurar esta cópia? Os dados atuais deste aparelho serão substituídos.')) return;
+    Object.keys(localStorage).filter(k => k.startsWith('eq_') && k !== 'eq_conta' && k !== 'eq_tema').forEach(k => localStorage.removeItem(k));
+    Object.entries(pacote.dados).forEach(([k, v]) => { if (k.startsWith('eq_') && k !== 'eq_conta' && k !== 'eq_tema') localStorage.setItem(k, v); });
+    location.reload();
+  } catch (err) {
+    msg.textContent = 'Não foi possível restaurar: ' + (err.message || 'arquivo inválido') + '.';
+  }
+  e.target.value = '';
+};
+
+// ----- pedido de exclusão (a equipe confirma e apaga; não é automático) -----
+document.getElementById('pedirExclusao').onclick = async () => {
+  if (!confirm('Enviar pedido de exclusão da sua conta? A equipe confirma o pedido e apaga seus dados da nossa base. Seus dados deste aparelho não são apagados automaticamente.')) return;
+  const msg = document.getElementById('msgDados');
+  try {
+    const r = await fetch('api/conta/pedido-exclusao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'same-origin' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erro || 'falha');
+    msg.textContent = 'Pedido registrado. Você pode também escrever para o contato indicado na política de privacidade.';
+  } catch (e) { msg.textContent = 'Não foi possível registrar o pedido. Tente de novo.'; }
+};
+
+// ---------- inicialização das telas ----------
+renderPerfil(); renderHoje(); renderLembretes(); renderReceitas(); renderAplic();
+
+// ---------- boas-vindas (uma vez por conta, enquanto não há perfil) ----------
+function mostrarBoasVindas(email) {
+  if (perfil || localStorage.getItem('eq_bv_' + email)) return;
+  document.getElementById('boasVindas').style.display = 'flex';
+}
+function fecharBoasVindas(email, irParaPerfil) {
+  localStorage.setItem('eq_bv_' + email, '1');
+  document.getElementById('boasVindas').style.display = 'none';
+  if (irParaPerfil) {
+    document.querySelector('nav button[data-tab=perfil]').click();
+    document.getElementById('nome').focus();
+  }
+}
+document.getElementById('bvComecar').onclick = () => fecharBoasVindas(emailLogado, true);
+document.getElementById('bvDepois').onclick = () => fecharBoasVindas(emailLogado, false);
+</script>
 </body>
 </html>

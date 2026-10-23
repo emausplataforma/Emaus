@@ -1,90 +1,359 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111110">
-  <meta name="description" content="Emaús — administração da plataforma e das igrejas.">
-  <link rel="icon" href="favicon.ico">
-  <link rel="icon" type="image/png" href="emaus-favicon.png?v=26">
-  <link rel="apple-touch-icon" href="emaus-favicon.png?v=26">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="splash.css?v=1">
-  <link rel="stylesheet" href="admin.css?v=63">
-  <title>Administrador · Emaús</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel · MomoEquilibrio</title>
+<style>
+  :root { --ouro:#b08d57; --ouro2:#d9b98a; --fundo:#faf6f0; --card:#fff; --texto:#3a322b; --suave:#8a7d70; --verde:#4e7d5b; --vermelho:#a8493f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--fundo); color:var(--texto); }
+  header { background:linear-gradient(135deg,#3a322b,#5b4a3a); color:#fff; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  header h1 { font-size:18px; margin:0; font-weight:600; letter-spacing:.3px; }
+  header button { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:8px; padding:6px 12px; cursor:pointer; }
+  nav { display:flex; gap:6px; padding:12px 24px; overflow-x:auto; border-bottom:1px solid #e8dfd3; background:#fff; }
+  nav button { border:none; background:transparent; padding:8px 14px; border-radius:20px; cursor:pointer; color:var(--suave); font-size:14px; white-space:nowrap; }
+  nav button.ativo { background:var(--ouro); color:#fff; }
+  main { padding:20px 24px 60px; max-width:1200px; margin:0 auto; }
+  section { display:none; } section.ativa { display:block; }
+  .grade { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:20px; }
+  .card { background:var(--card); border:1px solid #ece3d6; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(80,60,30,.04); }
+  .card h3 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--suave); font-weight:600; }
+  .card .valor { font-size:22px; font-weight:700; }
+  .pos { color:var(--verde); } .neg { color:var(--vermelho); }
+  h2 { font-size:17px; margin:24px 0 10px; }
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; font-size:14px; }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #f0e9df; vertical-align:middle; }
+  th { background:#f7f1e8; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--suave); }
+  .tag { display:inline-block; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:600; }
+  .tag.ativo { background:#e3f1e7; color:var(--verde); } .tag.vencido { background:#f6e3e0; color:var(--vermelho); }
+  .acoes { display:flex; flex-wrap:wrap; gap:4px; }
+  .acoes button, .btn { border:1px solid #d9c9b0; background:#fff; color:var(--texto); border-radius:7px; padding:5px 9px; font-size:12px; cursor:pointer; }
+  .btn.principal { background:var(--ouro); color:#fff; border-color:var(--ouro); padding:9px 16px; font-size:14px; }
+  .btn.perigo { color:var(--vermelho); border-color:#e5c2bd; }
+  form.linha { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; background:#fff; padding:14px; border-radius:12px; border:1px solid #ece3d6; margin-bottom:14px; }
+  label { display:flex; flex-direction:column; font-size:12px; color:var(--suave); gap:4px; }
+  input, select, textarea { padding:8px 10px; border:1px solid #d9c9b0; border-radius:8px; font-size:14px; font-family:inherit; background:#fff; color:var(--texto); }
+  textarea { min-width:280px; min-height:70px; }
+  .msg { font-size:13px; margin:8px 0; color:var(--verde); } .msg.erro { color:var(--vermelho); }
+  .barras { display:flex; align-items:flex-end; gap:10px; height:150px; background:#fff; border-radius:12px; padding:14px; border:1px solid #ece3d6; }
+  .barra { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; font-size:11px; color:var(--suave); }
+  .barra > div > div { width:100%; border-radius:6px 6px 0 0; background:linear-gradient(var(--ouro2),var(--ouro)); min-height:2px; }
+  #login { max-width:340px; margin:80px auto; background:#fff; padding:28px; border-radius:16px; border:1px solid #ece3d6; }
+  #login input { width:100%; margin:8px 0 12px; }
+  #login .btn { width:100%; }
+  .oculto { display:none !important; }
+  .wrap { overflow-x:auto; }
+</style>
 </head>
 <body>
-  <section id="emausSplash" role="status" aria-label="Abrindo o administrador da Emaús">
-    <div class="splash-inner">
-      <div class="splash-halo" aria-hidden="true"></div>
-      <div class="splash-logo-wrap">
-        <img class="splash-logo" src="emaus-admin-logo.png" alt="Logo da Emaús">
-      </div>
-      <span class="splash-kicker">Emaús</span>
-      <strong class="splash-title">Administrador</strong>
-      <p class="splash-subtitle">Controle central das igrejas na plataforma.</p>
-    </div>
-  </section>
-  <section class="admin-auth" id="adminLoginView">
-    <div class="auth-card">
-      <div class="auth-brand">
-        <img src="emaus-admin-logo.png" alt="Logo administrativa da Emaús">
-        <div><strong>Emaús</strong><span>Administração da plataforma</span></div>
-      </div>
-      <span class="eyebrow">ÁREA RESTRITA</span>
-      <h1>Comandar a plataforma</h1>
-      <p>Gerencie igrejas, planos, liberações e os indicadores financeiros da Emaús.</p>
-      <form class="auth-form" id="adminLoginForm">
-        <div class="field"><label for="adminEmail">Login do administrador</label><input id="adminEmail" name="email" type="email" autocomplete="username" placeholder="admin@emaus.com.br" required></div>
-        <div class="field"><label for="adminPassword">Senha</label><input id="adminPassword" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required></div>
-        <div class="field hidden" id="adminOtpField"><label for="adminOtp">Código 2FA ou de recuperação</label><input id="adminOtp" name="otp" inputmode="text" autocomplete="one-time-code" placeholder="000000"></div>
-        <button class="btn btn-gold" type="submit">Entrar no administrador</button>
-        <p class="auth-error hidden" id="adminLoginError"></p>
+
+<div id="login" class="oculto">
+  <h2 style="margin-top:0">Entrar no painel</h2>
+  <p style="color:var(--suave);font-size:14px">Digite a senha do administrador.</p>
+  <form id="formLogin">
+    <input type="password" id="senhaAdmin" placeholder="Senha do administrador" required autocomplete="current-password">
+    <button class="btn principal" type="submit">Entrar</button>
+    <div id="erroLogin" class="msg erro"></div>
+  </form>
+</div>
+
+<div id="painel" class="oculto">
+  <header>
+    <h1>MomoEquilibrio · Painel administrativo</h1>
+    <button id="btnSair">Sair</button>
+  </header>
+  <nav>
+    <button data-aba="resumo" class="ativo">Resumo</button>
+    <button data-aba="clientes">Clientes</button>
+    <button data-aba="financeiro">Financeiro</button>
+    <button data-aba="planos">Planos</button>
+    <button data-aba="mensagens">Mensagens</button>
+    <button data-aba="backup">Backup</button>
+  </nav>
+  <main>
+
+    <section id="aba-resumo" class="ativa">
+      <div class="grade" id="cards"></div>
+      <h2>Receita x despesa (últimos 6 meses)</h2>
+      <div class="barras" id="grafico"></div>
+      <h2>Contas por plano</h2>
+      <div class="grade" id="porPlano"></div>
+      <p id="statusPag" style="font-size:13px;color:var(--suave)"></p>
+    </section>
+
+    <section id="aba-clientes">
+      <h2 style="margin-top:0">Clientes</h2>
+      <div class="wrap"><table>
+        <thead><tr><th>E-mail</th><th>Plano</th><th>Status</th><th>Acesso até</th><th>Desconto</th><th>Total pago</th><th>Ações</th></tr></thead>
+        <tbody id="tabelaClientes"></tbody>
+      </table></div>
+      <p id="msgClientes" class="msg"></p>
+    </section>
+
+    <section id="aba-financeiro">
+      <h2 style="margin-top:0">Lançar despesa</h2>
+      <form class="linha" id="formDespesa">
+        <label>Descrição<input name="descricao" required maxlength="120"></label>
+        <label>Categoria<input name="categoria" value="Outros" maxlength="40"></label>
+        <label>Valor (R$)<input name="valor" type="number" step="0.01" min="0.01" required></label>
+        <label>Data<input name="data" type="date"></label>
+        <button class="btn principal" type="submit">Salvar despesa</button>
       </form>
-      <div class="auth-note"><strong>Área protegida:</strong> use o e-mail e a senha definidos no Railway. Os dados desta área são carregados da API de produção da Emaús.</div>
-    </div>
-  </section>
+      <p id="msgDespesa" class="msg"></p>
+      <h2>Últimas despesas</h2>
+      <div class="wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead><tbody id="tabelaDespesas"></tbody></table></div>
+      <h2>Últimos pagamentos</h2>
+      <div class="wrap"><table><thead><tr><th>Data</th><th>E-mail</th><th>Plano</th><th>Valor pago</th><th>Origem</th><th>Situação</th></tr></thead><tbody id="tabelaPagamentos"></tbody></table></div>
+    </section>
 
-  <section class="hidden" id="adminAppView">
-    <header class="admin-topbar">
-      <a class="admin-top-brand" href="./" aria-label="Voltar para Emaús">
-        <img src="emaus-admin-logo.png" alt="Emaús">
-        <strong>Emaús</strong><span>Administrador da plataforma</span>
-      </a>
-      <div class="top-actions"><div class="admin-user"><strong>Administrador da plataforma</strong><span>Controle central das organizações</span></div><button class="btn btn-small" id="adminLogout" type="button">Sair</button></div>
-    </header>
+    <section id="aba-planos">
+      <h2 style="margin-top:0">Planos</h2>
+      <p style="font-size:13px;color:var(--suave)">Alterações valem para novas compras. Contas existentes mantêm os dias já pagos.</p>
+      <div id="listaPlanos"></div>
+      <h2>Período de teste para contas novas</h2>
+      <form class="linha" id="formConfig">
+        <label>Dias de teste grátis<input name="diasTeste" type="number" min="0" max="90" required></label>
+        <button class="btn principal" type="submit">Salvar</button>
+      </form>
+      <p id="msgConfig" class="msg"></p>
+    </section>
 
-    <div class="admin-layout">
-      <aside class="admin-sidebar">
-        <div class="admin-sidebar-label">Central de controle</div>
-        <nav class="admin-nav" aria-label="Navegação administrativa">
-          <button class="active" data-admin-view="overview"><span class="admin-nav-icon">⌂</span>Visão geral</button>
-          <button data-admin-view="churches"><span class="admin-nav-icon">◈</span>Igrejas</button>
-          <button data-admin-view="pipeline"><span class="admin-nav-icon">△</span>Interessadas e implantação</button>
-          <button data-admin-view="plans"><span class="admin-nav-icon">◫</span>Planos e preços</button>
-          <button data-admin-view="finance"><span class="admin-nav-icon">◇</span>Ganhos e gastos</button>
-          <button data-admin-view="support"><span class="admin-nav-icon">?</span>Suporte e solicitações</button>
-          <button data-admin-view="settings"><span class="admin-nav-icon">⚙</span>Configurações e segurança</button>
-        </nav>
-        <div class="sidebar-note"><strong>Controle multi-igreja</strong>As igrejas podem personalizar sua identidade, mas o administrador central controla status, planos, valores e cobrança.</div>
-      </aside>
+    <section id="aba-mensagens">
+      <h2 style="margin-top:0">Enviar dica ou mensagem</h2>
+      <form class="linha" id="formMensagem">
+        <label>Para
+          <select name="para" id="selPara"><option value="todos">Todos os clientes</option></select>
+        </label>
+        <label>Título<input name="titulo" required maxlength="80" style="min-width:220px"></label>
+        <label style="flex:1 1 100%">Texto<textarea name="texto" required maxlength="1000" style="width:100%"></textarea></label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" name="enviarPush" checked> Enviar notificação discreta</label>
+        <button class="btn principal" type="submit">Enviar</button>
+      </form>
+      <p id="msgMensagem" class="msg"></p>
+      <h2>Mensagens enviadas</h2>
+      <div class="wrap"><table><thead><tr><th>Data</th><th>Para</th><th>Título</th><th>Texto</th></tr></thead><tbody id="tabelaMensagens"></tbody></table></div>
+    </section>
 
-      <main class="admin-main" id="adminContent"></main>
-    </div>
-  </section>
+    <section id="aba-backup">
+      <h2 style="margin-top:0">Cópia de segurança</h2>
+      <p style="font-size:14px">Baixa um arquivo com todas as contas (sem senhas) e os dados financeiros. Guarde em local seguro. Recomendado antes de qualquer atualização.</p>
+      <a class="btn principal" href="/api/admin/backup" style="text-decoration:none;display:inline-block">Baixar backup agora</a>
+    </section>
 
-  <div class="toast hidden" id="adminToast"></div>
-  <script src="api-config.js"></script>
-  <script src="admin.js?v=62"></script>
-  <script>
-    (function () {
-      const splash = document.getElementById('emausSplash');
-      if (!splash) return;
-      window.setTimeout(function () {
-        splash.classList.add('is-leaving');
-        window.setTimeout(function () { splash.remove(); }, 650);
-      }, 4000);
-    })();
-  </script>
+  </main>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const reais = (v) => 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
+const data = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function api(caminho, opcoes = {}) {
+  const r = await fetch(caminho, { credentials: 'same-origin', ...opcoes, headers: { 'Content-Type': 'application/json', ...(opcoes.headers || {}) } });
+  let j = {};
+  try { j = await r.json(); } catch (e) {}
+  if (r.status === 401 && caminho !== '/api/admin/entrar') { mostrarLogin(); throw new Error('Sessão expirada. Entre novamente.'); }
+  if (!r.ok) throw new Error(j.erro || 'Não foi possível concluir.');
+  return j;
+}
+const post = (caminho, corpo) => api(caminho, { method: 'POST', body: JSON.stringify(corpo || {}) });
+
+function mostrarLogin() { $('#painel').classList.add('oculto'); $('#login').classList.remove('oculto'); }
+function mostrarPainel() { $('#login').classList.add('oculto'); $('#painel').classList.remove('oculto'); carregarTudo(); }
+
+function mostrarAba(nome) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('ativo', b.dataset.aba === nome));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('ativa', s.id === 'aba-' + nome));
+  carregarAba(nome);
+}
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => mostrarAba(b.dataset.aba)));
+
+function aviso(id, texto, erro) { const el = $(id); el.textContent = texto; el.classList.toggle('erro', !!erro); }
+
+async function carregarResumo() {
+  const r = await api('/api/admin/resumo');
+  const lucroCls = r.lucroMes >= 0 ? 'pos' : 'neg';
+  $('#cards').innerHTML = `
+    <div class="card"><h3>Contas</h3><div class="valor">${r.totalContas}</div></div>
+    <div class="card"><h3>Com acesso ativo</h3><div class="valor pos">${r.ativos}</div></div>
+    <div class="card"><h3>Vencidas</h3><div class="valor neg">${r.vencidos}</div></div>
+    <div class="card"><h3>Receita do mês</h3><div class="valor">${reais(r.receitaMes)}</div></div>
+    <div class="card"><h3>Despesas do mês</h3><div class="valor">${reais(r.despesaMes)}</div></div>
+    <div class="card"><h3>Lucro do mês</h3><div class="valor ${lucroCls}">${reais(r.lucroMes)}</div></div>`;
+  const max = Math.max(1, ...r.meses.flatMap(m => [m.receita, m.despesa]));
+  $('#grafico').innerHTML = r.meses.map(m => `
+    <div class="barra" title="Receita ${reais(m.receita)} · Despesa ${reais(m.despesa)}">
+      <div style="display:flex;gap:4px;align-items:flex-end;width:100%;height:100%;justify-content:center">
+        <div style="height:${(m.receita / max) * 100}%;background:var(--ouro)"></div>
+        <div style="height:${(m.despesa / max) * 100}%;background:#c9bfb3"></div>
+      </div>${esc(m.rotulo)}</div>`).join('');
+  const nomes = (await api('/api/admin/planos')).planos;
+  $('#porPlano').innerHTML = Object.entries(r.porPlano).map(([id, n]) =>
+    `<div class="card"><h3>${esc(nomes[id] ? nomes[id].nome : id)}</h3><div class="valor">${n}</div></div>`).join('');
+  $('#statusPag').textContent = r.pagamentoAutomatico
+    ? 'Pagamento automático (Mercado Pago) ativo.'
+    : 'Pagamento automático ainda não configurado. Defina MERCADOPAGO_ACCESS_TOKEN no Railway. Enquanto isso, os lançamentos são manuais.';
+}
+
+async function carregarClientes() {
+  const lista = await api('/api/admin/clientes');
+  $('#tabelaClientes').innerHTML = lista.map(c => `
+    <tr>
+      <td>${esc(c.email)}${c.trocarSenha ? ' <span style="font-size:11px;color:var(--vermelho)">(troca de senha pendente)</span>' : ''}${c.pedidoExclusao ? ' <span class="tag vencido">pediu exclusão em ' + data(c.pedidoExclusao) + '</span>' : ''}</td>
+      <td>${esc(c.planoNome)}</td>
+      <td><span class="tag ${c.status}">${c.status === 'ativo' ? 'Ativo' : 'Vencido'}</span></td>
+      <td>${data(c.acessoAte)} <span style="color:var(--suave);font-size:12px">(${c.diasRestantes} d)</span></td>
+      <td>${c.desconto}%</td>
+      <td>${reais(c.totalPago)}</td>
+      <td><div class="acoes">
+        <button data-acao="pagamento" data-email="${esc(c.email)}">Lançar pagamento</button>
+        <button data-acao="dias" data-email="${esc(c.email)}">+ Dias</button>
+        <button data-acao="plano" data-email="${esc(c.email)}">Plano</button>
+        <button data-acao="desconto" data-email="${esc(c.email)}">Desconto</button>
+        <button data-acao="senha" data-email="${esc(c.email)}">Resetar senha</button>
+        <button class="perigo" data-acao="encerrar" data-email="${esc(c.email)}">Bloquear</button>
+        <button class="perigo" data-acao="excluir" data-email="${esc(c.email)}">Excluir conta</button>
+      </div></td>
+    </tr>`).join('') || '<tr><td colspan="7">Nenhum cliente cadastrado ainda.</td></tr>';
+  const sel = $('#selPara');
+  sel.innerHTML = '<option value="todos">Todos os clientes</option>' + lista.map(c => `<option value="${esc(c.email)}">${esc(c.email)}</option>`).join('');
+}
+
+function planosTexto(planos) { return Object.entries(planos).map(([id, p]) => `${id} (${p.nome})`).join(', '); }
+
+async function acaoCliente(acao, email) {
+  const enc = encodeURIComponent(email);
+  const base = '/api/admin/cliente/' + enc;
+  try {
+    if (acao === 'dias') {
+      const d = prompt('Quantos dias adicionar para ' + email + '?', '30'); if (!d) return;
+      const r = await post(base + '/dias', { dias: d }); aviso('#msgClientes', 'Dias adicionados. Novo vencimento: ' + data(r.acessoAte));
+    }
+    if (acao === 'plano') {
+      const { planos } = await api('/api/admin/planos');
+      const p = prompt('Plano (' + planosTexto(planos) + '). Digite o código:', 'basico'); if (!p) return;
+      await post(base + '/plano', { plano: p.trim() }); aviso('#msgClientes', 'Plano alterado.');
+    }
+    if (acao === 'desconto') {
+      const p = prompt('Desconto em % (0 a 100) para ' + email + ':', '10'); if (p === null) return;
+      await post(base + '/desconto', { percentual: p }); aviso('#msgClientes', 'Desconto salvo.');
+    }
+    if (acao === 'encerrar') {
+      if (!confirm('Bloquear o acesso de ' + email + ' agora? A conta continua salva e pode ser reativada com + Dias.')) return;
+      await post(base + '/encerrar'); aviso('#msgClientes', 'Acesso bloqueado. Conta preservada.');
+    }
+    if (acao === 'senha') {
+      if (!confirm('Gerar senha temporária para ' + email + '? A senha atual deixa de funcionar.')) return;
+      const r = await post(base + '/resetar-senha');
+      alert('Senha temporária para ' + email + ':\n\n' + r.senhaTemporaria + '\n\nEnvie ao cliente. Ele será pedido para trocar ao entrar.');
+      aviso('#msgClientes', 'Senha redefinida.');
+    }
+    if (acao === 'excluir') {
+      const digitado = prompt('EXCLUIR CONTA\n\nIsto apaga a conta de ' + email + ' no servidor (acesso, inscrições de notificação e mensagens dela). Os pagamentos ficam guardados sem o e-mail. O aparelho do cliente não é alterado.\n\nPara confirmar, digite o e-mail do cliente:');
+      if (digitado === null) return;
+      await post(base + '/excluir', { confirmacao: digitado });
+      aviso('#msgClientes', 'Conta excluída: ' + email);
+    }
+    if (acao === 'pagamento') {
+      const { planos } = await api('/api/admin/planos');
+      const p = prompt('Plano pago (' + planosTexto(planos) + '):', 'basico'); if (!p) return;
+      const v = prompt('Valor recebido em R$ (vazio = preço do plano com desconto):', ''); if (v === null) return;
+      const r = await post('/api/admin/pagamento', { email, plano: p.trim(), valorPago: v === '' ? undefined : v });
+      aviso('#msgClientes', 'Pagamento lançado. Acesso até ' + data(r.acessoAte));
+    }
+  } catch (e) { aviso('#msgClientes', e.message, true); }
+  carregarClientes();
+}
+
+async function carregarFinanceiro() {
+  const [desp, pags] = await Promise.all([api('/api/admin/despesas'), api('/api/admin/pagamentos')]);
+  $('#tabelaDespesas').innerHTML = desp.slice(0, 50).map(d => `<tr><td>${data(d.data)}</td><td>${esc(d.descricao)}</td><td>${esc(d.categoria)}</td><td>${reais(d.valor)}</td></tr>`).join('') || '<tr><td colspan="4">Sem despesas lançadas.</td></tr>';
+  $('#tabelaPagamentos').innerHTML = pags.slice(0, 50).map(p => `<tr><td>${data(p.data)}</td><td>${esc(p.email)}</td><td>${esc(p.plano)}</td><td>${reais(p.valorPago)}</td><td>${p.origem === 'automatico' ? 'Automático' : 'Manual'}</td><td>${esc(p.situacao)}</td></tr>`).join('') || '<tr><td colspan="6">Sem pagamentos ainda.</td></tr>';
+}
+
+async function carregarPlanos() {
+  const { planos, config } = await api('/api/admin/planos');
+  $('#listaPlanos').innerHTML = Object.entries(planos).map(([id, p]) => `
+    <form class="linha" data-plano="${esc(id)}">
+      <label>Código<input value="${esc(id)}" disabled style="width:110px"></label>
+      <label>Nome<input name="nome" value="${esc(p.nome)}" maxlength="40"></label>
+      <label>Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${p.preco}"></label>
+      <label>Dias de acesso<input name="dias" type="number" min="1" value="${p.dias}"></label>
+      <button class="btn principal" type="submit">Salvar ${esc(p.nome)}</button>
+    </form>`).join('');
+  $('#formConfig').diasTeste.value = config.diasTeste;
+}
+
+async function carregarMensagens() {
+  const lista = await api('/api/admin/mensagens');
+  $('#tabelaMensagens').innerHTML = lista.slice(0, 50).map(m => `<tr><td>${data(m.data)}</td><td>${m.para === 'todos' ? 'Todos' : esc(m.para)}</td><td>${esc(m.titulo)}</td><td>${esc(m.texto)}</td></tr>`).join('') || '<tr><td colspan="4">Nenhuma mensagem enviada.</td></tr>';
+}
+
+async function carregarAba(nome) {
+  try {
+    if (nome === 'resumo') await carregarResumo();
+    if (nome === 'clientes') await carregarClientes();
+    if (nome === 'financeiro') await carregarFinanceiro();
+    if (nome === 'planos') await carregarPlanos();
+    if (nome === 'mensagens') { await carregarClientes(); await carregarMensagens(); }
+  } catch (e) { if (e.message) console.error(e.message); }
+}
+function carregarTudo() { carregarAba('resumo'); }
+
+$('#tabelaClientes').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-acao]'); if (!b) return;
+  acaoCliente(b.dataset.acao, b.dataset.email);
+});
+
+$('#formLogin').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  try {
+    await post('/api/admin/entrar', { senha: $('#senhaAdmin').value });
+    $('#senhaAdmin').value = ''; $('#erroLogin').textContent = ''; mostrarPainel();
+  } catch (e) { $('#erroLogin').textContent = e.message; }
+});
+
+$('#btnSair').addEventListener('click', async () => { await post('/api/admin/sair'); mostrarLogin(); });
+
+$('#formDespesa').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = Object.fromEntries(new FormData(ev.target));
+  try { await post('/api/admin/despesas', f); ev.target.reset(); ev.target.categoria.value = 'Outros'; aviso('#msgDespesa', 'Despesa salva.'); carregarFinanceiro(); }
+  catch (e) { aviso('#msgDespesa', e.message, true); }
+});
+
+$('#listaPlanos').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const form = ev.target;
+  const id = form.dataset.plano;
+  const f = Object.fromEntries(new FormData(form));
+  try { await post('/api/admin/planos/' + encodeURIComponent(id), f); aviso('#msgConfig', 'Plano ' + id + ' salvo.'); }
+  catch (e) { aviso('#msgConfig', e.message, true); }
+});
+
+$('#formConfig').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  try { await post('/api/admin/config', { diasTeste: ev.target.diasTeste.value }); aviso('#msgConfig', 'Período de teste salvo. Vale para contas criadas daqui em diante.'); }
+  catch (e) { aviso('#msgConfig', e.message, true); }
+});
+
+$('#formMensagem').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  try {
+    const r = await post('/api/admin/mensagens', { para: f.para.value, titulo: f.titulo.value, texto: f.texto.value, enviarPush: f.enviarPush.checked });
+    aviso('#msgMensagem', 'Mensagem enviada. Notificações disparadas: ' + r.enviados + '.');
+    f.titulo.value = ''; f.texto.value = '';
+    carregarMensagens();
+  } catch (e) { aviso('#msgMensagem', e.message, true); }
+});
+
+(async () => {
+  try { await api('/api/admin/eu'); mostrarPainel(); }
+  catch (e) { mostrarLogin(); }
+})();
+</script>
 </body>
 </html>
