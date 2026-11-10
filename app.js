@@ -2675,6 +2675,26 @@ function init() {
   $('#notificationBtn')?.addEventListener('click', () => openModal('notifications'));
   $('#searchTrigger')?.addEventListener('click', () => openModal('search'));
   $('#logoutBtn')?.addEventListener('click', logoutChurch);
+  const closeTopProfileMenu = () => {
+    $('#topProfileDropdown')?.classList.add('is-hidden');
+    $('#topProfileMenu')?.classList.remove('is-open');
+    $('#topProfileToggle')?.setAttribute('aria-expanded', 'false');
+  };
+  $('#topProfileToggle')?.addEventListener('click', event => {
+    event.stopPropagation();
+    const menu = $('#topProfileDropdown');
+    if (!menu) return;
+    const willOpen = menu.classList.contains('is-hidden');
+    menu.classList.toggle('is-hidden', !willOpen);
+    $('#topProfileMenu')?.classList.toggle('is-open', willOpen);
+    $('#topProfileToggle')?.setAttribute('aria-expanded', String(willOpen));
+  });
+  $('#topProfileDropdown')?.addEventListener('click', () => closeTopProfileMenu());
+  $('#topLogoutBtn')?.addEventListener('click', () => { closeTopProfileMenu(); logoutChurch(); });
+  document.addEventListener('click', event => {
+    if (!event.target.closest || !event.target.closest('#topProfileMenu')) closeTopProfileMenu();
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeTopProfileMenu(); });
   document.addEventListener('keydown', event => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); openModal('search'); }
     if ((event.key === 'Enter' || event.key === ' ') && document.activeElement?.matches('[data-action="open-metric"]')) { event.preventDefault(); document.activeElement.click(); }

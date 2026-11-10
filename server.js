@@ -893,15 +893,65 @@ app.get('/api/admin/churches/:churchId/summary', auth(['platform_admin']), async
   res.json({ church, summary: { members: members.rows[0], visitors: visitors.rows[0], upcomingEvents: events.rows[0].total, users: users.rows[0].total, bot: bot.rows[0] }, activity: activity.rows });
 });
 
-app.patch('/api/admin/churches/:churchId/status', auth(['platform_admin']), async (req, res) => {
-  const requestedStatus = String(req.body.status || '').trim();
-  const allowedStatuses = ['active', 'blocked', 'trial', 'paused'];
-  const status = allowedStatuses.includes(requestedStatus) ? requestedStatus : null;
-  if (!status) return res.status(400).json({ error: 'Status administrativo inválido.' });
-  const result = await query('UPDATE churches SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [status, req.params.churchId]);
-  if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
-  await audit(req.user, status === 'blocked' ? 'church_blocked' : 'church_status_updated', { churchId: req.params.churchId, status }, req.params.churchId);
-  res.json({ church: result.rows[0] });
+async function setAdminChurchStatus(req, res) {
+  try {
+    const requestedStatus = String(req.body.status || '').trim();
+    const allowedStatuses = ['active', 'blocked', 'trial', 'paused'];
+    const status = allowedStatuses.includes(requestedStatus) ? requestedStatus : null;
+    if (!status) return res.status(400).json({ error: 'Status administrativo inválido.' });
+    const result = await query('UPDATE churches SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [status, req.params.churchId]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Igreja não encontrada.' });
+    await audit(req.user, status === 'blocked' ? 'church_blocked' : 'church_status_updated', { churchId: req.params.churchId, status }, req.params.churchId);
+    return res.json({ church: result.rows[0] });
+  } catch (error) {
+    console.error('church status', error);
+    if (!res.headersSent) return res.status(500).json({ error: 'Não foi possível alterar o status da igreja.' });
+  }
+}
+
+app.patch('/api/admin/churches/:churchId/status', auth(['platform_admin']), setAdminChurchStatus);
+app.post('/api/admin/churches/:churchId/status', auth(['platform_admin']), setAdminChurchStatus);
+
+app.delete('/api/admin/churches/:churchId', auth(['platform_admin']), async (req, res) => {
+  const churchId = String(req.params.churchId || '').trim();
+  if (!churchId) return res.status(400).json({ error: 'Igreja não informada.' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const church = (await client.query('SELECT id, name, slug FROM churches WHERE id = $1 FOR UPDATE', [churchId])).rows[0];
+    if (!church) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Igreja não encontrada.' });
+    }
+    const total = Number((await client.query('SELECT COUNT(*)::int AS total FROM churches')).rows[0].total);
+    if (total <= 1) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Não é possível excluir a última igreja da plataforma.' });
+    }
+    // audit_events referencia churches(id) sem ON DELETE; solta o vínculo antes de apagar.
+    await client.query('UPDATE audit_events SET church_id = NULL WHERE church_id = $1', [churchId]);
+    const deleted = await client.query('DELETE FROM churches WHERE id = $1 RETURNING id, name, slug', [churchId]);
+    if (!deleted.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Igreja não encontrada.' });
+    }
+    await client.query('COMMIT');
+    try {
+      await audit(req.user, 'church_deleted', { churchId: church.id, name: church.name, slug: church.slug }, null);
+    } catch (auditError) {
+      console.error('church deleted audit', auditError);
+    }
+    return res.json({ ok: true, deleted: { id: church.id, name: church.name, slug: church.slug } });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('delete church', error);
+    if (error && error.code === '23503') {
+      return res.status(409).json({ error: 'Esta igreja ainda tem registros ligados que impedem a exclusão.' });
+    }
+    return res.status(500).json({ error: 'Não foi possível excluir a igreja.' });
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/api/admin/support', auth(['platform_admin']), async (req, res) => {

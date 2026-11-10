@@ -71,11 +71,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .brand-row { display: flex; align-items: center; justify-content: center; gap: 11px; padding: 0 10px 25px; position: relative; }
 .brand-mark { position: relative; width: 37px; height: 37px; border-radius: 12px; display: grid; place-items: center; background: var(--marca, var(--gold)); color: var(--on-accent); font-family: var(--font-display); font-size: 23px; font-weight: 700; box-shadow: 0 5px 20px rgba(215,168,75,.22); }
 .brand-mark:after { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(20,20,20,.3); border-radius: 9px; pointer-events: none; }
+.brand-mark:has(img:not([hidden])):after { display: none; background: transparent; }
 .brand-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #1a1814; }
 .brand-copy { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-kicker { color: #a4a29d; font-size: 8px; letter-spacing: .16em; font-weight: 700; margin-bottom: 4px; }
 .brand-copy strong { font-family: var(--font-display); font-size: 22px; letter-spacing: -.02em; font-weight: 600; }
 .sidebar-close { display: none; position: absolute; right: 10px; top: 0; }
+.sidebar-close.icon-btn { display: none; position: absolute; right: 6px; top: 8px; z-index: 2; background: transparent; }
 .icon-btn { width: 36px; height: 36px; border: 0; border-radius: 10px; display: inline-grid; place-items: center; color: inherit; background: transparent; transition: background .2s, color .2s, transform .2s; }
 .icon-btn:hover { background: rgba(255,255,255,.08); }
 .icon-btn:active { transform: scale(.96); }
@@ -114,13 +116,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sidebar-user .icon-btn { color: #8c8983; width: 30px; height: 30px; }
 
 .main-content { width: calc(100% - var(--sidebar-width)); margin-left: var(--sidebar-width); min-width: 0; }
-.topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 46px; background: rgba(245,243,239,.88); border-bottom: 1px solid rgba(225,222,214,.8); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px); }
+.topbar { height: 76px; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; column-gap: 16px; padding: 0 28px 0 46px; background: rgba(245,243,239,.88); border-bottom: 1px solid rgba(225,222,214,.8); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px); }
 .topbar-left, .topbar-actions, .breadcrumb, .top-profile, .search-trigger, .topbar-church { display: flex; align-items: center; }
 .topbar-left { min-width: 0; }
 .breadcrumb { gap: 8px; color: var(--muted-2); font-size: 12px; }
-.topbar-church { gap: 10px; margin: 0; padding: 5px 12px 5px 6px; border: 1px solid #e8e2d7; border-radius: 12px; background: rgba(255,255,255,.46); position: absolute; left: 50%; transform: translateX(-50%); }
+.topbar-church { gap: 10px; margin: 0; padding: 5px 12px 5px 6px; border: 1px solid #e8e2d7; border-radius: 12px; background: rgba(255,255,255,.46); position: static; left: auto; transform: none; justify-self: center; }
 .topbar-church-mark { position: relative; width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px; background: var(--marca, var(--gold)); color: var(--on-accent); font-family: var(--font-display); font-size: 18px; font-weight: 700; }
 .topbar-church-mark:after { content: ""; position: absolute; inset: 3px; border: 1px solid rgba(20,20,20,.3); border-radius: 7px; pointer-events: none; }
+.topbar-church-mark:has(img:not([hidden])):after { display: none; background: transparent; }
 .topbar-church-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #1a1814; }
 .topbar-church-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1; }
 .topbar-church-copy small { color: var(--muted-2); font-size: 7px; font-weight: 850; letter-spacing: .13em; }
@@ -129,6 +132,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .breadcrumb .icon { width: 13px; height: 13px; }
 .breadcrumb strong { color: var(--ink); font-weight: 700; }
 .topbar-actions { gap: 13px; }
+.topbar-actions { gap: 13px; justify-self: end; justify-content: flex-end; min-width: 0; background: transparent; }
 .search-trigger { width: 36px; min-width: 36px; height: 36px; padding: 0; justify-content: center; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.6); color: var(--muted); }
 .search-trigger:hover { border-color: #d7c9aa; background: #fff; }
 .search-trigger .icon { width: 16px; height: 16px; color: #8f8c85; }
@@ -137,10 +141,17 @@ kbd { margin-left: auto; padding: 2px 6px; border: 1px solid var(--line); border
 .notification-dot { position: absolute; top: 4px; right: 3px; width: 15px; height: 15px; border: 2px solid var(--paper); border-radius: 50%; display: grid; place-items: center; background: var(--dot-bg); color: var(--dot-ink); font-size: 8px; font-weight: 800; }
 .topbar-divider { width: 1px; height: 27px; background: var(--line); margin: 0 2px; }
 .top-profile { gap: 9px; padding-left: 2px; }
-.top-profile > div:nth-child(2) { display: flex; flex-direction: column; gap: 3px; min-width: 92px; }
+.top-profile { position: relative; gap: 0; padding-left: 2px; background: transparent; }
+.top-profile-toggle { display: flex; align-items: center; gap: 9px; margin: 0; padding: 4px 6px; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.top-profile-toggle:hover { background: rgba(255,255,255,.55); }
+.top-profile-copy { display: flex; flex-direction: column; gap: 3px; min-width: 92px; text-align: left; color: inherit; }
 .top-profile strong { font-size: 11px; white-space: nowrap; }
 .top-profile span { color: var(--muted); font-size: 10px; }
-.top-profile > .icon { width: 14px; height: 14px; }
+.top-profile-toggle > .icon { width: 14px; height: 14px; flex: 0 0 auto; color: inherit; }
+.top-profile.is-open .top-profile-toggle > .icon { transform: rotate(180deg); color: inherit; }
+.top-profile-dropdown { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 196px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper, #fff); box-shadow: 0 18px 40px rgba(20,20,20,.16); }
+.top-profile-dropdown button { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 650; text-align: left; cursor: pointer; }
+.top-profile-dropdown button:hover { background: var(--gold-soft, #f6edd8); }
 .mobile-menu { display: none; color: var(--ink); }
 .back-btn { width: 31px; height: 31px; margin-right: 10px; border: 1px solid var(--line); color: var(--muted); background: var(--card); }
 .back-btn:hover { border-color: #d8cbb0; color: var(--ink); background: #fff; }
@@ -774,14 +785,15 @@ tbody tr:hover td { background: var(--soft-flat-2); }
   :root { --sidebar-width: 226px; }
   .topbar, .page-container { padding-left: 30px; padding-right: 30px; }
   .dashboard-grid, .agenda-layout { grid-template-columns: minmax(0, 1.15fr) minmax(290px, .85fr); }
-  .top-profile > div:nth-child(2) { display: none; }
+  .top-profile-copy { display: none; color: inherit; }
   .top-profile { gap: 4px; }
 }
 
 @media (max-width: 920px) {
   .sidebar { transform: translateX(-100%); transition: transform .25s ease; box-shadow: 20px 0 45px rgba(0,0,0,.15); }
   .sidebar.open { transform: translateX(0); }
-  .sidebar-close, .mobile-menu { display: inline-grid; }
+  .sidebar-close.icon-btn, .mobile-menu { display: inline-grid; background: transparent; }
+  .brand-row { padding-right: 42px; justify-content: flex-start; background: transparent; }
   .main-content { width: 100%; margin-left: 0; }
   .topbar { padding: 0 22px; }
   .topbar-left { gap: 10px; }
@@ -807,7 +819,7 @@ tbody tr:hover td { background: var(--soft-flat-2); }
   .breadcrumb { font-size: 11px; }
   .topbar-actions { gap: 5px; }
   .search-trigger { min-width: 36px; width: 36px; height: 36px; padding: 0; justify-content: center; border: 0; background: transparent; }
-  .search-trigger span, .search-trigger kbd, .topbar-divider, .top-profile > .icon { display: none; }
+  .search-trigger span, .search-trigger kbd, .topbar-divider, .top-profile-toggle > .icon { display: none; color: inherit; }
   .top-profile { margin-left: 2px; }
   .page-container { padding: 26px 15px 58px; }
   .page-head { align-items: flex-start; flex-direction: column; gap: 17px; margin-bottom: 22px; }

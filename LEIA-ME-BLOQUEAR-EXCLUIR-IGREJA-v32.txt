@@ -1,0 +1,41 @@
+Bloquear e excluir igreja — v32
+================================
+
+O administrador da plataforma agora consegue bloquear e excluir
+uma igreja de verdade.
+
+O que estava errado
+-------------------
+• Bloquear só existia na tabela “Todas as organizações”. Nos cartões
+  e na ficha da igreja o botão não aparecia.
+• Excluir igreja não existia nem na tela nem na API.
+• Se o banco falhasse no PATCH de status, a tela ficava sem resposta.
+
+O que passa a valer
+-------------------
+• Cartão, tabela e ficha da igreja: Bloquear / Liberar e Excluir.
+• Excluir pede confirmação duas vezes e avisa que não dá para desfazer.
+• API: PATCH ou POST /api/admin/churches/:id/status
+        DELETE /api/admin/churches/:id
+• Igreja bloqueada continua sem entrar no painel.
+• A última igreja da plataforma não pode ser apagada.
+• Cada igreja continua isolada: apaga só aquela.
+
+O que enviar (GitHub → Emaus → Upload files, arquivos SOLTOS)
+-------------------------------------------------------------
+  admin.js
+  admin.html
+  server.js
+  service-worker.js
+
+Se o Railway estiver ligado nesse repositório, faça o deploy do
+server.js. Sem isso o botão Excluir não tem rota no servidor.
+
+Conferência
+-----------
+https://emausplataforma.github.io/Emaus/service-worker.js
+  primeira linha: emaus-shell-v101-bloquear-excluir-igreja
+
+No administrador: abra uma igreja → Bloquear igreja / Excluir igreja.
+
+Depois abra em janela anônima.

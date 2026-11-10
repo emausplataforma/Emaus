@@ -391,6 +391,27 @@ function churchPlanLabel(church) {
   return church.planName || plan?.name || 'Indisponível';
 }
 
+function churchBlockButton(church, kind = 'table') {
+  const status = churchStatus(church);
+  const compact = kind === 'table';
+  const id = esc(church.id);
+  if (status.apiStatus === 'blocked') {
+    const cls = compact ? 'table-btn gold' : 'btn btn-gold';
+    const label = compact ? 'Liberar' : 'Liberar igreja';
+    return `<button type="button" class="${cls}" data-admin-action="set-church-status" data-status="active" data-id="${id}">${label}</button>`;
+  }
+  const cls = compact ? 'table-btn danger' : 'btn btn-danger';
+  const label = compact ? 'Bloquear' : 'Bloquear igreja';
+  return `<button type="button" class="${cls}" data-admin-action="set-church-status" data-status="blocked" data-id="${id}">${label}</button>`;
+}
+
+function churchDeleteButton(church, kind = 'table') {
+  const compact = kind === 'table';
+  const cls = compact ? 'table-btn danger' : 'btn btn-danger';
+  const label = compact ? 'Excluir' : 'Excluir igreja';
+  return `<button type="button" class="${cls}" data-admin-action="delete-church" data-id="${esc(church.id)}">${label}</button>`;
+}
+
 function renderChurchCard(church) {
   const plan = getPlan(church.plan);
   const limit = church.memberLimit;
@@ -399,7 +420,7 @@ function renderChurchCard(church) {
   const members = church.memberCount;
   const declarado = members !== null && members !== undefined;
   const percentage = limit && members !== null ? Math.min(100, Math.max(0, members / limit * 100)) : null;
-  return `<article class="church-card"><div class="church-card-head"><div class="church-cell"><div class="church-avatar">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)}</small></div></div>${statusBadge(church)}</div><div class="church-card-plan"><span>${esc(churchPlanLabel(church))}${hasDiscount(church) ? ` · −${esc(String(church.discountPercent || 0))}%` : ''}</span><strong>${moneyOrUnavailable(church.monthlyValue)}<small>/mês</small></strong></div><div class="church-card-stats"><div><small>${declarado ? 'Pessoas (declarado)' : 'Pessoas'}</small><strong>${countOrUnavailable(members)}</strong></div><div><small>Limite</small><strong>${countOrUnavailable(limit)}</strong></div><div><small>Teste/assinatura</small><strong>${esc(churchStatus(church).label === 'Em teste' ? (daysLeftInTrial(church) !== null ? `Teste · ${daysLeftInTrial(church)}d` : 'Em teste') : church.billingStatus)}</strong></div></div>${percentage === null ? '<div class="meter unavailable-meter"></div>' : `<div class="member-meter"><div class="member-meter-line"><span>Uso do plano</span><strong>${Math.round(percentage)}%</strong></div><p class="member-meter-note">o percentual usa o número informado pela igreja, não uma contagem do cadastro</p><div class="meter"><i style="width:${percentage}%"></i></div></div>`}<div class="church-card-actions"><button class="table-btn gold" data-admin-action="view-church" data-id="${esc(church.id)}">Ver detalhes</button><button class="table-btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar</button></div></article>`;
+  return `<article class="church-card"><div class="church-card-head"><div class="church-cell"><div class="church-avatar">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)}</small></div></div>${statusBadge(church)}</div><div class="church-card-plan"><span>${esc(churchPlanLabel(church))}${hasDiscount(church) ? ` · −${esc(String(church.discountPercent || 0))}%` : ''}</span><strong>${moneyOrUnavailable(church.monthlyValue)}<small>/mês</small></strong></div><div class="church-card-stats"><div><small>${declarado ? 'Pessoas (declarado)' : 'Pessoas'}</small><strong>${countOrUnavailable(members)}</strong></div><div><small>Limite</small><strong>${countOrUnavailable(limit)}</strong></div><div><small>Teste/assinatura</small><strong>${esc(churchStatus(church).label === 'Em teste' ? (daysLeftInTrial(church) !== null ? `Teste · ${daysLeftInTrial(church)}d` : 'Em teste') : church.billingStatus)}</strong></div></div>${percentage === null ? '<div class="meter unavailable-meter"></div>' : `<div class="member-meter"><div class="member-meter-line"><span>Uso do plano</span><strong>${Math.round(percentage)}%</strong></div><p class="member-meter-note">o percentual usa o número informado pela igreja, não uma contagem do cadastro</p><div class="meter"><i style="width:${percentage}%"></i></div></div>`}<div class="church-card-actions"><button type="button" class="table-btn gold" data-admin-action="view-church" data-id="${esc(church.id)}">Ver detalhes</button><button type="button" class="table-btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar</button>${churchBlockButton(church, 'table')}${churchDeleteButton(church, 'table')}</div></article>`;
 }
 
 function renderChurchCards(churches) {
@@ -415,8 +436,9 @@ function renderChurchTable(churches) {
     const limit = church.memberLimit;
     const percentage = limit && memberCount !== null ? Math.min(100, Math.max(0, memberCount / limit * 100)) : null;
     const primaryAction = status.apiStatus === 'blocked' ? `<button class="table-btn gold" data-admin-action="set-church-status" data-status="active" data-id="${esc(church.id)}">Liberar</button>` : status.apiStatus === 'active' ? `<button class="table-btn" data-admin-action="set-church-status" data-status="paused" data-id="${esc(church.id)}">Pausar</button>` : `<button class="table-btn gold" data-admin-action="set-church-status" data-status="active" data-id="${esc(church.id)}">Ativar</button>`;
-    const blockAction = status.apiStatus === 'blocked' ? '' : `<button class="table-btn danger" data-admin-action="set-church-status" data-status="blocked" data-id="${esc(church.id)}">Bloquear</button>`;
-    return `<tr><td><div class="church-cell"><div class="church-avatar">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)}</small></div></div></td><td><strong>${esc(churchPlanLabel(church))}</strong><br><small style="color:var(--muted-2);">limite: ${countOrUnavailable(limit)} pessoas</small></td><td>${statusBadge(church)}</td><td><div class="member-meter">${percentage === null ? '<span class="muted-inline">Indisponível</span>' : `<div class="member-meter-line"><span>${number(memberCount)} / ${number(limit)}</span><strong>${Math.round(percentage)}%</strong></div><div class="meter"><i style="width:${percentage}%"></i></div><p class="member-meter-note">o número vem da ficha da igreja, não da lista de membros</p>`}</div></td><td>${moneyOrUnavailable(church.monthlyValue)}</td><td><div class="row-actions"><button class="table-btn gold" data-admin-action="view-church" data-id="${esc(church.id)}">Detalhes</button><button class="table-btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar</button>${primaryAction}${blockAction}</div></td></tr>`;
+    const blockAction = status.apiStatus === 'blocked' ? '' : churchBlockButton(church, 'table');
+    const deleteAction = churchDeleteButton(church, 'table');
+    return `<tr><td><div class="church-cell"><div class="church-avatar">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)}</small></div></div></td><td><strong>${esc(churchPlanLabel(church))}</strong><br><small style="color:var(--muted-2);">limite: ${countOrUnavailable(limit)} pessoas</small></td><td>${statusBadge(church)}</td><td><div class="member-meter">${percentage === null ? '<span class="muted-inline">Indisponível</span>' : `<div class="member-meter-line"><span>${number(memberCount)} / ${number(limit)}</span><strong>${Math.round(percentage)}%</strong></div><div class="meter"><i style="width:${percentage}%"></i></div><p class="member-meter-note">o número vem da ficha da igreja, não da lista de membros</p>`}</div></td><td>${moneyOrUnavailable(church.monthlyValue)}</td><td><div class="row-actions"><button class="table-btn gold" data-admin-action="view-church" data-id="${esc(church.id)}">Detalhes</button><button class="table-btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar</button>${primaryAction}${blockAction}${deleteAction}</div></td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
@@ -481,7 +503,7 @@ function renderChurchDetail() {
   const users = metrics.users;
   const botPending = metrics.bot?.pending;
   const activity = detail?.activity || [];
-  return `<section class="page-head"><div><button class="back-link" data-admin-view="churches">← Voltar para igrejas</button><span class="eyebrow">DETALHES DA ORGANIZAÇÃO</span><h1>${esc(church.name)}</h1><p>${esc(church.city)} · identificador isolado <code>${esc(church.id)}</code></p></div><div class="page-actions"><button class="btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar cadastro</button><button class="btn" data-admin-action="create-billing-checkout" data-id="${esc(church.id)}">Criar cobrança</button><button class="btn btn-gold" data-admin-action="refresh-detail" data-id="${esc(church.id)}">Atualizar dados</button></div></section>
+  return `<section class="page-head"><div><button class="back-link" data-admin-view="churches">← Voltar para igrejas</button><span class="eyebrow">DETALHES DA ORGANIZAÇÃO</span><h1>${esc(church.name)}</h1><p>${esc(church.city)} · identificador isolado <code>${esc(church.id)}</code></p></div><div class="page-actions"><button type="button" class="btn" data-admin-action="edit-church" data-id="${esc(church.id)}">Editar cadastro</button><button type="button" class="btn" data-admin-action="create-billing-checkout" data-id="${esc(church.id)}">Criar cobrança</button><button type="button" class="btn btn-gold" data-admin-action="refresh-detail" data-id="${esc(church.id)}">Atualizar dados</button>${churchBlockButton(church, 'detail')}${churchDeleteButton(church, 'detail')}</div></section>
   <div class="detail-hero"><div class="church-cell"><div class="church-avatar large">${church.logoImage ? `<img src="${esc(church.logoImage)}" alt="">` : esc(church.initials)}</div><div class="church-meta"><strong>${esc(church.name)}</strong><small>${esc(church.city)} · ${esc(church.slug || 'slug não informado')}</small><div class="detail-badges">${statusBadge(church)}<span class="soft-badge">Plano: ${esc(churchPlanLabel(church))}</span></div></div></div><div class="detail-hero-side"><span>Mensalidade cadastrada</span><strong>${moneyOrUnavailable(church.monthlyValue)}</strong><small>Limite: ${countOrUnavailable(church.memberLimit)} pessoas</small></div></div>
   ${detail ? '' : '<div class="inline-notice">Os dados detalhados ainda estão sendo carregados ou a rota de detalhes não está publicada na API. Os dados básicos acima vieram da listagem.</div>'}
   <div class="detail-metrics"><article class="metric-card"><small>Membros ativos</small><strong>${countOrUnavailable(members)}</strong><span>${membersDeFicha ? 'valor digitado na ficha (a lista não foi contada)' : 'contados no cadastro de membros'}</span></article><article class="metric-card"><small>Visitantes registrados</small><strong>${countOrUnavailable(visitors)}</strong><span>histórico da organização</span></article><article class="metric-card"><small>Próximos eventos</small><strong>${countOrUnavailable(events)}</strong><span>agenda futura</span></article><article class="metric-card"><small>Acessos ativos</small><strong>${countOrUnavailable(users)}</strong><span>equipe da igreja</span></article><article class="metric-card"><small>Fila do bot pendente</small><strong>${countOrUnavailable(botPending)}</strong><span>sem enviar mensagens automaticamente</span></article></div>
@@ -614,17 +636,39 @@ async function createBillingCheckout(id) {
 }
 
 async function setChurchStatus(id, requestedStatus) {
-  const church = state.churches.find(item => item.id === id);
-  if (!church) return;
+  if (!id) { toast('Igreja não identificada.'); return; }
+  const church = state.churches.find(item => item.id === id) || { id, name: 'esta igreja' };
   const labels = { active: 'ativar', blocked: 'bloquear', paused: 'pausar', trial: 'colocar em teste' };
   const action = labels[requestedStatus] || 'alterar';
   if (!window.confirm(`Deseja ${action} a ${church.name}?`)) return;
   try {
-    await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status: requestedStatus } });
+    try {
+      await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status: requestedStatus } });
+    } catch (error) {
+      if (!/HTTP 404|HTTP 405|HTTP 501/.test(error.message || '')) throw error;
+      await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}/status`, { method: 'POST', body: { status: requestedStatus } });
+    }
     await loadRemoteState();
     toast(`Status de ${church.name} atualizado.`);
   } catch (error) {
     toast(`Não foi possível atualizar a igreja: ${error.message}`);
+  }
+}
+
+async function deleteChurch(id) {
+  if (!id) { toast('Igreja não identificada.'); return; }
+  const church = state.churches.find(item => item.id === id) || { id, name: 'esta igreja' };
+  if (!window.confirm(`Excluir ${church.name}?\n\nIsso apaga membros, visitantes, acessos, agenda e o restante desta igreja. Não dá para desfazer.`)) return;
+  if (!window.confirm(`Confirme de novo: excluir ${church.name} de verdade?`)) return;
+  try {
+    await apiRequest(`/api/admin/churches/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (selectedChurchId === id) { selectedChurchId = ''; currentView = 'churches'; }
+    if (editChurchId === id) editChurchId = null;
+    detailCache.delete(id);
+    await loadRemoteState();
+    toast(`${church.name} foi excluída.`);
+  } catch (error) {
+    toast(`Não foi possível excluir a igreja: ${error.message}`);
   }
 }
 
@@ -886,6 +930,7 @@ function handleClick(event) {
   if (type === 'view-church') { openChurchDetail(action.dataset.id); return; }
   if (type === 'edit-church') { editChurchId = action.dataset.id; currentView = 'churches'; render(); return; }
   if (type === 'set-church-status') { setChurchStatus(action.dataset.id, action.dataset.status); return; }
+  if (type === 'delete-church') { deleteChurch(action.dataset.id); return; }
   if (type === 'refresh-detail') { openChurchDetail(action.dataset.id); return; }
   if (type === 'create-billing-checkout') { createBillingCheckout(action.dataset.id); return; }
   if (type === 'save-plans-top') { document.querySelector('[data-admin-form="plans"]')?.requestSubmit(); return; }
